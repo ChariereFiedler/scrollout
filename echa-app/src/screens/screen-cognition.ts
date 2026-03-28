@@ -11,6 +11,7 @@ import {
 } from '../services/cognitive-bubble.js';
 import type { CognitionControlsChangeDetail } from '../components/cognition-controls.js';
 import '../components/cognition-controls.js';
+import '../components/cognition-bubble-view.js';
 
 @customElement('screen-cognition')
 export class ScreenCognition extends LitElement {
@@ -382,19 +383,30 @@ export class ScreenCognition extends LitElement {
 
       ${this.loading ? html`<div class="loading">Chargement des métriques cognitives...</div>` : html`
         <div class="grid" style="margin-top:14px">
-          <section class="viewport">
+      <section class="viewport">
             <div class="viewport-head">
               <div class="viewport-title">Zone de rendu</div>
               <div class="viewport-note">${primaryLabel} vs ${secondaryLabel} · puissance ${this.chromaPower}/100</div>
             </div>
-            <div class="placeholder">
-              <div>
-                <strong>${this.mode === 'bubble' ? 'Bulles prêtes' : this.mode === 'bar' ? 'Barres prêtes' : 'Radar prêt'}</strong>
-                <p>
-                  Le shell expose déjà les dimensions et les sessions. La visualisation détaillée viendra dans la tâche suivante.
-                </p>
-              </div>
-            </div>
+            ${this.mode === 'bubble'
+              ? html`
+                  <cognition-bubble-view
+                    .themes=${this.bubbleData?.themes ?? []}
+                    .primaryMetric=${this.primaryMetric}
+                    .secondaryMetric=${this.secondaryMetric}
+                    .chromaPower=${this.chromaPower}
+                  ></cognition-bubble-view>
+                `
+              : html`
+                  <div class="placeholder">
+                    <div>
+                      <strong>${this.mode === 'bar' ? 'Barres prêtes' : 'Radar prêt'}</strong>
+                      <p>
+                        Le shell est prêt à afficher ${this.mode === 'bar' ? 'une distribution en barres' : 'un profil radar'} dans la prochaine tâche.
+                      </p>
+                    </div>
+                  </div>
+                `}
           </section>
 
           <aside>
