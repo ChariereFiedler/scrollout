@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { theme, polColors, polLabels } from '../styles/theme.js';
-import { getEnrichedPosts, safeParse, type EnrichedPost } from '../services/api.js';
+import { getSessions, getPosts, safeParse, type PostEntry, type SessionSummary } from '../services/db-bridge.js';
 
 @customElement('screen-posts')
 export class ScreenPosts extends LitElement {
@@ -64,37 +64,46 @@ export class ScreenPosts extends LitElement {
     `,
   ];
 
-  @state() private posts: EnrichedPost[] = [];
+  @state() private posts: PostEntry[] = [];
+  @state() private sessions: SessionSummary[] = [];
+  @state() private selectedSession = '';
   @state() private loading = true;
   @state() private error = '';
-  @state() private selectedPost: EnrichedPost | null = null;
-  @state() private polMin = 0;
-  @state() private polMax = 4;
-  @state() private reviewOnly = false;
+  @state() private selectedPost: PostEntry | null = null;
 
   connectedCallback() {
     super.connectedCallback();
-    this.loadPosts();
+    this.loadSessions();
+  }
+
+  private async loadSessions() {
+    try {
+      this.sessions = await getSessions();
+      if (this.sessions.length > 0) {
+        this.selectedSession = this.sessions[0].id;
+        await this.loadPosts();
+      } else {
+        this.loading = false;
+      }
+    } catch (e: any) {
+      this.error = e.message || 'Erreur DB';
+      this.loading = false;
+    }
   }
 
   private async loadPosts() {
     this.loading = true;
     this.error = '';
     try {
-      this.posts = await getEnrichedPosts({
-        political_min: this.polMin,
-        political_max: this.polMax,
-        review: this.reviewOnly,
-        limit: 100,
-      });
+      this.posts = await getPosts(this.selectedSession, 0, 100);
     } catch (e: any) {
-      this.error = e.message || 'Connexion impossible';
+      this.error = e.message || 'Erreur DB';
     } finally {
       this.loading = false;
     }
   }
 
-  private openDetail(p: EnrichedPost) {
+  private openDetail(p: PostEntry) {
     this.selectedPost = p;
   }
 
@@ -123,82 +132,56 @@ export class ScreenPosts extends LitElement {
     const p = this.selectedPost;
     if (!p) return nothing;
 
-    const topics = [...safeParse(p.mainTopics), ...safeParse(p.secondaryTopics)];
-    const persons = safeParse(p.persons).filter(x => x && !x.startsWith('aucun'));
-    const orgs = safeParse(p.organizations).filter(x => x && !x.startsWith('aucun'));
-    const institutions = safeParse(p.institutions).filter(x => x && !x.startsWith('aucun'));
-    const countries = safeParse(p.countries);
-    const polIssues = safeParse(p.politicalIssueTags);
-    const polActors = safeParse(p.politicalActors).filter(x => x && !x.startsWith('aucun'));
+    const e = p.enrichment;
+    const topics = e ? safeParse(e.mainTopics) : [];
 
     return html`
-      <div class="modal-bg" @click=${(e: Event) => { if ((e.target as HTMLElement).classList.contains('modal-bg')) this.closeDetail(); }}>
+      <div class="modal-bg" @click=${(ev: Event) => { if ((ev.target as HTMLElement).classList.contains('modal-bg')) this.closeDetail(); }}>
         <div class="modal">
           <div class="modal-handle"></div>
-          <h3>@${p.post?.username || '?'}</h3>
+          <h3>@${p.username || '?'}</h3>
 
-          <div class="detail-section"><div class="dl">Résumé</div><div class="dv">${p.semanticSummary || '—'}</div></div>
-          ${p.normalizedText ? html`<div class="detail-section"><div class="dl">Texte normalisé</div><div class="dv" style="max-height:100px;overflow-y:auto;background:var(--surface3);padding:8px;border-radius:6px;font-size:11px">${p.normalizedText}</div></div>` : ''}
+          <div class="detail-section"><div class="dl">Caption</div><div class="dv">${p.caption || '—'}</div></div>
 
           <div class="detail-grid">
-            <div>
-              <div class="detail-section"><div class="dl">Thèmes</div><div class="dv">${topics.length ? topics.map(t => html`<span class="tag tag-topic">${t}</span> `) : '—'}</div></div>
-              <div class="detail-section"><div class="dl">Domaine</div><div class="dv">${p.contentDomain || '—'}</div></div>
-              <div class="detail-section"><div class="dl">Audience</div><div class="dv">${p.audienceTarget || '—'}</div></div>
-              <div class="detail-section"><div class="dl">Tonalité</div><div class="dv">${p.tone || '—'}</div></div>
-              <div class="detail-section"><div class="dl">Émotion</div><div class="dv">${p.primaryEmotion || '—'} (${p.emotionIntensity})</div></div>
-            </div>
-            <div>
-              <div class="detail-section"><div class="dl">Personnes</div><div class="dv">${persons.join(', ') || '—'}</div></div>
-              <div class="detail-section"><div class="dl">Organisations</div><div class="dv">${orgs.join(', ') || '—'}</div></div>
-              <div class="detail-section"><div class="dl">Institutions</div><div class="dv">${institutions.join(', ') || '—'}</div></div>
-              <div class="detail-section"><div class="dl">Pays</div><div class="dv">${countries.join(', ') || '—'}</div></div>
-            </div>
+            <div class="detail-section"><div class="dl">Type</div><div class="dv">${p.mediaType}</div></div>
+            <div class="detail-section"><div class="dl">Attention</div><div class="dv">${p.attentionLevel} (${(p.dwellTimeMs / 1000).toFixed(1)}s)</div></div>
           </div>
 
-          <div class="detail-section">
-            <div class="dl">Scoring politique</div>
-            <div class="dv">
-              <span class="pc-pol" style="background:${polColors[p.politicalExplicitnessScore]}">${p.politicalExplicitnessScore}</span>
-              ${polLabels[p.politicalExplicitnessScore]}
-              ${polIssues.length ? html` — ${polIssues.join(', ')}` : ''}
-            </div>
-          </div>
-
-          <div class="detail-section">
-            <div class="dl">Polarisation: ${p.polarizationScore.toFixed(2)}</div>
-            <div class="signals">
-              <span class="signal ${p.ingroupOutgroupSignal ? 'signal-on' : 'signal-off'}">in/outgroup</span>
-              <span class="signal ${p.conflictSignal ? 'signal-on' : 'signal-off'}">conflit</span>
-              <span class="signal ${p.moralAbsoluteSignal ? 'signal-on' : 'signal-off'}">moral absolu</span>
-              <span class="signal ${p.enemyDesignationSignal ? 'signal-on' : 'signal-off'}">ennemi</span>
-              <span class="signal ${p.activismSignal ? 'signal-on' : 'signal-off'}">activisme</span>
-            </div>
-          </div>
-
-          ${(p.axisEconomic !== 0 || p.axisSocietal !== 0 || p.axisAuthority !== 0 || p.axisSystem !== 0) ? html`
+          ${e ? html`
             <div class="detail-section">
-              <div class="dl">Axes politiques${p.dominantAxis ? ` (dom: ${p.dominantAxis})` : ''}</div>
-              ${this.renderAxisBar('Éco', p.axisEconomic, 'G', 'D')}
-              ${this.renderAxisBar('Social', p.axisSocietal, 'Prog', 'Cons')}
-              ${this.renderAxisBar('Auth', p.axisAuthority, 'Lib', 'Auth')}
-              ${this.renderAxisBar('Syst', p.axisSystem, 'Anti', 'Inst')}
+              <div class="dl">Thèmes</div>
+              <div class="dv">${topics.length ? topics.map(t => html`<span class="tag tag-topic">${t}</span> `) : '—'}</div>
             </div>
-          ` : ''}
 
-          <div class="detail-grid">
-            <div class="detail-section"><div class="dl">Narratif</div><div class="dv">${p.narrativeFrame ? html`<span class="tag tag-narrative">${p.narrativeFrame}</span>` : '—'}</div></div>
-            <div class="detail-section"><div class="dl">Appel action</div><div class="dv">${p.callToActionType || '—'}</div></div>
-          </div>
+            <div class="detail-section">
+              <div class="dl">Score politique</div>
+              <div class="dv">
+                <span class="pc-pol" style="background:${polColors[e.politicalScore]}">${e.politicalScore}</span>
+                ${polLabels[e.politicalScore] || ''}
+              </div>
+            </div>
 
-          <div class="detail-grid">
-            <div class="detail-section"><div class="dl">Confiance</div><div class="dv">${Math.round(p.confidenceScore * 100)}%</div></div>
-            <div class="detail-section"><div class="dl">Provider</div><div class="dv">${p.provider || '?'} / ${p.model || '?'}</div></div>
-          </div>
+            <div class="detail-grid">
+              <div class="detail-section"><div class="dl">Polarisation</div><div class="dv">${e.polarizationScore.toFixed(2)}</div></div>
+              <div class="detail-section"><div class="dl">Confiance</div><div class="dv">${Math.round(e.confidenceScore * 100)}%</div></div>
+            </div>
 
-          ${p.reviewFlag ? html`<div class="detail-section"><div class="dl">Review</div><div class="dv" style="color:var(--yellow)">${p.reviewReason}</div></div>` : ''}
+            ${(e.axisEconomic !== 0 || e.axisSocietal !== 0 || e.axisAuthority !== 0 || e.axisSystem !== 0) ? html`
+              <div class="detail-section">
+                <div class="dl">Axes politiques${e.dominantAxis ? ` (dom: ${e.dominantAxis})` : ''}</div>
+                ${this.renderAxisBar('Éco', e.axisEconomic, 'G', 'D')}
+                ${this.renderAxisBar('Social', e.axisSocietal, 'Prog', 'Cons')}
+                ${this.renderAxisBar('Auth', e.axisAuthority, 'Lib', 'Auth')}
+                ${this.renderAxisBar('Syst', e.axisSystem, 'Anti', 'Inst')}
+              </div>
+            ` : ''}
 
-          ${polActors.length ? html`<div class="detail-section"><div class="dl">Acteurs politiques</div><div class="dv">${polActors.join(', ')}</div></div>` : ''}
+            <div class="detail-grid">
+              <div class="detail-section"><div class="dl">Catégorie</div><div class="dv">${e.mediaCategory || '—'}</div></div>
+              <div class="detail-section"><div class="dl">Qualité</div><div class="dv">${e.mediaQuality || '—'}</div></div>
+            </div>
+          ` : html`<div style="color:var(--text-dim);font-size:12px;padding:12px">Pas encore enrichi</div>`}
         </div>
       </div>
     `;
@@ -206,52 +189,50 @@ export class ScreenPosts extends LitElement {
 
   render() {
     return html`
-      <h2>Posts enrichis</h2>
+      <h2>Posts capturés</h2>
 
       <div class="filters">
         <div class="filter-group">
-          <label>Pol min</label>
-          <select @change=${(e: Event) => { this.polMin = +(e.target as HTMLSelectElement).value; }}>
-            ${[0,1,2,3,4].map(v => html`<option value=${v} ?selected=${v === this.polMin}>${v}</option>`)}
+          <label>Session</label>
+          <select @change=${(e: Event) => { this.selectedSession = (e.target as HTMLSelectElement).value; this.loadPosts(); }}>
+            ${this.sessions.map(s => {
+              const date = new Date(s.capturedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+              return html`<option value=${s.id} ?selected=${s.id === this.selectedSession}>${date} (${s.postCount} posts)</option>`;
+            })}
           </select>
         </div>
-        <div class="filter-group">
-          <label>Pol max</label>
-          <select @change=${(e: Event) => { this.polMax = +(e.target as HTMLSelectElement).value; }}>
-            ${[0,1,2,3,4].map(v => html`<option value=${v} ?selected=${v === this.polMax}>${v}</option>`)}
-          </select>
-        </div>
-        <div class="filter-group">
-          <label><input type="checkbox" @change=${(e: Event) => { this.reviewOnly = (e.target as HTMLInputElement).checked; }}> Review</label>
-        </div>
-        <button class="btn-filter" @click=${this.loadPosts}>Filtrer</button>
+        <button class="btn-filter" @click=${this.loadPosts}>Refresh</button>
       </div>
 
       ${this.loading ? html`<div class="loading">Chargement...</div>` :
         this.error ? html`<div class="error">${this.error}</div>` :
-        this.posts.length === 0 ? html`<div class="empty">Aucun post trouvé</div>` :
+        this.posts.length === 0 ? html`<div class="empty">Aucun post dans cette session</div>` :
         html`
           <div class="post-list">
             ${this.posts.map(p => {
-              const topics = safeParse(p.mainTopics);
-              const polarPct = Math.round(p.polarizationScore * 100);
+              const e = p.enrichment;
+              const topics = e ? safeParse(e.mainTopics) : [];
+              const polScore = e?.politicalScore ?? 0;
+              const polarPct = e ? Math.round(e.polarizationScore * 100) : 0;
               const polarColor = polarPct > 60 ? 'var(--red)' : polarPct > 30 ? 'var(--yellow)' : 'var(--green)';
               return html`
                 <div class="post-card" @click=${() => this.openDetail(p)}>
                   <div class="pc-header">
-                    <span class="pc-user">@${p.post?.username || '?'}</span>
-                    <span class="pc-pol" style="background:${polColors[p.politicalExplicitnessScore]}">${p.politicalExplicitnessScore}</span>
+                    <span class="pc-user">@${p.username || '?'}</span>
+                    <span class="pc-pol" style="background:${polColors[polScore]}">${polScore}</span>
                   </div>
-                  ${p.semanticSummary ? html`<div class="pc-summary">${p.semanticSummary}</div>` : ''}
+                  <div class="pc-summary">${p.caption ? p.caption.substring(0, 120) : p.mediaType} — ${(p.dwellTimeMs / 1000).toFixed(1)}s ${p.attentionLevel}</div>
                   <div class="pc-tags">
                     ${topics.map(t => html`<span class="tag tag-topic">${t}</span>`)}
-                    ${p.narrativeFrame ? html`<span class="tag tag-narrative">${p.narrativeFrame}</span>` : ''}
-                    ${p.reviewFlag ? html`<span class="badge-review">REVIEW</span>` : ''}
+                    ${p.isSponsored ? html`<span class="tag" style="background:#4a3a1a;color:var(--yellow)">AD</span>` : ''}
+                    ${p.isSuggested ? html`<span class="tag" style="background:#1a3a4a;color:var(--accent)">SUG</span>` : ''}
                   </div>
-                  <div class="pc-scores">
-                    <span>Polar: <span class="score-bar-inline"><span class="score-fill-inline" style="width:${polarPct}%;background:${polarColor}"></span></span> ${p.polarizationScore.toFixed(2)}</span>
-                    <span>Conf: ${Math.round(p.confidenceScore * 100)}%</span>
-                  </div>
+                  ${e ? html`
+                    <div class="pc-scores">
+                      <span>Polar: <span class="score-bar-inline"><span class="score-fill-inline" style="width:${polarPct}%;background:${polarColor}"></span></span> ${e.polarizationScore.toFixed(2)}</span>
+                      <span>Conf: ${Math.round(e.confidenceScore * 100)}%</span>
+                    </div>
+                  ` : ''}
                 </div>
               `;
             })}

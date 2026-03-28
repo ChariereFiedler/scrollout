@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { theme, polColors, polLabels } from '../styles/theme.js';
-import { getEnrichmentStats, getAxesData, type EnrichmentStats, type AxesData } from '../services/api.js';
+import { getStats, type DbStats } from '../services/db-bridge.js';
 
 @customElement('screen-enrichment')
 export class ScreenEnrichment extends LitElement {
@@ -50,8 +50,7 @@ export class ScreenEnrichment extends LitElement {
     `,
   ];
 
-  @state() private stats: EnrichmentStats | null = null;
-  @state() private axes: AxesData | null = null;
+  @state() private stats: DbStats | null = null;
   @state() private loading = true;
   @state() private error = '';
 
@@ -64,11 +63,9 @@ export class ScreenEnrichment extends LitElement {
     this.loading = true;
     this.error = '';
     try {
-      const [stats, axes] = await Promise.all([getEnrichmentStats(), getAxesData()]);
-      this.stats = stats;
-      this.axes = axes;
+      this.stats = await getStats();
     } catch (e: any) {
-      this.error = e.message || 'Connexion impossible';
+      this.error = e.message || 'Erreur DB';
     } finally {
       this.loading = false;
     }
@@ -112,15 +109,20 @@ export class ScreenEnrichment extends LitElement {
     `;
 
     const s = this.stats!;
-    const a = this.axes;
+    const a = s.axes;
 
-    const maxPol = Math.max(...s.byPolitical.map(b => b._count), 1);
-    const maxTopic = s.topTopics.length > 0 ? s.topTopics[0][1] : 1;
-    const maxNar = s.byNarrative.length > 0 ? s.byNarrative[0]._count : 1;
-    const totalPolar = Object.values(s.polarBuckets).reduce((a, b) => a + b, 0) || 1;
+    // Political distribution
+    const polEntries = Object.entries(s.political).map(([score, count]) => ({ score: parseInt(score), count: count as number }));
+    const maxPol = Math.max(...polEntries.map(e => e.count), 1);
 
-    const polarLabelsMap: Record<string, string> = { low: '< 0.2 faible', medium: '0.2–0.5 modéré', high: '0.5–0.8 fort', extreme: '> 0.8 extrême' };
-    const polarColorsMap: Record<string, string> = { low: 'var(--green)', medium: 'var(--yellow)', high: 'var(--orange)', extreme: 'var(--red)' };
+    // Top categories
+    const maxCat = s.topCategories.length > 0 ? s.topCategories[0].count : 1;
+
+    // Top users
+    const maxUser = s.topUsers.length > 0 ? s.topUsers[0].count : 1;
+
+    // Enrichment rate
+    const enrichRate = s.totalPosts > 0 ? Math.round(s.totalEnriched / s.totalPosts * 100) : 0;
 
     return html`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -131,49 +133,53 @@ export class ScreenEnrichment extends LitElement {
       <div class="stats-grid">
         <div class="stat-card"><div class="value v-accent">${s.totalPosts}</div><div class="label">Posts</div></div>
         <div class="stat-card"><div class="value v-green">${s.totalEnriched}</div><div class="label">Enrichis</div></div>
-        <div class="stat-card"><div class="value v-green">${s.enrichmentRate}%</div><div class="label">Taux</div></div>
-        <div class="stat-card"><div class="value v-yellow">${s.avgPolarization}</div><div class="label">Polar. moy</div></div>
-        <div class="stat-card"><div class="value v-accent">${s.avgConfidence}</div><div class="label">Confiance</div></div>
-        <div class="stat-card"><div class="value v-red">${s.reviewFlagged}</div><div class="label">Review</div></div>
+        <div class="stat-card"><div class="value v-green">${enrichRate}%</div><div class="label">Taux</div></div>
+        <div class="stat-card"><div class="value v-yellow">${s.avgPolarization ?? 0}</div><div class="label">Polar. moy</div></div>
+        <div class="stat-card"><div class="value v-accent">${s.avgConfidence ?? 0}</div><div class="label">Confiance</div></div>
+        <div class="stat-card"><div class="value v-purple">${s.totalSessions}</div><div class="label">Sessions</div></div>
       </div>
 
       <!-- Distribution politique -->
       <div class="section">
         <h3>Distribution politique (0-4)</h3>
-        ${s.byPolitical.map(b => this.barHtml(polLabels[b.politicalExplicitnessScore], b._count, maxPol, polColors[b.politicalExplicitnessScore]))}
+        ${polEntries.map(e => this.barHtml(polLabels[e.score] || `Score ${e.score}`, e.count, maxPol, polColors[e.score] || 'var(--text-dim)'))}
       </div>
 
-      <!-- Top thèmes -->
-      <div class="section">
-        <h3>Top thèmes</h3>
-        ${s.topTopics.slice(0, 10).map(([topic, count]) => this.barHtml(topic, count, maxTopic, 'var(--accent)'))}
-      </div>
+      <!-- Top catégories médias -->
+      ${s.topCategories.length > 0 ? html`
+        <div class="section">
+          <h3>Catégories médias</h3>
+          ${s.topCategories.slice(0, 10).map(c => this.barHtml(c.category, c.count, maxCat, 'var(--accent)'))}
+        </div>
+      ` : ''}
 
-      <!-- Narratifs -->
-      <div class="section">
-        <h3>Narratifs détectés</h3>
-        ${s.byNarrative.length > 0
-          ? s.byNarrative.slice(0, 8).map(n => this.barHtml(n.narrativeFrame || '(aucun)', n._count, maxNar, 'var(--purple)'))
-          : html`<div style="color:var(--text-dim);font-size:12px">Aucun narratif</div>`
-        }
-      </div>
+      <!-- Attention -->
+      ${Object.keys(s.attention).length > 0 ? html`
+        <div class="section">
+          <h3>Niveaux d'attention</h3>
+          ${Object.entries(s.attention).map(([level, count]) => {
+            const color = level === 'engaged' ? 'var(--green)' : level === 'viewed' ? 'var(--accent)' : level === 'glanced' ? 'var(--yellow)' : 'var(--text-muted)';
+            return this.barHtml(level, count as number, Math.max(...Object.values(s.attention) as number[], 1), color);
+          })}
+        </div>
+      ` : ''}
 
-      <!-- Polarisation -->
-      <div class="section">
-        <h3>Distribution polarisation</h3>
-        ${Object.entries(s.polarBuckets).map(([k, v]) =>
-          this.barHtml(polarLabelsMap[k], v as number, totalPolar, polarColorsMap[k])
-        )}
-      </div>
+      <!-- Top users -->
+      ${s.topUsers.length > 0 ? html`
+        <div class="section">
+          <h3>Top comptes (${s.topUsers.length})</h3>
+          ${s.topUsers.slice(0, 10).map(u => this.barHtml(`@${u.username}`, u.count, maxUser, 'var(--purple)'))}
+        </div>
+      ` : ''}
 
       <!-- Axes politiques -->
-      ${a && a.withSignal > 0 ? html`
+      ${a ? html`
         <div class="section">
-          <h3>Axes politiques (moy. ${a.withSignal} posts)</h3>
-          ${this.axisHtml('Économique', a.averages.economic, 'gauche', 'droite')}
-          ${this.axisHtml('Sociétal', a.averages.societal, 'progress.', 'conserv.')}
-          ${this.axisHtml('Autorité', a.averages.authority, 'libertaire', 'autorit.')}
-          ${this.axisHtml('Système', a.averages.system, 'anti-syst.', 'institut.')}
+          <h3>Axes politiques (moyenne)</h3>
+          ${this.axisHtml('Économique', a.economic, 'gauche', 'droite')}
+          ${this.axisHtml('Sociétal', a.societal, 'progress.', 'conserv.')}
+          ${this.axisHtml('Autorité', a.authority, 'libertaire', 'autorit.')}
+          ${this.axisHtml('Système', a.system, 'anti-syst.', 'institut.')}
         </div>
       ` : ''}
     `;

@@ -45,6 +45,10 @@ dependencies {
     implementation 'com.google.mlkit:image-labeling:17.0.9'
     // ML Kit Text Recognition (OCR)
     implementation 'com.google.mlkit:text-recognition:16.0.1'
+    // NanoHTTPD — embedded HTTP server for PC sync
+    implementation 'org.nanohttpd:nanohttpd:2.3.1'
+    // OkHttp — WebSocket client for real-time push to visualizer
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
 
 apply from: 'capacitor.build.gradle'

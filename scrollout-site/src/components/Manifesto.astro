@@ -1,0 +1,176 @@
+---
+---
+
+<section class="manifesto" id="manifeste">
+  <div class="container">
+    <div class="manifesto-grid">
+      <div class="manifesto-label">
+        <span class="label-tag">Manifeste</span>
+      </div>
+      <div class="manifesto-content">
+        <h2>
+          L'algorithme te connait.<br/>
+          <span class="accent">Toi, tu ne le connais pas.</span>
+        </h2>
+
+        <div class="blocks">
+          <div class="block">
+            <div class="block-number">01</div>
+            <h3>Le feed n'est pas neutre</h3>
+            <p>
+              Chaque post que tu vois a été choisi pour toi. Pas par tes amis.
+              Par un algorithme qui optimise ton temps d'ecran, pas ta compréhension du monde.
+              Ce que tu ne vois pas compte autant que ce que tu vois.
+            </p>
+          </div>
+
+          <div class="block">
+            <div class="block-number">02</div>
+            <h3>La bulle est invisible</h3>
+            <p>
+              Tu ne peux pas voir ta bulle de filtre depuis l'intérieur.
+              Les mêmes récits, les mêmes angles, les mêmes émotions &mdash;
+              répétés jusqu'à devenir ta normalité. La polarisation n'a pas besoin
+              que tu sois d'accord. Elle a juste besoin que tu regardes.
+            </p>
+          </div>
+
+          <div class="block">
+            <div class="block-number">03</div>
+            <h3>Exposition &ne; conviction</h3>
+            <p>
+              Scrollout ne prétend pas deviner tes opinions.
+              On mesure ce que l'algorithme te <em>montre</em>, pas ce que tu <em>penses</em>.
+              La différence est fondamentale. L'un est un fait mesurable.
+              L'autre serait de la spéculation.
+            </p>
+          </div>
+
+          <div class="block">
+            <div class="block-number">04</div>
+            <h3>Reprends le contrôle</h3>
+            <p>
+              Scrollout rend visible l'invisible. Quels thèmes dominent ton feed ?
+              Quelle part de politique ? Quel niveau de polarisation ?
+              Quels narratifs reviennent en boucle ? Avec ces données,
+              <strong>tu peux décider en connaissance de cause</strong>.
+            </p>
+          </div>
+        </div>
+
+        <blockquote class="manifesto-quote">
+          "On ne peut pas combattre ce qu'on ne peut pas voir."
+        </blockquote>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .manifesto {
+    padding: 120px 0 100px;
+    position: relative;
+  }
+
+  .manifesto::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.06), transparent);
+  }
+
+  .manifesto-grid {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 60px;
+  }
+
+  .label-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    position: sticky;
+    top: 100px;
+  }
+
+  h2 {
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    margin-bottom: 60px;
+    line-height: 1.2;
+  }
+
+  .accent {
+    color: var(--accent);
+  }
+
+  .blocks {
+    display: grid;
+    gap: 48px;
+  }
+
+  .block {
+    position: relative;
+    padding-left: 48px;
+  }
+
+  .block-number {
+    position: absolute;
+    left: 0;
+    top: 2px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent);
+    opacity: 0.6;
+  }
+
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    color: var(--text-dim);
+    line-height: 1.75;
+    font-size: 1.02rem;
+  }
+
+  .manifesto-quote {
+    margin-top: 64px;
+    padding: 32px 40px;
+    border-left: 3px solid var(--accent);
+    background: rgba(0, 229, 255, 0.03);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    font-style: italic;
+    color: var(--white);
+    line-height: 1.5;
+  }
+
+  @media (max-width: 768px) {
+    .manifesto-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .label-tag {
+      position: static;
+    }
+
+    .block {
+      padding-left: 36px;
+    }
+
+    .manifesto-quote {
+      padding: 24px;
+      font-size: 1.1rem;
+    }
+  }
+</style>

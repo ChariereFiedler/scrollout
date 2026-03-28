@@ -13,6 +13,15 @@
   const seenPosts = new Map(); // postId -> { firstSeen, lastSeen, data }
   let currentPostId = null;
   let currentPostStart = 0;
+  let sessionId = null;
+  let eventCount = 0;
+
+  // ─── Initialize DB session ────────────────────────────────
+  try {
+    if (window.EchaBridge && window.EchaBridge.startSession) {
+      sessionId = window.EchaBridge.startSession();
+    }
+  } catch(e) {}
 
   function log(msg) {
     console.log('[ECHA] ' + msg);
@@ -27,7 +36,105 @@
     } catch(e) {}
   }
 
-  log('Tracker injected. Monitoring Instagram DOM...');
+  /**
+   * Save post to mobile SQLite (DB-first).
+   */
+  function savePostToDB(postEntry) {
+    try {
+      if (window.EchaBridge && window.EchaBridge.savePost) {
+        const payload = JSON.stringify({
+          postId: postEntry.postId,
+          username: postEntry.data.username,
+          displayName: postEntry.data.displayName,
+          caption: postEntry.data.caption,
+          fullCaption: postEntry.data.fullCaption,
+          hashtags: JSON.stringify(postEntry.data.hashtags || []),
+          imageAlts: JSON.stringify(postEntry.data.imageAlts || []),
+          imageUrls: JSON.stringify(postEntry.data.imageUrls || []),
+          mediaType: postEntry.data.mediaType,
+          likeCount: postEntry.data.likeCount,
+          commentCount: postEntry.data.commentCount,
+          isSponsored: postEntry.data.isSponsored,
+          isSuggested: postEntry.data.isSuggested,
+          dwellTimeMs: postEntry.dwellTimeMs,
+          allText: postEntry.data.allText || '',
+          date: postEntry.data.date,
+          location: postEntry.data.location,
+          audioTrack: postEntry.data.audioTrack,
+          firstSeen: postEntry.firstSeen,
+          lastSeen: postEntry.lastSeen,
+          seenCount: postEntry.seenCount,
+        });
+        window.EchaBridge.savePost(payload);
+      }
+    } catch(e) {
+      console.error('[ECHA] savePostToDB error:', e);
+    }
+  }
+
+  /**
+   * Update dwell time in mobile SQLite.
+   */
+  function updateDwellInDB(postId, username, dwellTimeMs) {
+    try {
+      if (window.EchaBridge && window.EchaBridge.updateDwell) {
+        window.EchaBridge.updateDwell(postId, username, dwellTimeMs);
+      }
+    } catch(e) {}
+  }
+
+  /**
+   * Save enrichment result to mobile SQLite.
+   */
+  function saveEnrichmentToDB(postId, enrichment) {
+    try {
+      if (window.EchaBridge && window.EchaBridge.saveEnrichment) {
+        window.EchaBridge.saveEnrichment(postId, JSON.stringify(enrichment));
+      }
+    } catch(e) {}
+  }
+
+  /**
+   * Enrich post locally via rules-engine and save to DB.
+   */
+  function enrichAndSave(postEntry) {
+    try {
+      if (typeof window.__echaEnrich !== 'function') return;
+      const result = window.__echaEnrich({
+        username: postEntry.data.username || '',
+        caption: postEntry.data.caption || '',
+        fullCaption: postEntry.data.fullCaption || '',
+        imageAlts: postEntry.data.imageAlts || [],
+        hashtags: postEntry.data.hashtags || [],
+        allText: postEntry.data.allText || '',
+      });
+      if (result) {
+        saveEnrichmentToDB(postEntry.postId, result);
+      }
+    } catch(e) {
+      console.error('[ECHA] enrichAndSave error:', e);
+    }
+  }
+
+  // End session on page unload
+  window.addEventListener('beforeunload', function() {
+    try {
+      if (window.EchaBridge && window.EchaBridge.endSession) {
+        window.EchaBridge.endSession(seenPosts.size, eventCount);
+      }
+    } catch(e) {}
+  });
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      try {
+        if (window.EchaBridge && window.EchaBridge.endSession) {
+          window.EchaBridge.endSession(seenPosts.size, eventCount);
+        }
+      } catch(e) {}
+    }
+  });
+
+  log('Tracker injected. Session: ' + (sessionId || 'unknown'));
 
   // ─── Post extraction from DOM ─────────────────────────────
 
@@ -229,6 +336,8 @@
             const prev = seenPosts.get(currentPostId);
             prev.dwellTimeMs += Date.now() - currentPostStart;
             prev.lastSeen = Date.now();
+            // DB-first: update dwell in mobile SQLite
+            updateDwellInDB(prev.postId, prev.data.username, prev.dwellTimeMs);
             sendPostUpdate(prev);
           }
 
@@ -248,6 +357,12 @@
             };
             seenPosts.set(postId, postEntry);
             log(`New post: @${data.username} (${data.mediaType})${data.isSponsored ? ' [AD]' : ''}`);
+            eventCount++;
+            // DB-first: persist to mobile SQLite
+            savePostToDB(postEntry);
+            // Enrich locally if enrichment engine is loaded
+            enrichAndSave(postEntry);
+            // Logcat fallback
             sendToNative({ type: 'new_post', post: postEntry });
           } else {
             seenPosts.get(postId).seenCount++;
@@ -422,6 +537,9 @@
           seenPosts.set(entry.postId, entry); // Add to main posts map too
 
           log(`New story: @${username} (${storyData.mediaType})`);
+          eventCount++;
+          savePostToDB(entry);
+          enrichAndSave(entry);
           sendToNative({ type: 'new_post', post: entry });
         } else {
           seenStories.get(currentStoryId).seenCount++;

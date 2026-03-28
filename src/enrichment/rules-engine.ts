@@ -3,13 +3,23 @@
  * Scoring rule-based à partir des dictionnaires.
  * Produit un enrichissement partiel qui sera complété par le LLM.
  */
-import { detectPoliticalActors, analyzeHashtags, detectPolarization, classifyTopics, detectPoliticalAxes, classifyMedia, detectPoliticalAccount } from './dictionaries';
+import { detectPoliticalActors, analyzeHashtags, detectPolarization, classifyTopics, classifyTopicsEnriched, detectPoliticalAxes, classifyMedia, detectPoliticalAccount, getDomainsFromThemes, getPreciseSubjectsForTheme } from './dictionaries';
 import type { AxisScore } from './dictionaries';
 
+export interface SubjectMatch {
+  id: string;
+  label: string;
+  themeId: string;
+  matchCount: number;
+}
+
 export interface RulesResult {
-  // Catégorisation
+  // Catégorisation (niveaux 1-3)
+  domains: string[];
   mainTopics: string[];
   secondaryTopics: string[];
+  subjects: SubjectMatch[];
+  candidatePreciseSubjectIds: string[];
 
   // Entités politiques
   politicalActors: string[];
@@ -60,10 +70,26 @@ export function applyRules(input: {
   const { normalizedText, hashtags, username } = input;
   const textForAnalysis = `${normalizedText} ${username}`;
 
-  // ── Thèmes ──
-  const topicResults = classifyTopics(textForAnalysis);
+  // ── Classification multi-niveaux ──
+  const enriched = classifyTopicsEnriched(textForAnalysis);
+  const topicResults = enriched.themes;
   const mainTopics = topicResults.slice(0, 3).map(t => t.id);
   const secondaryTopics = topicResults.slice(3, 6).map(t => t.id);
+  const allTopicIds = [...mainTopics, ...secondaryTopics];
+  const domains = getDomainsFromThemes(allTopicIds);
+  const subjects: SubjectMatch[] = enriched.subjects.slice(0, 10).map(s => ({
+    id: s.id,
+    label: s.label,
+    themeId: s.themeId,
+    matchCount: s.matchCount,
+  }));
+
+  // Sujets précis candidats (ceux rattachés aux thèmes détectés, pour le LLM)
+  const candidatePreciseSubjectIds: string[] = [];
+  for (const tId of mainTopics) {
+    const ps = getPreciseSubjectsForTheme(tId);
+    for (const p of ps) candidatePreciseSubjectIds.push(p.id);
+  }
 
   // ── Acteurs politiques ──
   const actors = detectPoliticalActors(textForAnalysis);
@@ -128,8 +154,11 @@ export function applyRules(input: {
   confidence = Math.min(confidence, 1);
 
   return {
+    domains,
     mainTopics,
     secondaryTopics,
+    subjects,
+    candidatePreciseSubjectIds,
     politicalActors: allPoliticalActors,
     institutions: actors.institutions,
     activismSignal: actors.activismTerms.length > 0 || hashtagResult.politicalLevel >= 4,

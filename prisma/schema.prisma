@@ -116,10 +116,13 @@ model PostEnriched {
   semanticSummary String @default("") // résumé LLM
   keywordTerms    String @default("[]") // JSON array
 
-  // ── Catégorisation sémantique ──
-  mainTopics      String @default("[]") // JSON array — taxonomie 24 thèmes
-  secondaryTopics String @default("[]") // JSON array
-  contentDomain   String @default("") // ex: "actualité", "divertissement"
+  // ── Catégorisation sémantique (taxonomie 5 niveaux) ──
+  domains         String @default("[]") // JSON array — niveau 1 (~6 domaines)
+  mainTopics      String @default("[]") // JSON array — niveau 2 (~24 thèmes)
+  secondaryTopics String @default("[]") // JSON array — niveau 2 secondaire
+  subjects        String @default("[]") // JSON array — niveau 3 (~150 sujets) [{id, themeId, label}]
+  preciseSubjects String @default("[]") // JSON array — niveau 4 (sujets précis) [{id, statement, position, confidence}]
+  contentDomain   String @default("") // ex: "actualité", "divertissement" (legacy, déduit de domains)
   audienceTarget  String @default("") // ex: "grand public", "militant"
 
   // ── Entités et objets du discours ──

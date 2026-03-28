@@ -45,6 +45,34 @@ describe('normalizePostText', () => {
     expect(result.normalizedText).toContain('Mon texte');
   });
 
+  it('supprime le bruit UI étendu (navigation, suggestions, metadata)', () => {
+    const result = normalizePostText({
+      caption: 'Contenu réel du post',
+      imageDesc: 'Suggestion Reel de NerdX, 3842 J\'aime, 21 commentaires, 8 mars',
+      allText: 'Fermer Pour vous Votre profil Story vue Ajouter à la story Plus d\'actions pour cette publication Contenu réel du post Voir la traduction',
+      hashtags: [],
+    });
+    expect(result.normalizedText).not.toContain('Fermer');
+    expect(result.normalizedText).not.toContain('Pour vous');
+    expect(result.normalizedText).not.toContain('Votre profil');
+    expect(result.normalizedText).not.toContain('Story vue');
+    expect(result.normalizedText).not.toContain('Ajouter à la story');
+    expect(result.normalizedText).not.toContain('Suggestion Reel');
+    expect(result.normalizedText).not.toContain('3842 J\'aime');
+    expect(result.normalizedText).toContain('Contenu réel du post');
+  });
+
+  it('nettoie aussi le bruit UI dans imageDesc', () => {
+    const result = normalizePostText({
+      caption: '',
+      imageDesc: 'Sponsorisée Vidéo de Cartier Official, 796 J\'aime, 7 commentaires.',
+      allText: '',
+      hashtags: [],
+    });
+    expect(result.normalizedText).not.toContain('Sponsorisée');
+    expect(result.normalizedText).not.toContain('796 J\'aime');
+  });
+
   it('extrait les keyword terms depuis les hashtags', () => {
     const result = normalizePostText({
       caption: 'Test',

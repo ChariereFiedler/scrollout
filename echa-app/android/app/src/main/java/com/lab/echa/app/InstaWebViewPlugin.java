@@ -54,6 +54,7 @@ public class InstaWebViewPlugin extends Plugin {
     private static final String TAG_ML = "ECHA_ANALYZER";
     private WebView instaWebView;
     private String trackerScript = "";
+    private String enrichmentScript = "";
     private final List<String> collectedData = new ArrayList<>();
     private boolean instagramVisible = false;
 
@@ -62,6 +63,10 @@ public class InstaWebViewPlugin extends Plugin {
     private TextRecognizer textRecognizer;
     private final Set<String> analyzedUrls = new HashSet<>();
     private final ExecutorService mlExecutor = Executors.newSingleThreadExecutor();
+
+    // Database
+    private EchaDatabase db;
+    private String currentSessionId = null;
 
     // Tab bar height in dp
     private static final int TAB_BAR_HEIGHT_DP = 52;
@@ -83,6 +88,26 @@ public class InstaWebViewPlugin extends Plugin {
         } catch (Exception e) {
             Log.e(TAG, "Failed to load tracker.js: " + e.getMessage());
         }
+
+        // Load enrichment.js from assets
+        try {
+            InputStream is2 = getContext().getAssets().open("public/enrichment.js");
+            BufferedReader reader2 = new BufferedReader(new InputStreamReader(is2));
+            StringBuilder sb2 = new StringBuilder();
+            String line2;
+            while ((line2 = reader2.readLine()) != null) {
+                sb2.append(line2).append("\n");
+            }
+            enrichmentScript = sb2.toString();
+            reader2.close();
+            Log.i(TAG, "Enrichment script loaded: " + enrichmentScript.length() + " chars");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to load enrichment.js: " + e.getMessage());
+        }
+
+        // Init Database
+        db = EchaDatabase.getInstance(getContext());
+        Log.i(TAG, "Database initialized");
 
         // Init ML Kit
         ImageLabelerOptions options = new ImageLabelerOptions.Builder()
@@ -183,6 +208,11 @@ public class InstaWebViewPlugin extends Plugin {
 
                         if (!trackerScript.isEmpty()) {
                             view.postDelayed(() -> {
+                                // Inject enrichment engine first, then tracker
+                                if (!enrichmentScript.isEmpty()) {
+                                    view.evaluateJavascript(enrichmentScript, null);
+                                    Log.i(TAG, "Enrichment engine injected");
+                                }
                                 view.evaluateJavascript(trackerScript, null);
                                 Log.i(TAG, "Tracker injected into: " + url);
                             }, 2000);
@@ -351,6 +381,74 @@ public class InstaWebViewPlugin extends Plugin {
         return false;
     }
 
+    // ─── DB Query Methods (Capacitor @PluginMethod) ─────────
+
+    @PluginMethod()
+    public void querySessions(PluginCall call) {
+        db.runAsync(() -> {
+            try {
+                JSONArray sessions = db.getSessions();
+                JSObject ret = new JSObject();
+                ret.put("sessions", sessions.toString());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("querySessions error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void queryPosts(PluginCall call) {
+        String sessionId = call.getString("sessionId", "");
+        int offset = call.getInt("offset", 0);
+        int limit = call.getInt("limit", 50);
+
+        db.runAsync(() -> {
+            try {
+                JSONArray posts = db.getPostsBySession(sessionId, offset, limit);
+                JSObject ret = new JSObject();
+                ret.put("posts", posts.toString());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("queryPosts error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void queryStats(PluginCall call) {
+        db.runAsync(() -> {
+            try {
+                JSONObject stats = db.getStats();
+                JSObject ret = new JSObject();
+                // Copy all fields from stats to ret
+                java.util.Iterator<String> keys = stats.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    ret.put(key, stats.get(key));
+                }
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("queryStats error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void queryExportSession(PluginCall call) {
+        String sessionId = call.getString("sessionId", "");
+        db.runAsync(() -> {
+            try {
+                JSONObject export_ = db.exportSessionAsJson(sessionId);
+                JSObject ret = new JSObject();
+                ret.put("data", export_.toString());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("queryExportSession error: " + e.getMessage());
+            }
+        });
+    }
+
     // ─── ML Kit: download image and analyze ─────────────────
 
     private void analyzeImageFromUrl(String imageUrl, String postId, String username) {
@@ -417,6 +515,9 @@ public class InstaWebViewPlugin extends Plugin {
                                     Log.i(TAG_ML, "OCR @" + username + ": " + ocrText.substring(0, Math.min(100, ocrText.length())));
                                 }
 
+                                // Persist ML Kit results to DB
+                                db.runAsync(() -> db.updatePostML(postId, jsonLabels.toString(), ocrText));
+
                                 // Send results back to tracker via JS
                                 sendAnalysisToTracker(postId, jsonLabels.toString(), ocrText);
 
@@ -476,6 +577,7 @@ public class InstaWebViewPlugin extends Plugin {
     class EchaBridge {
         @JavascriptInterface
         public void onData(String jsonData) {
+            // Logcat fallback (transitoire)
             logBridgeChunked(jsonData);
             collectedData.add(jsonData);
 
@@ -501,6 +603,98 @@ public class InstaWebViewPlugin extends Plugin {
             } catch (Exception e) {
                 Log.e(TAG, "Failed to parse bridge data: " + e.getMessage());
             }
+        }
+
+        // ── DB-first methods ────────────────────────────────────
+
+        @JavascriptInterface
+        public String startSession() {
+            currentSessionId = db.insertSession("webview");
+            Log.i(TAG, "Session started: " + currentSessionId);
+            return currentSessionId;
+        }
+
+        @JavascriptInterface
+        public void endSession(int totalPosts, int totalEvents) {
+            if (currentSessionId == null) return;
+            double durationSec = (System.currentTimeMillis() - Long.parseLong(currentSessionId)) / 1000.0;
+            db.runAsync(() -> {
+                db.updateSession(currentSessionId, durationSec, totalPosts, totalEvents);
+                Log.i(TAG, "Session ended: " + currentSessionId + " (" + totalPosts + " posts, " + Math.round(durationSec) + "s)");
+            });
+        }
+
+        @JavascriptInterface
+        public void savePost(String postJson) {
+            if (currentSessionId == null) {
+                currentSessionId = db.insertSession("webview");
+            }
+            db.runAsync(() -> {
+                try {
+                    JSONObject post = new JSONObject(postJson);
+                    db.insertPost(currentSessionId, post);
+                } catch (Exception e) {
+                    Log.e(TAG, "savePost error: " + e.getMessage());
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void updateDwell(String postId, String username, int dwellTimeMs) {
+            if (currentSessionId == null) return;
+            db.runAsync(() -> db.updateDwell(currentSessionId, postId, username, dwellTimeMs));
+        }
+
+        @JavascriptInterface
+        public void saveEnrichment(String postId, String enrichmentJson) {
+            db.runAsync(() -> {
+                try {
+                    JSONObject enrichment = new JSONObject(enrichmentJson);
+                    db.insertEnrichment(postId, enrichment);
+                } catch (Exception e) {
+                    Log.e(TAG, "saveEnrichment error: " + e.getMessage());
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void saveMLKit(String postId, String labelsJson, String ocrText) {
+            db.runAsync(() -> db.updatePostML(postId, labelsJson, ocrText));
+        }
+
+        @JavascriptInterface
+        public String getSessions() {
+            try {
+                return db.getSessions().toString();
+            } catch (Exception e) {
+                Log.e(TAG, "getSessions error: " + e.getMessage());
+                return "[]";
+            }
+        }
+
+        @JavascriptInterface
+        public String getPostsBySession(String sessionId, int offset, int limit) {
+            try {
+                return db.getPostsBySession(sessionId, offset, limit).toString();
+            } catch (Exception e) {
+                Log.e(TAG, "getPostsBySession error: " + e.getMessage());
+                return "[]";
+            }
+        }
+
+        @JavascriptInterface
+        public String getStats() {
+            try {
+                return db.getStats().toString();
+            } catch (Exception e) {
+                Log.e(TAG, "getStats error: " + e.getMessage());
+                return "{}";
+            }
+        }
+
+        @JavascriptInterface
+        public String getSessionId() {
+            return currentSessionId != null ? currentSessionId : "";
         }
     }
 }

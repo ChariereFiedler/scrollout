@@ -8,7 +8,8 @@ import fs from 'fs';
 import path from 'path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { LogcatTap, EchaEvent, MLKitResult, SessionSummary, TrackerEvent } from '../logcat-tap';
-import { handleApi } from './api';
+import { handleApi, setMobileSyncUrl } from './api';
+import { connectToMobile } from '../mobile-sync/client';
 import prisma from '../db/client';
 import { normalizePostText } from '../enrichment/normalize';
 import { applyRules, RulesResult } from '../enrichment/rules-engine';
@@ -388,15 +389,279 @@ function broadcast(message: object): void {
   }
 }
 
-wss.on('connection', (ws) => {
-  console.log(`[visualizer] Client connected (${wss.clients.size} total)`);
+// ─── Mobile WebSocket tracking ──────────────────────────────────────
 
-  // Send current state
-  ws.send(JSON.stringify({ type: 'status', adb: tap ? 'connected' : 'disconnected' }));
-  ws.send(JSON.stringify({ type: 'quality', metrics: tap.getMetrics() }));
+let mobileWs: WebSocket | null = null;
+let mobileConnectedAt = 0;
+
+function isMobileSource(ws: WebSocket, req: { headers: Record<string, string | string[] | undefined> }): boolean {
+  return req.headers['x-echa-source'] === 'mobile';
+}
+
+interface MobilePostData {
+  sessionId: string;
+  post: {
+    postId: string;
+    username: string;
+    caption?: string;
+    fullCaption?: string;
+    imageAlts?: string;
+    imageUrls?: string;
+    mediaType?: string;
+    likeCount?: string;
+    isSponsored?: boolean;
+    isSuggested?: boolean;
+    dwellTimeMs?: number;
+    allText?: string;
+    date?: string;
+    location?: string;
+    hashtags?: string;
+  };
+}
+
+interface MobileDwellData {
+  sessionId: string;
+  postId: string;
+  username: string;
+  dwellTimeMs: number;
+}
+
+interface MobileSessionData {
+  sessionId: string;
+  captureMode?: string;
+  durationSec?: number;
+  totalPosts?: number;
+  totalEvents?: number;
+  timestamp?: number;
+}
+
+async function handleMobileMessage(raw: string): Promise<void> {
+  let msg: { type: string; data: any };
+  try {
+    msg = JSON.parse(raw);
+  } catch {
+    return;
+  }
+
+  const { type, data } = msg;
+
+  switch (type) {
+    case 'mobile:hello': {
+      console.log(`[visualizer] Mobile hello — sessions:${data?.totalSessions} posts:${data?.totalPosts} enriched:${data?.totalEnriched}`);
+      broadcast({ type: 'status', mobile: 'connected', stats: data });
+      break;
+    }
+
+    case 'mobile:session-start': {
+      const d = data as MobileSessionData;
+      console.log(`[visualizer] Mobile session started: ${d.sessionId} (${d.captureMode})`);
+      // Create session in Prisma if it doesn't exist
+      try {
+        await prisma.session.upsert({
+          where: { id: d.sessionId },
+          create: {
+            id: d.sessionId,
+            capturedAt: new Date(d.timestamp || Date.now()),
+            durationSec: 0,
+            totalEvents: 0,
+            totalPosts: 0,
+            captureMode: d.captureMode || 'mobile-ws',
+          },
+          update: {},
+        });
+      } catch { /* ignore */ }
+      broadcast({ type: 'mobile-session-start', data: d });
+      break;
+    }
+
+    case 'mobile:session-end': {
+      const d = data as MobileSessionData;
+      console.log(`[visualizer] Mobile session ended: ${d.sessionId} — ${d.totalPosts} posts, ${d.durationSec?.toFixed(0)}s`);
+      try {
+        await prisma.session.update({
+          where: { id: d.sessionId },
+          data: {
+            durationSec: d.durationSec || 0,
+            totalPosts: d.totalPosts || 0,
+            totalEvents: d.totalEvents || 0,
+          },
+        });
+      } catch { /* ignore */ }
+      broadcast({ type: 'mobile-session-end', data: d });
+      break;
+    }
+
+    case 'mobile:post': {
+      const d = data as MobilePostData;
+      const post = d.post;
+      const postKey = `${d.sessionId}:${post.username}:${post.postId}`;
+
+      // Ensure session exists
+      await ensureMobileSession(d.sessionId);
+
+      // Parse hashtags
+      let hashtags: string[] = [];
+      try { hashtags = JSON.parse(post.hashtags || '[]'); } catch { /* ignore */ }
+
+      // Upsert post in Prisma
+      try {
+        await prisma.post.upsert({
+          where: { id: postKey },
+          create: {
+            id: postKey,
+            sessionId: d.sessionId,
+            username: post.username || '',
+            caption: post.fullCaption || post.caption || '',
+            imageDesc: '',
+            mediaType: post.mediaType || 'photo',
+            likeCount: parseInt(String(post.likeCount || '0').replace(/[^\d]/g, ''), 10) || 0,
+            dateLabel: post.date || '',
+            isSponsored: post.isSponsored || false,
+            isSuggested: post.isSuggested || false,
+            dwellTimeMs: post.dwellTimeMs || 0,
+            attentionLevel: classifyAttention(post.dwellTimeMs || 0),
+            allText: post.allText || [post.username, post.caption].filter(Boolean).join(' '),
+            firstSeenAt: Date.now(),
+            lastSeenAt: Date.now(),
+          },
+          update: {
+            caption: post.fullCaption || post.caption || undefined,
+            dwellTimeMs: post.dwellTimeMs || undefined,
+            attentionLevel: post.dwellTimeMs ? classifyAttention(post.dwellTimeMs) : undefined,
+            lastSeenAt: Date.now(),
+            seenCount: { increment: 1 },
+          },
+        });
+      } catch { /* ignore */ }
+
+      // Broadcast to dashboard clients
+      broadcast({
+        type: 'event',
+        source: 'mobile',
+        data: {
+          focusedPost: {
+            username: post.username,
+            caption: post.fullCaption || post.caption,
+            mediaType: post.mediaType,
+            isSponsored: post.isSponsored,
+            isSuggested: post.isSuggested,
+            postId: post.postId,
+          },
+          focusedPostId: postKey,
+          timestamp: Date.now(),
+          dwellTimes: { [postKey]: post.dwellTimeMs || 0 },
+        },
+      });
+
+      // Real-time enrichment
+      try {
+        const caption = post.fullCaption || post.caption || '';
+        enrichPost({
+          username: post.username || '',
+          caption,
+          allText: post.allText || [post.username, caption].filter(Boolean).join(' '),
+        }, postKey);
+      } catch { /* ignore */ }
+
+      break;
+    }
+
+    case 'mobile:dwell': {
+      const d = data as MobileDwellData;
+      const postKey = `${d.sessionId}:${d.username}:${d.postId}`;
+      try {
+        await prisma.post.update({
+          where: { id: postKey },
+          data: {
+            dwellTimeMs: d.dwellTimeMs,
+            attentionLevel: classifyAttention(d.dwellTimeMs),
+            lastSeenAt: Date.now(),
+          },
+        });
+      } catch { /* post may not exist yet */ }
+
+      broadcast({
+        type: 'event',
+        source: 'mobile',
+        data: {
+          focusedPostId: postKey,
+          timestamp: Date.now(),
+          dwellTimes: { [postKey]: d.dwellTimeMs },
+        },
+      });
+      break;
+    }
+
+    case 'mobile:mlkit': {
+      broadcast({ type: 'mlkit', source: 'mobile', data });
+      break;
+    }
+
+    case 'mobile:enrichment': {
+      broadcast({ type: 'enrichment', source: 'mobile', postId: data.postId, data: data.enrichment });
+      break;
+    }
+
+    case 'mobile:pong': {
+      // Keepalive response — nothing to do
+      break;
+    }
+  }
+}
+
+async function ensureMobileSession(sessionId: string): Promise<void> {
+  try {
+    const exists = await prisma.session.findUnique({ where: { id: sessionId } });
+    if (!exists) {
+      await prisma.session.create({
+        data: {
+          id: sessionId,
+          capturedAt: new Date(),
+          durationSec: 0,
+          totalEvents: 0,
+          totalPosts: 0,
+          captureMode: 'mobile-ws',
+        },
+      });
+    }
+  } catch { /* race condition — ignore */ }
+}
+
+wss.on('connection', (ws, req) => {
+  const isMobile = req.headers['x-echa-source'] === 'mobile';
+
+  if (isMobile) {
+    mobileWs = ws;
+    mobileConnectedAt = Date.now();
+    console.log(`[visualizer] Mobile device connected via WebSocket`);
+    broadcast({ type: 'status', mobile: 'connected' });
+  } else {
+    console.log(`[visualizer] Dashboard client connected (${wss.clients.size} total)`);
+  }
+
+  // Send current state to dashboard clients
+  if (!isMobile) {
+    ws.send(JSON.stringify({ type: 'status', adb: tap ? 'connected' : 'disconnected', mobile: mobileWs?.readyState === WebSocket.OPEN ? 'connected' : 'disconnected' }));
+    ws.send(JSON.stringify({ type: 'quality', metrics: tap.getMetrics() }));
+  }
+
+  ws.on('message', (rawData) => {
+    const raw = rawData.toString();
+    if (isMobile) {
+      handleMobileMessage(raw).catch(e => {
+        console.error('[visualizer] Mobile message error:', e);
+      });
+    }
+  });
 
   ws.on('close', () => {
-    console.log(`[visualizer] Client disconnected (${wss.clients.size} total)`);
+    if (isMobile) {
+      mobileWs = null;
+      console.log(`[visualizer] Mobile device disconnected`);
+      broadcast({ type: 'status', mobile: 'disconnected' });
+    } else {
+      console.log(`[visualizer] Dashboard client disconnected (${wss.clients.size} total)`);
+    }
   });
 });
 
@@ -502,12 +767,36 @@ function startServer(port: number): void {
     }
   });
 
-  server.listen(port, () => {
+  server.listen(port, async () => {
     console.log(`\n  ╔══════════════════════════════════════╗`);
-    console.log(`  ║  ECHA Debug Visualizer               ║`);
+    console.log(`  ║  Scrollout Debug Visualizer           ║`);
     console.log(`  ║  http://localhost:${port}               ║`);
     console.log(`  ╚══════════════════════════════════════╝\n`);
-    console.log(`[visualizer] Waiting for ADB logcat...`);
+
+    // Setup ADB reverse so mobile can reach our WS server
+    try {
+      const { execSync } = await import('child_process');
+      const { findAdbPath } = await import('../adb-path');
+      const adb = findAdbPath();
+      execSync(`"${adb}" reverse tcp:${port} tcp:${port}`, { stdio: 'ignore' });
+      console.log(`[visualizer] ADB reverse tcp:${port} → tcp:${port} (mobile can reach ws://localhost:${port})`);
+    } catch {
+      console.log(`[visualizer] ADB reverse failed — mobile WS will need direct IP connection`);
+    }
+
+    // Try to connect to mobile HTTP API (fallback for REST queries)
+    const mobilePort = parseInt(process.env.MOBILE_PORT || '8765', 10);
+    const mobile = await connectToMobile(mobilePort);
+    if (mobile) {
+      setMobileSyncUrl(`http://localhost:${mobilePort}`);
+      console.log(`[visualizer] Mobile HTTP connected — /api/mobile/* routes active`);
+      const stats = await mobile.getStats();
+      console.log(`[visualizer] Mobile DB: ${stats.totalSessions} sessions, ${stats.totalPosts} posts, ${stats.totalEnriched} enriched`);
+    } else {
+      console.log(`[visualizer] Mobile HTTP not available — waiting for WebSocket connection`);
+    }
+
+    console.log(`[visualizer] Starting ADB logcat...`);
     tap.start();
   });
 }

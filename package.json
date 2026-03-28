@@ -17,7 +17,12 @@
     "visualizer": "tsx src/visualizer/server.ts",
     "enrich": "tsx src/enrich.ts",
     "enrich:rules": "tsx src/enrich.ts --rules-only",
-    "enrich:dry": "tsx src/enrich.ts --dry-run"
+    "enrich:dry": "tsx src/enrich.ts --dry-run",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "ci:analyze": "tsx scripts/ci-analyze-logs.ts",
+    "ci:validate": "node -e \"require('yaml').parse(require('fs').readFileSync('.gitlab-ci.yml','utf8'))\" && echo 'YAML valid'"
   },
   "keywords": [],
   "author": "",
@@ -25,8 +30,10 @@
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "eslint": "^10.1.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
+    "typescript-eslint": "^8.57.2",
     "vitest": "^4.1.2"
   },
   "dependencies": {

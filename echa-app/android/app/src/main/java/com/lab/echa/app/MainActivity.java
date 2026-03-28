@@ -9,11 +9,24 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
+    private EchaHttpServer httpServer;
+    private EchaWebSocketClient wsClient;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         registerPlugin(InstaWebViewPlugin.class);
         registerPlugin(ImageAnalyzerPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // Start embedded HTTP server for PC sync (fallback)
+        httpServer = new EchaHttpServer(this, 8765);
+        httpServer.startServer();
+
+        // Start WebSocket client for real-time push to visualizer
+        int visualizerPort = 3000;
+        EchaDatabase db = EchaDatabase.getInstance(this);
+        wsClient = EchaWebSocketClient.getInstance(db, visualizerPort);
+        wsClient.connect();
 
         // Force opaque dark status bar — no transparency, no edge-to-edge
         Window window = getWindow();

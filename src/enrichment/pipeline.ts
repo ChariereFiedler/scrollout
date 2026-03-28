@@ -5,8 +5,10 @@
 import prisma from '../db/client';
 import { normalizePostText } from './normalize';
 import { applyRules } from './rules-engine';
+import { normalizeTopics, getPreciseSubjectById, getDomainsFromThemes } from './dictionaries';
 import type { LLMProvider } from './llm/provider';
 import { ENRICHMENT_SYSTEM_PROMPT, buildEnrichmentPrompt } from './llm/prompts';
+import type { EnrichmentPromptInput } from './llm/prompts';
 import type { TranscriptionProvider } from '../media/transcribe';
 import { processVideoMedia } from '../media/pipeline';
 
@@ -20,10 +22,18 @@ export interface EnrichmentOptions {
   transcriptionProvider?: TranscriptionProvider; // active la transcription audio pour vidéos
 }
 
+interface LLMPreciseSubjectResult {
+  id: string;
+  position: 'pour' | 'contre' | 'neutre' | 'ambigu';
+  confidence: number;
+}
+
 interface LLMEnrichmentResult {
   semantic_summary: string;
   main_topics: string[];
   secondary_topics: string[];
+  subjects?: string[];
+  precise_subjects?: LLMPreciseSubjectResult[];
   content_domain: string;
   audience_target: string;
   persons: string[];
@@ -83,6 +93,14 @@ async function callLLM(
   mediaType: string,
   rulesResult: ReturnType<typeof applyRules>,
 ): Promise<LLMEnrichmentResult | null> {
+  // Build candidate precise subjects from rules hints
+  const candidatePreciseSubjects = rulesResult.candidatePreciseSubjectIds
+    .map(id => {
+      const found = getPreciseSubjectById(id);
+      return found ? { id: found.ps.id, statement: found.ps.statement } : null;
+    })
+    .filter((ps): ps is { id: string; statement: string } => ps !== null);
+
   const prompt = buildEnrichmentPrompt({
     normalizedText,
     username,
@@ -90,10 +108,12 @@ async function callLLM(
     mediaType,
     rulesHints: {
       mainTopics: rulesResult.mainTopics,
+      subjects: rulesResult.subjects,
       politicalScore: rulesResult.politicalExplicitnessScore,
       polarizationScore: rulesResult.polarizationScore,
       detectedActors: rulesResult.politicalActors,
     },
+    candidatePreciseSubjects: candidatePreciseSubjects.length > 0 ? candidatePreciseSubjects : undefined,
   });
 
   try {
@@ -133,8 +153,11 @@ function mergeResults(
       normalizedText,
       semanticSummary: '',
       keywordTerms: JSON.stringify(keywordTerms),
-      mainTopics: JSON.stringify(rules.mainTopics),
-      secondaryTopics: JSON.stringify(rules.secondaryTopics),
+      domains: JSON.stringify(rules.domains),
+      mainTopics: JSON.stringify(normalizeTopics(rules.mainTopics)),
+      secondaryTopics: JSON.stringify(normalizeTopics(rules.secondaryTopics)),
+      subjects: JSON.stringify(rules.subjects.map(s => ({ id: s.id, themeId: s.themeId, label: s.label }))),
+      preciseSubjects: '[]',
       contentDomain: '',
       audienceTarget: '',
       persons: '[]',
@@ -185,14 +208,43 @@ function mergeResults(
   const polarizationDivergence = Math.abs(rules.polarizationScore - llm.polarization_score);
   const needsReview = politicalDivergence >= 2 || polarizationDivergence > 0.4 || confidence < 0.4;
 
+  // Merge subjects: union of rules + LLM
+  const mergedSubjectIds = new Set(rules.subjects.map(s => s.id));
+  const mergedSubjects = [...rules.subjects.map(s => ({ id: s.id, themeId: s.themeId, label: s.label }))];
+  if (llm.subjects) {
+    for (const sId of llm.subjects) {
+      if (!mergedSubjectIds.has(sId)) {
+        mergedSubjectIds.add(sId);
+        mergedSubjects.push({ id: sId, themeId: '', label: sId });
+      }
+    }
+  }
+
+  // Validate precise subjects from LLM against known IDs
+  const validPreciseSubjects = (llm.precise_subjects || [])
+    .filter(ps => ps.id && getPreciseSubjectById(ps.id))
+    .map(ps => ({
+      id: ps.id,
+      statement: getPreciseSubjectById(ps.id)!.ps.statement,
+      position: ps.position,
+      confidence: ps.confidence,
+    }));
+
+  // Domains from merged topics
+  const allMergedTopics = [...normalizeTopics(llm.main_topics), ...normalizeTopics(llm.secondary_topics)];
+  const mergedDomains = getDomainsFromThemes(allMergedTopics);
+
   return {
     provider: providerName,
     model: modelName,
     normalizedText,
     semanticSummary: llm.semantic_summary,
     keywordTerms: JSON.stringify(keywordTerms),
-    mainTopics: JSON.stringify(llm.main_topics),
-    secondaryTopics: JSON.stringify(llm.secondary_topics),
+    domains: JSON.stringify(mergedDomains),
+    mainTopics: JSON.stringify(normalizeTopics(llm.main_topics)),
+    secondaryTopics: JSON.stringify(normalizeTopics(llm.secondary_topics)),
+    subjects: JSON.stringify(mergedSubjects),
+    preciseSubjects: JSON.stringify(validPreciseSubjects),
     contentDomain: llm.content_domain,
     audienceTarget: llm.audience_target,
     persons: JSON.stringify(llm.persons),
@@ -281,9 +333,10 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
       audioTranscription,
     });
 
-    // Skip si texte trop court
-    if (normalizedText.length < 5) {
-      console.log(`[enrich] #${stats.processed} @${post.username} — skip (texte vide)`);
+    // Skip si texte trop court ou username manquant (données capture insuffisantes)
+    const meaningfulWords = normalizedText.split(/\s+/).filter(w => w.length > 2).length;
+    if (normalizedText.length < 10 || (meaningfulWords < 3 && !post.username)) {
+      console.log(`[enrich] #${stats.processed} @${post.username || '?'} — skip (texte insuffisant: ${normalizedText.length} chars, ${meaningfulWords} mots, user=${!!post.username})`);
       stats.skipped++;
       continue;
     }

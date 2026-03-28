@@ -270,9 +270,53 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
   },
 ];
 
+// ── Mobile sync proxy ─────────────────────────────────────────────
+// These routes forward to the mobile HTTP server if connected.
+// Set via setMobileSyncClient() from server.ts when mobile is detected.
+
+let mobileBaseUrl: string | null = null;
+
+export function setMobileSyncUrl(url: string | null): void {
+  mobileBaseUrl = url;
+}
+
+async function proxyToMobile(path: string, res: ServerResponse): Promise<boolean> {
+  if (!mobileBaseUrl) {
+    json(res, { error: 'Mobile not connected' }, 503);
+    return true;
+  }
+  try {
+    const mobileRes = await fetch(`${mobileBaseUrl}${path}`);
+    const data = await mobileRes.text();
+    res.writeHead(mobileRes.status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(data);
+    return true;
+  } catch (e) {
+    json(res, { error: 'Mobile unreachable' }, 502);
+    return true;
+  }
+}
+
+const mobileRoutes: Array<{ pattern: RegExp; mobilePath: (match: RegExpMatchArray) => string }> = [
+  { pattern: /^\/api\/mobile\/sessions$/, mobilePath: () => '/api/sessions' },
+  { pattern: /^\/api\/mobile\/sessions\/([^/]+)\/posts/, mobilePath: (m) => `/api/sessions/${m[1]}/posts` },
+  { pattern: /^\/api\/mobile\/stats$/, mobilePath: () => '/api/stats' },
+  { pattern: /^\/api\/mobile\/posts$/, mobilePath: () => '/api/posts' },
+  { pattern: /^\/api\/mobile\/export\/([^/]+)$/, mobilePath: (m) => `/api/export/${m[1]}` },
+  { pattern: /^\/api\/mobile\/health$/, mobilePath: () => '/api/health' },
+];
+
 export async function handleApi(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = req.url || '';
   const method = req.method || 'GET';
+
+  // Mobile proxy routes
+  if (url.startsWith('/api/mobile/') && method === 'GET') {
+    for (const mr of mobileRoutes) {
+      const mm = url.match(mr.pattern);
+      if (mm) return proxyToMobile(mr.mobilePath(mm), res);
+    }
+  }
 
   for (const route of routes) {
     if (route.method !== method) continue;

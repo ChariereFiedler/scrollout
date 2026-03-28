@@ -52,15 +52,51 @@ function reduceEmojis(text: string): string {
  */
 function stripInstagramUI(text: string): string {
   const uiPatterns = [
+    // Navigation & layout
     /Home\s+Reels\s+Envoyer un message\s+Rechercher et explorer\s+Profil/gi,
     /Plus d'actions pour cette publication/gi,
-    /Photo de profil de \S+/gi,
-    /\S+ a publié un\(e\) \S+ le \d+ \w+/gi,
+    /Fermer/gi,
+    /Pour vous/gi,
+    /Votre profil\.?\s*/gi,
+    /Story vue/gi,
+    /Ajouter à la story/gi,
+    /Ajouter aux? enregistrements?/gi,
+    // Suggestions & follows
     /Suggestions?\s+Suivre/gi,
-    /\d+ J'aime,?\s*\d* commentaires?/gi,
+    /Suggestion\s+Reel\s+de\s+[^,]+,\s*\d+\s+J'aime[^.]*\./gi,
+    /Suggestion\s+Photo\s+de\s+[^,]+,\s*\d+\s+J'aime[^.]*\./gi,
+    /Suggestion\s+(Reel|Photo)\s+de\s+[^,\n]+/gi,
+    // Metadata de publication — J'aime/commentaires (apostrophe droite ' ou typographique ')
+    /Photo de profil de \S+/gi,
+    /\S+ a publié un\(e\) \S+ le [^.]+/gi,
+    /,?\s*[\d\s]+J['\u2019]aime,?\s*[\d\s]*commentaires?/gi,
+    /Photo de [^,]+,\s*[\d\s]+J['\u2019]aime[^.\n]*\.?/gi,
+    /Vidéo de [^,]+,\s*[\d\s]+J['\u2019]aime[^.\n]*\.?/gi,
+    /[\d\s]+J['\u2019]aime/gi,
+    /\d+\s+commentaires?/gi,
+    /Photo \d+ de \d+ de [^,]+,?/gi,
+    /Avatars?\s+utilisateurs?\s+\S+(\s+et\s+\S+)*/gi,
+    // Actions & UI chrome
     /Voir la traduction/gi,
-    /Photo \d+ de \d+ de .+?,/gi,
-    /Suggestion Photo de .+?,/gi,
+    /Vue\s+Grille\s+Reels\s+Photos de vous/gi,
+    /Voir les personnes? identifiée?s?/gi,
+    /Voir tous les \d+ commentaires/gi,
+    /Sponsorisée/gi,
+    // Stories
+    /Story à la une de \S+[^.]*\./gi,
+    /Story de \S+[^.]*\.?/gi,
+    /Story à la une de \S+[^,\n]*/gi,
+    /Story de \S+/gi,
+    /\d+ sur \d+,\s*Vus\.?/gi,
+    // Dates isolées (sans contenu sémantique) — inline et en début de ligne
+    /il y a \d+\s+(?:jours?|heures?|minutes?|semaines?|mois|ans?)/gi,
+    /^\d{1,2}\s+(?:janv(?:ier)?|févr(?:ier)?|mars|avr(?:il)?|mai|juin|juil(?:let)?|août|sept(?:embre)?|oct(?:obre)?|nov(?:embre)?|déc(?:embre)?)\s*(?:•.*)?$/gim,
+    /\d{1,2}\s+(?:janv(?:ier)?|févr(?:ier)?|mars|avr(?:il)?|mai|juin|juil(?:let)?|août|sept(?:embre)?|oct(?:obre)?|nov(?:embre)?|déc(?:embre)?)\s*•[^\n]*/gi,
+    // Résidu navigation
+    /(?:Suivre|Plus)\s*$/gim,
+    /\bplus\b\s*$/gim,
+    // Résidu profil / stories highlights
+    /dans la colonne \d+/gi,
   ];
   let result = text;
   for (const pattern of uiPatterns) {
@@ -164,7 +200,7 @@ export function normalizePostText(input: {
 } {
   // 1. Nettoyer chaque source
   const cleanCaption = normalizeWhitespace(reduceEmojis(stripUrls(stripMentions(input.caption))));
-  const cleanImageDesc = normalizeWhitespace(input.imageDesc);
+  const cleanImageDesc = normalizeWhitespace(stripInstagramUI(input.imageDesc));
   const cleanAllText = normalizeWhitespace(stripInstagramUI(reduceEmojis(stripUrls(stripMentions(input.allText)))));
 
   // Sources vidéo (marquées pour le LLM)

@@ -13,22 +13,36 @@ IMPORTANT :
 - Justifie toujours tes scores politiques et de polarisation.
 - Pour les vidéos/reels, le texte peut contenir des marqueurs [OCR], [SUBTITLES] ou [AUDIO_TRANSCRIPT] indiquant la provenance. Croise ces sources pour comprendre le message global du média.`;
 
-export function buildEnrichmentPrompt(input: {
+export interface EnrichmentPromptInput {
   normalizedText: string;
   username: string;
   hashtags: string[];
   mediaType: string;
   rulesHints: {
     mainTopics: string[];
+    subjects: { id: string; label: string; themeId: string }[];
     politicalScore: number;
     polarizationScore: number;
     detectedActors: string[];
   };
-}): string {
+  candidatePreciseSubjects?: { id: string; statement: string }[];
+}
+
+export function buildEnrichmentPrompt(input: EnrichmentPromptInput): string {
   const hashtagStr = input.hashtags.length > 0 ? input.hashtags.join(', ') : '(aucun)';
-  const rulesContext = input.rulesHints.mainTopics.length > 0
-    ? `\nIndices pré-calculés (règles) : topics=[${input.rulesHints.mainTopics.join(',')}], political_score=${input.rulesHints.politicalScore}, polarization=${input.rulesHints.polarizationScore}, actors=[${input.rulesHints.detectedActors.join(',')}]`
+  const subjectsStr = input.rulesHints.subjects.length > 0
+    ? `, subjects=[${input.rulesHints.subjects.map(s => s.id).join(',')}]`
     : '';
+  const rulesContext = input.rulesHints.mainTopics.length > 0
+    ? `\nIndices pré-calculés (règles) : topics=[${input.rulesHints.mainTopics.join(',')}]${subjectsStr}, political_score=${input.rulesHints.politicalScore}, polarization=${input.rulesHints.polarizationScore}, actors=[${input.rulesHints.detectedActors.join(',')}]`
+    : '';
+
+  // Sujets précis candidats pour matching cross-perspectives
+  let preciseSubjectsBlock = '';
+  if (input.candidatePreciseSubjects && input.candidatePreciseSubjects.length > 0) {
+    const lines = input.candidatePreciseSubjects.map(ps => `  - ${ps.id}: "${ps.statement}"`).join('\n');
+    preciseSubjectsBlock = `\n\nSUJETS PRÉCIS CANDIDATS (choisis ceux qui correspondent au post, 0 à 3 max) :\n${lines}`;
+  }
 
   const isVideo = ['video', 'reel'].includes(input.mediaType);
   const videoInstruction = isVideo
@@ -41,21 +55,25 @@ Croise TOUTES les sources disponibles pour déterminer le message et l'intention
 
   return `Analyse ce post Instagram et produis un JSON structuré.
 
+IMPORTANT : Le nom d'utilisateur (@username) est un signal sémantique fort. Utilise-le pour inférer le domaine du compte (ex: @boardgamegeek → jeux de société, @franceculture → culture/média, @tagheuer → luxe/horlogerie). Cela aide à classifier quand le texte du post est pauvre.
+
 --- POST ---
 Auteur : @${input.username}
 Type : ${input.mediaType}
 Hashtags : ${hashtagStr}
 Texte :
 ${input.normalizedText || '(texte vide ou non disponible)'}
-${rulesContext}${videoInstruction}
+${rulesContext}${videoInstruction}${preciseSubjectsBlock}
 --- FIN POST ---
 
 Produis un JSON avec EXACTEMENT ces champs :
 
 {
   "semantic_summary": "résumé en 1-2 phrases du contenu du post",
-  "main_topics": ["max 3 thèmes parmi: actualite, politique, geopolitique, economie, ecologie, immigration, securite, justice, sante, religion, education, culture, humour, divertissement, lifestyle, beaute, sport, business, developpement_personnel, technologie, feminisme, masculinite, identite, societe"],
-  "secondary_topics": ["0-3 thèmes secondaires"],
+  "main_topics": ["1-3 thèmes principaux parmi: actualite, politique, geopolitique, economie, ecologie, immigration, securite, justice, sante, religion, education, culture, humour, divertissement, lifestyle, beaute, sport, business, developpement_personnel, technologie, feminisme, masculinite, identite, societe"],
+  "secondary_topics": ["0-3 thèmes secondaires parmi LA MÊME LISTE ci-dessus. Remplis ce champ dès qu'un thème secondaire est détectable, même faiblement. Ne laisse [] que si le post est vraiment mono-thème."],
+  "subjects": ["IDs des sujets détectés (niveau 3 de la taxonomie), issus des indices pré-calculés ou identifiés par toi"],
+  "precise_subjects": [{"id": "ID du sujet précis si candidat fourni, sinon null", "position": "pour | contre | neutre | ambigu", "confidence": 0.0 à 1.0}],
   "content_domain": "un mot résumant le domaine : actualité | divertissement | lifestyle | politique | éducation | business | autre",
   "audience_target": "grand public | militant | niche | communautaire | professionnel",
   "persons": ["personnes nommées dans le post"],

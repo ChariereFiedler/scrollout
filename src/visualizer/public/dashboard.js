@@ -38,6 +38,8 @@ const dom = {
   statErrors: $('stat-errors'),
   adbDot: $('adb-dot'),
   adbLabel: $('adb-label'),
+  mobileDot: $('mobile-dot'),
+  mobileLabel: $('mobile-label'),
   focusedPostBody: $('focused-post-body'),
   focusedPostCount: $('focused-post-count'),
   streamBody: $('stream-body'),
@@ -106,7 +108,14 @@ function handleMessage(msg) {
       updateQuality(msg.metrics);
       break;
     case 'status':
-      updateAdbStatus(msg.adb);
+      if (msg.adb) updateAdbStatus(msg.adb);
+      if (msg.mobile) updateMobileStatus(msg.mobile, msg.stats);
+      break;
+    case 'mobile-session-start':
+      addStreamEntry('event', `[MOBILE] Session started: ${msg.data?.sessionId} (${msg.data?.captureMode})`);
+      break;
+    case 'mobile-session-end':
+      addStreamEntry('summary', `[MOBILE] Session ended: ${msg.data?.totalPosts} posts, ${msg.data?.durationSec?.toFixed(0)}s`);
       break;
     case 'tracker':
       handleTracker(msg.data);
@@ -553,6 +562,18 @@ function updateAdbStatus(status) {
   const connected = status === 'connected';
   dom.adbDot.className = `dot${connected ? ' connected' : ''}`;
   dom.adbLabel.textContent = status;
+}
+
+function updateMobileStatus(status, stats) {
+  const connected = status === 'connected';
+  if (dom.mobileDot) {
+    dom.mobileDot.className = `dot${connected ? ' connected' : ''}`;
+  }
+  if (dom.mobileLabel) {
+    dom.mobileLabel.textContent = connected
+      ? `mobile: connected${stats ? ` (${stats.totalPosts || 0} posts)` : ''}`
+      : 'mobile: disconnected';
+  }
 }
 
 // ─── Dwell timer update ──────────────────────────────────────────────

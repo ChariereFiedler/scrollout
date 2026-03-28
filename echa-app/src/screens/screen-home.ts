@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { theme } from '../styles/theme.js';
 import { openInstagram, onTrackerData } from '../services/native-bridge.js';
+import { getStats, type DbStats } from '../services/db-bridge.js';
 
 declare global {
   interface Window {
@@ -54,6 +55,18 @@ export class ScreenHome extends LitElement {
   ];
 
   @state() private launching = false;
+  @state() private stats: DbStats | null = null;
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.loadStats();
+  }
+
+  private async loadStats() {
+    try {
+      this.stats = await getStats();
+    } catch { /* ignore on home screen */ }
+  }
 
   private async launch() {
     this.launching = true;
@@ -75,10 +88,20 @@ export class ScreenHome extends LitElement {
         <button class="btn" @click=${this.launch} ?disabled=${this.launching}>
           ${this.launching ? 'Lancement...' : 'Ouvrir Instagram'}
         </button>
-        <div class="info">
-          Ouvrez Instagram pour commencer la capture.
-          Naviguez entre les onglets pour consulter les analyses en temps réel.
-        </div>
+        ${this.stats && this.stats.totalPosts > 0 ? html`
+          <div style="background:#141414;border-radius:10px;padding:14px;width:100%;max-width:280px;text-align:center">
+            <div style="display:flex;justify-content:space-around;margin-bottom:8px">
+              <div><div style="font-size:22px;font-weight:700;color:var(--accent)">${this.stats.totalSessions}</div><div style="font-size:9px;color:var(--text-dim)">SESSIONS</div></div>
+              <div><div style="font-size:22px;font-weight:700;color:var(--green)">${this.stats.totalPosts}</div><div style="font-size:9px;color:var(--text-dim)">POSTS</div></div>
+              <div><div style="font-size:22px;font-weight:700;color:var(--yellow)">${this.stats.totalEnriched}</div><div style="font-size:9px;color:var(--text-dim)">ENRICHIS</div></div>
+            </div>
+          </div>
+        ` : html`
+          <div class="info">
+            Ouvrez Instagram pour commencer la capture.
+            Naviguez entre les onglets pour consulter les analyses.
+          </div>
+        `}
       </div>
     `;
   }

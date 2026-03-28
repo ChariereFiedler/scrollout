@@ -1,0 +1,159 @@
+---
+---
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="container">
+    <p class="pre-title">open source / android / gratuit</p>
+    <h1>
+      <span class="logo">Scroll<span class="accent">out</span></span>
+    </h1>
+    <p class="tagline">
+      Tu scrolles.<br/>
+      L'algorithme choisit.<br/>
+      <strong class="accent">Tu ne vois rien.</strong>
+    </p>
+    <p class="sub">
+      Scrollout capture ce qu'Instagram te montre vraiment
+      et te rend visible ce qui est invisible : les thèmes, la polarisation,
+      les narratifs, ta bulle de filtre.
+    </p>
+    <div class="cta-row">
+      <a href="#manifeste" class="btn btn-primary">Lire le manifeste</a>
+      <a href="https://gitlab.com/scrollout" class="btn btn-ghost" target="_blank" rel="noopener">
+        Code source
+      </a>
+    </div>
+  </div>
+  <div class="scroll-hint" aria-hidden="true">
+    <span></span>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    padding: 80px 24px 60px;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0, 229, 255, 0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(255, 107, 53, 0.05) 0%, transparent 60%);
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+  }
+
+  .pre-title {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+  }
+
+  h1 {
+    font-size: clamp(4rem, 12vw, 9rem);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    margin-bottom: 40px;
+  }
+
+  .accent {
+    color: var(--accent);
+  }
+
+  .tagline {
+    font-size: clamp(1.2rem, 3vw, 1.8rem);
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: 24px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .sub {
+    font-size: 1.05rem;
+    color: var(--text-dim);
+    max-width: 520px;
+    margin: 0 auto 48px;
+    line-height: 1.7;
+  }
+
+  .cta-row {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 14px 36px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.25s ease;
+    cursor: pointer;
+    border: none;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--black);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);
+    transform: translateY(-2px);
+    opacity: 1;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--white);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    opacity: 1;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .scroll-hint span {
+    display: block;
+    width: 2px;
+    height: 32px;
+    background: linear-gradient(to bottom, var(--accent), transparent);
+    animation: scroll-down 2s ease-in-out infinite;
+  }
+
+  @keyframes scroll-down {
+    0%, 100% { opacity: 0; transform: translateY(-8px); }
+    50% { opacity: 1; transform: translateY(8px); }
+  }
+</style>

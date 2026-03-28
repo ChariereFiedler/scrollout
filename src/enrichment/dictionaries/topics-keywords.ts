@@ -1,8 +1,13 @@
 /**
- * Mots-clés par thème — taxonomie 24 thèmes (ROADMAP §6.4).
- * Chaque thème a un ensemble de termes discriminants.
- * Utilisé pour la classification multi-label rule-based.
+ * Mots-clés par thème — dérivés de la taxonomie 5 niveaux.
+ * Ce fichier maintient la rétrocompatibilité avec l'API existante (classifyTopics, normalizeTopicId, etc.)
+ * tout en s'appuyant sur la structure hiérarchique de taxonomy.ts.
+ *
+ * Les keywords de chaque thème sont l'union des keywords de tous ses sujets.
  */
+
+import { THEMES, classifyMultiLevel, getDomainForTheme, matchKeyword } from './taxonomy';
+import type { MultiLevelMatch } from './taxonomy';
 
 export interface TopicDefinition {
   id: string;
@@ -10,143 +15,161 @@ export interface TopicDefinition {
   keywords: string[];
 }
 
-export const TOPICS: TopicDefinition[] = [
-  {
-    id: 'actualite',
-    label: 'Actualité',
-    keywords: ['breaking', 'flash info', 'alerte info', 'dernière minute', 'derniere minute', 'urgent', 'en direct', 'journal', 'jt', 'bfm', 'cnews', 'lci', 'france info', 'franceinfo', 'le monde', 'libération', 'figaro', 'mediapart', 'reuters', 'afp'],
-  },
-  {
-    id: 'politique',
-    label: 'Politique',
-    keywords: ['élection', 'election', 'vote', 'scrutin', 'candidat', 'député', 'depute', 'sénateur', 'senateur', 'ministre', 'président', 'president', 'loi', 'projet de loi', 'réforme', 'reforme', 'parlement', 'politique', 'campagne'],
-  },
-  {
-    id: 'geopolitique',
-    label: 'Géopolitique',
-    keywords: ['géopolitique', 'geopolitique', 'diplomatie', 'conflit', 'guerre', 'traité', 'traite', 'sanctions', 'embargo', 'otan', 'nato', 'onu', 'union européenne', 'moyen-orient', 'moyen orient', 'ukraine', 'russie', 'chine', 'usa', 'états-unis', 'etats-unis'],
-  },
-  {
-    id: 'economie',
-    label: 'Économie',
-    keywords: ['économie', 'economie', 'inflation', 'bourse', 'cac40', 'pib', 'chômage', 'chomage', 'emploi', 'salaire', 'smic', 'pouvoir d\'achat', 'pouvoir dachat', 'croissance', 'récession', 'recession', 'dette', 'budget', 'impôt', 'impot', 'taxe', 'fiscal'],
-  },
-  {
-    id: 'ecologie',
-    label: 'Écologie',
-    keywords: ['écologie', 'ecologie', 'climat', 'climatique', 'réchauffement', 'rechauffement', 'co2', 'carbone', 'renouvelable', 'biodiversité', 'biodiversite', 'pollution', 'plastique', 'déforestation', 'deforestation', 'environnement', 'giec', 'cop', 'vert', 'durable'],
-  },
-  {
-    id: 'immigration',
-    label: 'Immigration',
-    keywords: ['immigration', 'immigré', 'immigre', 'migrant', 'migrants', 'réfugié', 'refugie', 'asile', 'frontière', 'frontiere', 'clandestin', 'sans-papiers', 'sans papiers', 'expulsion', 'régularisation', 'regularisation', 'oqtf', 'lampedusa', 'calais'],
-  },
-  {
-    id: 'securite',
-    label: 'Sécurité',
-    keywords: ['sécurité', 'securite', 'police', 'gendarmerie', 'délinquance', 'delinquance', 'criminalité', 'criminalite', 'agression', 'vol', 'cambriolage', 'terrorisme', 'attentat', 'vidéosurveillance', 'prison', 'garde à vue', 'interpellation'],
-  },
-  {
-    id: 'justice',
-    label: 'Justice',
-    keywords: ['justice', 'tribunal', 'procès', 'proces', 'condamnation', 'acquittement', 'avocat', 'magistrat', 'juge', 'peine', 'amende', 'prison', 'détention', 'detention', 'plainte', 'garde à vue', 'instruction', 'parquet', 'cour d\'appel'],
-  },
-  {
-    id: 'sante',
-    label: 'Santé',
-    keywords: ['santé', 'sante', 'hôpital', 'hopital', 'médecin', 'medecin', 'soignant', 'infirmier', 'vaccin', 'vaccination', 'covid', 'maladie', 'épidémie', 'epidemie', 'urgences', 'sécurité sociale', 'securite sociale', 'médicament', 'medicament', 'ars'],
-  },
-  {
-    id: 'religion',
-    label: 'Religion',
-    keywords: ['religion', 'religieux', 'islam', 'musulman', 'chrétien', 'chretien', 'catholique', 'juif', 'judaïsme', 'judaisme', 'laïcité', 'laicite', 'voile', 'mosquée', 'mosquee', 'église', 'eglise', 'synagogue', 'ramadan', 'prière', 'priere', 'dieu', 'allah', 'bible', 'coran'],
-  },
-  {
-    id: 'education',
-    label: 'Éducation',
-    keywords: ['éducation', 'education', 'école', 'ecole', 'lycée', 'lycee', 'collège', 'college', 'université', 'universite', 'professeur', 'enseignant', 'bac', 'baccalauréat', 'baccalaureat', 'parcoursup', 'étudiant', 'etudiant', 'rentrée', 'rentree', 'programme scolaire'],
-  },
-  {
-    id: 'culture',
-    label: 'Culture',
-    keywords: ['culture', 'art', 'musée', 'musee', 'exposition', 'cinéma', 'cinema', 'film', 'série', 'serie', 'livre', 'littérature', 'litterature', 'théâtre', 'theatre', 'concert', 'festival', 'patrimoine', 'artiste', 'œuvre', 'oeuvre'],
-  },
-  {
-    id: 'humour',
-    label: 'Humour',
-    keywords: ['mdr', 'ptdr', 'lol', 'humour', 'blague', 'sketch', 'parodie', 'satire', 'drôle', 'drole', 'hilarant', 'mort de rire', 'troll', 'ironie', 'meme', 'mème', 'shitpost'],
-  },
-  {
-    id: 'divertissement',
-    label: 'Divertissement',
-    keywords: ['divertissement', 'entertainment', 'tv', 'télé', 'tele', 'émission', 'emission', 'téléréalité', 'telerealite', 'reality', 'people', 'célébrité', 'celebrite', 'star', 'buzz', 'viral', 'trend', 'tendance', 'challenge'],
-  },
-  {
-    id: 'lifestyle',
-    label: 'Lifestyle',
-    keywords: ['lifestyle', 'mode de vie', 'routine', 'morning routine', 'organisation', 'productivité', 'productivite', 'minimalisme', 'slow life', 'bien-être', 'bien etre', 'bienetre', 'self care', 'selfcare', 'cocooning', 'home', 'déco', 'deco', 'intérieur', 'interieur'],
-  },
-  {
-    id: 'beaute',
-    label: 'Beauté',
-    keywords: ['beauté', 'beaute', 'maquillage', 'makeup', 'skincare', 'soin', 'crème', 'creme', 'sérum', 'serum', 'mascara', 'rouge à lèvres', 'foundation', 'fond de teint', 'coiffure', 'cheveux', 'ongles', 'nails', 'glow', 'tutorial', 'tuto'],
-  },
-  {
-    id: 'sport',
-    label: 'Sport',
-    keywords: ['sport', 'foot', 'football', 'rugby', 'tennis', 'basket', 'nba', 'ligue 1', 'champions league', 'psg', 'om', 'match', 'goal', 'but', 'joueur', 'athlète', 'athlete', 'musculation', 'fitness', 'crossfit', 'running', 'marathon', 'jeux olympiques'],
-  },
-  {
-    id: 'business',
-    label: 'Business',
-    keywords: ['business', 'entrepreneur', 'startup', 'entreprise', 'investissement', 'crypto', 'bitcoin', 'trading', 'freelance', 'revenus', 'passifs', 'formation', 'coaching', 'mindset', 'succès', 'succes', 'hustle', 'dropshipping', 'e-commerce', 'ecommerce'],
-  },
-  {
-    id: 'developpement_personnel',
-    label: 'Développement personnel',
-    keywords: ['développement personnel', 'developpement personnel', 'motivation', 'confiance en soi', 'méditation', 'meditation', 'pleine conscience', 'mindfulness', 'gratitude', 'affirmation', 'loi d\'attraction', 'manifestation', 'croissance personnelle', 'résilience', 'resilience', 'stoïcisme', 'stoicisme'],
-  },
-  {
-    id: 'technologie',
-    label: 'Technologie',
-    keywords: ['technologie', 'tech', 'ia', 'intelligence artificielle', 'ai', 'chatgpt', 'openai', 'robot', 'smartphone', 'iphone', 'android', 'apple', 'google', 'meta', 'microsoft', 'app', 'application', 'algorithme', 'data', 'cloud', 'cyber'],
-  },
-  {
-    id: 'feminisme',
-    label: 'Féminisme',
-    keywords: ['féminisme', 'feminisme', 'féministe', 'feministe', 'patriarcat', 'sexisme', 'sexiste', 'misogynie', 'inégalité', 'inegalite', 'genre', 'droit des femmes', 'empowerment', 'sororité', 'sororite', 'charge mentale', 'harcèlement', 'harcelement', 'consentement', 'metoo'],
-  },
-  {
-    id: 'masculinite',
-    label: 'Masculinité',
-    keywords: ['masculinité', 'masculinite', 'virilité', 'virilite', 'red pill', 'redpill', 'alpha', 'sigma', 'grindset', 'andrew tate', 'tate', 'mgtow', 'manosphere', 'masculinisme', 'homme moderne', 'high value', 'stoïque', 'stoique', 'discipline'],
-  },
-  {
-    id: 'identite',
-    label: 'Identité',
-    keywords: ['identité', 'identite', 'identitaire', 'communauté', 'communaute', 'diaspora', 'racines', 'origine', 'culture', 'tradition', 'fierté', 'fierte', 'appartenance', 'représentation', 'representation', 'visibilité', 'visibilite', 'minorité', 'minorite', 'lgbtq', 'queer', 'transgenre', 'non-binaire'],
-  },
-  {
-    id: 'societe',
-    label: 'Société',
-    keywords: ['société', 'societe', 'social', 'solidarité', 'solidarite', 'précarité', 'precarite', 'pauvreté', 'pauvrete', 'inégalités', 'inegalites', 'classe moyenne', 'banlieue', 'quartier', 'discrimination', 'intégration', 'integration', 'vivre ensemble', 'lien social', 'fracture sociale'],
-  },
-];
+/**
+ * Construit la liste TOPICS à partir de la taxonomie hiérarchique.
+ * Chaque thème agrège les keywords de tous ses sujets.
+ */
+export const TOPICS: TopicDefinition[] = THEMES.map(theme => ({
+  id: theme.id,
+  label: theme.label,
+  keywords: Array.from(new Set(theme.subjects.flatMap(s => s.keywords))),
+}));
+
+/**
+ * Map d'aliases → id canonique pour normaliser les topics retournés par le LLM.
+ * Inclut : id canonique, label (sans accents et avec), variantes courantes.
+ */
+const TOPIC_ALIASES: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const t of TOPICS) {
+    // id canonique
+    map[t.id] = t.id;
+    // label normalisé (lowercase)
+    map[t.label.toLowerCase()] = t.id;
+    // label sans accents
+    const noAccent = t.label.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    map[noAccent] = t.id;
+  }
+  // Aliases manuels pour variantes LLM fréquentes
+  map['beauté'] = 'beaute';
+  map['santé'] = 'sante';
+  map['économie'] = 'economie';
+  map['écologie'] = 'ecologie';
+  map['éducation'] = 'education';
+  map['sécurité'] = 'securite';
+  map['géopolitique'] = 'geopolitique';
+  map['société'] = 'societe';
+  map['identité'] = 'identite';
+  map['féminisme'] = 'feminisme';
+  map['masculinité'] = 'masculinite';
+  map['développement personnel'] = 'developpement_personnel';
+  map['dev perso'] = 'developpement_personnel';
+  map['jeux'] = 'divertissement';
+  map['gaming'] = 'divertissement';
+  map['jeux vidéo'] = 'divertissement';
+  map['jeux video'] = 'divertissement';
+  map['food'] = 'lifestyle';
+  map['cuisine'] = 'lifestyle';
+  map['voyage'] = 'lifestyle';
+  map['déco'] = 'lifestyle';
+  map['musique'] = 'culture';
+  map['cinéma'] = 'culture';
+  map['cinema'] = 'culture';
+  map['art'] = 'culture';
+  map['nature'] = 'ecologie';
+  map['animaux'] = 'lifestyle';
+  map['immobilier'] = 'business';
+  map['crypto'] = 'business';
+  map['mode'] = 'beaute';
+  map['fashion'] = 'beaute';
+  return map;
+})();
+
+/**
+ * Normalise un topic ID retourné par le LLM vers l'ID canonique de la taxonomie.
+ * Retourne l'ID canonique ou null si inconnu.
+ */
+export function normalizeTopicId(raw: string): string | null {
+  const lower = raw.toLowerCase().trim();
+  if (TOPIC_ALIASES[lower]) return TOPIC_ALIASES[lower];
+  // Essai sans accents
+  const noAccent = lower.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (TOPIC_ALIASES[noAccent]) return TOPIC_ALIASES[noAccent];
+  return null;
+}
+
+/**
+ * Normalise un tableau de topics : canonise les IDs, déduplique, filtre les inconnus.
+ */
+export function normalizeTopics(topics: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const t of topics) {
+    const normalized = normalizeTopicId(t);
+    if (normalized && !seen.has(normalized)) {
+      seen.add(normalized);
+      result.push(normalized);
+    }
+  }
+  return result;
+}
 
 /**
  * Classifie un texte en thèmes (multi-label).
  * Retourne les thèmes triés par nombre de matches décroissant.
+ * Rétrocompatible avec l'ancienne API.
  */
 export function classifyTopics(text: string): { id: string; label: string; matchCount: number }[] {
   const lower = text.toLowerCase();
   const results: { id: string; label: string; matchCount: number }[] = [];
 
   for (const topic of TOPICS) {
-    const matchCount = topic.keywords.filter(kw => lower.includes(kw)).length;
+    const matchCount = topic.keywords.filter(kw => matchKeyword(kw, lower)).length;
     if (matchCount > 0) {
       results.push({ id: topic.id, label: topic.label, matchCount });
     }
   }
 
   return results.sort((a, b) => b.matchCount - a.matchCount);
+}
+
+/**
+ * Classification enrichie : retourne thèmes + sujets + domaines.
+ * Wrapper autour de classifyMultiLevel pour usage dans le pipeline.
+ */
+export function classifyTopicsEnriched(text: string): {
+  themes: { id: string; label: string; matchCount: number }[];
+  subjects: { id: string; label: string; themeId: string; matchCount: number }[];
+  domains: { id: string; label: string }[];
+  _multilevel: MultiLevelMatch[];
+} {
+  const multilevel = classifyMultiLevel(text);
+
+  // Agréger par thème
+  const themeMap = new Map<string, { id: string; label: string; matchCount: number }>();
+  const subjectMap = new Map<string, { id: string; label: string; themeId: string; matchCount: number }>();
+  const domainSet = new Map<string, { id: string; label: string }>();
+
+  for (const m of multilevel) {
+    // Thèmes
+    const existing = themeMap.get(m.theme.id);
+    if (existing) {
+      existing.matchCount += m.matchCount;
+    } else {
+      themeMap.set(m.theme.id, { ...m.theme, matchCount: m.matchCount });
+    }
+
+    // Sujets
+    if (m.subject) {
+      const sExisting = subjectMap.get(m.subject.id);
+      if (sExisting) {
+        sExisting.matchCount += m.matchCount;
+      } else {
+        subjectMap.set(m.subject.id, { ...m.subject, themeId: m.theme.id, matchCount: m.matchCount });
+      }
+    }
+
+    // Domaines
+    if (!domainSet.has(m.domain.id)) {
+      domainSet.set(m.domain.id, m.domain);
+    }
+  }
+
+  return {
+    themes: Array.from(themeMap.values()).sort((a, b) => b.matchCount - a.matchCount),
+    subjects: Array.from(subjectMap.values()).sort((a, b) => b.matchCount - a.matchCount),
+    domains: Array.from(domainSet.values()),
+    _multilevel: multilevel,
+  };
 }
