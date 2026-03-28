@@ -22,6 +22,8 @@ function getPlugin(): any {
   };
 }
 
+type NativeListenerHandle = { remove: () => Promise<void> };
+
 export async function openInstagram(): Promise<{ status: string }> {
   return getPlugin().openInstagram();
 }
@@ -52,4 +54,8 @@ export async function exportSession(): Promise<{ path: string; data: string }> {
 
 export async function onTrackerData(callback: (data: any) => void): Promise<{ remove: () => Promise<void> }> {
   return getPlugin().addListener('trackerData', callback);
+}
+
+export async function onOpenCognition(callback: () => void): Promise<NativeListenerHandle> {
+  return getPlugin().addListener('openCognition', callback);
 }

@@ -1,9 +1,9 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { theme } from './styles/theme.js';
-import { openInstagram, showInstagram, hideInstagram, isInstagramOpen } from './services/native-bridge.js';
+import { openInstagram, showInstagram, hideInstagram, isInstagramOpen, onOpenCognition } from './services/native-bridge.js';
 
-type Tab = 'home' | 'instagram' | 'enrichment' | 'posts' | 'settings';
+type Tab = 'home' | 'instagram' | 'cognition' | 'enrichment' | 'posts' | 'settings';
 
 @customElement('app-shell')
 export class AppShell extends LitElement {
@@ -74,14 +74,86 @@ export class AppShell extends LitElement {
       .tab.active { color: var(--accent); }
       .tab-icon { font-size: 20px; line-height: 1; }
       .tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); position: absolute; top: 4px; right: calc(50% - 16px); }
+
+      .floating-cognition {
+        position: fixed;
+        left: var(--fab-left, calc(100vw - 84px));
+        top: var(--fab-top, calc(100vh - 180px));
+        width: 60px;
+        height: 60px;
+        border: none;
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.24), transparent 34%),
+          linear-gradient(135deg, var(--accent), var(--purple));
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+        display: grid;
+        place-items: center;
+        z-index: 10001;
+        cursor: grab;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .floating-cognition:active {
+        cursor: grabbing;
+      }
+
+      .floating-cognition svg {
+        width: 30px;
+        height: 30px;
+        fill: #fff;
+      }
+
+      .floating-label {
+        position: absolute;
+        top: -10px;
+        right: -8px;
+        min-width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: rgba(10, 10, 10, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        font-size: 8px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        display: grid;
+        place-items: center;
+        padding: 0 6px;
+        text-transform: uppercase;
+      }
     `,
   ];
 
   @state() activeTab: Tab = 'home';
   @state() igOpen = false;
+  @state() private fabX = 0;
+  @state() private fabY = 0;
+
+  private dragPointerId: number | null = null;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private fabStartX = 0;
+  private fabStartY = 0;
+  private dragged = false;
+  private cognitionListener: { remove: () => Promise<void> } | null = null;
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.resetFabPosition();
+    void this.bindNativeListeners();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.cognitionListener) {
+      void this.cognitionListener.remove();
+      this.cognitionListener = null;
+    }
+  }
 
   private async switchTab(tab: Tab) {
-    const previousTab = this.activeTab;
     this.activeTab = tab;
 
     if (tab === 'instagram') {
@@ -109,9 +181,65 @@ export class AppShell extends LitElement {
     }
   }
 
+  private async bindNativeListeners() {
+    this.cognitionListener = await onOpenCognition(async () => {
+      if (this.igOpen) {
+        try {
+          await hideInstagram();
+        } catch (e) {
+          console.warn('[ECHA] Failed to hide Instagram for cognition:', e);
+        }
+      }
+      this.activeTab = 'cognition';
+    });
+  }
+
+  private resetFabPosition() {
+    this.fabX = Math.max(16, window.innerWidth - 84);
+    this.fabY = Math.max(96, window.innerHeight - 180);
+  }
+
+  private beginFabDrag(event: PointerEvent) {
+    this.dragPointerId = event.pointerId;
+    this.dragStartX = event.clientX;
+    this.dragStartY = event.clientY;
+    this.fabStartX = this.fabX;
+    this.fabStartY = this.fabY;
+    this.dragged = false;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  private moveFab(event: PointerEvent) {
+    if (this.dragPointerId !== event.pointerId) return;
+    const dx = event.clientX - this.dragStartX;
+    const dy = event.clientY - this.dragStartY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) this.dragged = true;
+
+    const maxX = Math.max(16, window.innerWidth - 76);
+    const maxY = Math.max(96, window.innerHeight - 140);
+    this.fabX = Math.min(maxX, Math.max(16, this.fabStartX + dx));
+    this.fabY = Math.min(maxY, Math.max(96, this.fabStartY + dy));
+  }
+
+  private endFabDrag(event: PointerEvent) {
+    if (this.dragPointerId !== event.pointerId) return;
+    this.dragPointerId = null;
+  }
+
+  private async openCognitionFromFab() {
+    if (this.dragged) {
+      this.dragged = false;
+      return;
+    }
+    await this.switchTab('cognition');
+  }
+
   render() {
     return html`
-      <div class="screen-area">
+      <div
+        class="screen-area"
+        style=${`--fab-left:${this.fabX}px;--fab-top:${this.fabY}px;`}
+      >
         ${this.activeTab === 'home' ? html`<screen-home @instagram-opened=${() => { this.igOpen = true; this.activeTab = 'instagram'; }}></screen-home>` : ''}
         ${this.activeTab === 'instagram' ? html`
           <div class="ig-placeholder">
@@ -120,9 +248,26 @@ export class AppShell extends LitElement {
             <div style="font-size:11px">Parcourez votre fil, les données sont capturées en arrière-plan</div>
           </div>
         ` : ''}
+        ${this.activeTab === 'cognition' ? html`<screen-cognition @go-home=${() => this.switchTab('home')}></screen-cognition>` : ''}
         ${this.activeTab === 'enrichment' ? html`<screen-enrichment></screen-enrichment>` : ''}
         ${this.activeTab === 'posts' ? html`<screen-posts></screen-posts>` : ''}
         ${this.activeTab === 'settings' ? html`<screen-settings></screen-settings>` : ''}
+
+        <button
+          class="floating-cognition"
+          aria-label="Ouvrir les visualisations cognitives"
+          title="Cognition"
+          @pointerdown=${this.beginFabDrag}
+          @pointermove=${this.moveFab}
+          @pointerup=${this.endFabDrag}
+          @pointercancel=${this.endFabDrag}
+          @click=${this.openCognitionFromFab}
+        >
+          <span class="floating-label">Vue</span>
+          <svg viewBox="0 0 108 108" aria-hidden="true">
+            <path d="M66.94 46.02C72.44 50.07 76 56.61 76 64H32C32 56.61 35.56 50.11 40.98 46.06L36.18 41.19C35.45 40.45 35.45 39.3 36.18 38.56C36.91 37.81 38.05 37.81 38.78 38.56L44.25 44.05C47.18 42.57 50.48 41.71 54 41.71C57.48 41.71 60.78 42.57 63.68 44.05L69.11 38.56C69.84 37.81 70.98 37.81 71.71 38.56C72.44 39.3 72.44 40.45 71.71 41.19L66.94 46.02ZM62.94 56.92C64.08 56.92 65 56.01 65 54.88C65 53.76 64.08 52.85 62.94 52.85C61.8 52.85 60.88 53.76 60.88 54.88C60.88 56.01 61.8 56.92 62.94 56.92ZM45.06 56.92C46.2 56.92 47.13 56.01 47.13 54.88C47.13 53.76 46.2 52.85 45.06 52.85C43.92 52.85 43 53.76 43 54.88C43 56.01 43.92 56.92 45.06 56.92Z"/>
+          </svg>
+        </button>
       </div>
 
       <nav>

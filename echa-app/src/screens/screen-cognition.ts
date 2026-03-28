@@ -39,6 +39,25 @@ export class ScreenCognition extends LitElement {
         border: 1px solid rgba(255, 255, 255, 0.06);
       }
 
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .back-btn {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        font-family: inherit;
+        white-space: nowrap;
+      }
+
       .eyebrow {
         font-size: 10px;
         text-transform: uppercase;
@@ -325,6 +344,10 @@ export class ScreenCognition extends LitElement {
     }
   };
 
+  private goHome = () => {
+    this.dispatchEvent(new CustomEvent('go-home', { bubbles: true, composed: true }));
+  };
+
   private get selectedTheme() {
     return this.bubbleData?.themes.find(theme => theme.themeId === this.selectedThemeId) ?? null;
   }
@@ -377,8 +400,13 @@ export class ScreenCognition extends LitElement {
 
     return html`
       <div class="hero">
-        <div class="eyebrow">Cognition</div>
-        <h2>Visualiser la bulle cognitive</h2>
+        <div class="hero-top">
+          <div>
+            <div class="eyebrow">Cognition</div>
+            <h2>Visualiser la bulle cognitive</h2>
+          </div>
+          <button class="back-btn" @click=${this.goHome}>Retour accueil</button>
+        </div>
         <div class="lead">
           Shell de navigation pour explorer les thèmes capturés à travers plusieurs projections: bulles, barres et radar.
         </div>
