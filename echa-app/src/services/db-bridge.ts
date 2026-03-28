@@ -16,6 +16,8 @@ function getPlugin(): any {
       totalSessions: 0, totalPosts: 0, totalEnriched: 0,
       attention: {}, political: {}, axes: {},
       topCategories: '[]', topUsers: '[]',
+      topDomains: '[]', topTopics: '[]',
+      totalDwellMs: 0,
     }),
     queryExportSession: async () => ({ data: '{}' }),
   };
@@ -32,6 +34,37 @@ export interface SessionSummary {
   postCount: number;
 }
 
+export interface PostEnrichment {
+  politicalScore: number;
+  polarizationScore: number;
+  confidenceScore: number;
+  mainTopics: string;        // JSON array
+  secondaryTopics?: string;  // JSON array
+  domains?: string;          // JSON array
+  subjects?: string;         // JSON array
+  preciseSubjects?: string;  // JSON array
+  tone?: string;
+  primaryEmotion?: string;
+  emotionIntensity?: number;
+  narrativeFrame?: string;
+  mediaCategory: string;
+  mediaQuality: string;
+  mediaIntent?: string;
+  callToActionType?: string;
+  axisEconomic: number;
+  axisSocietal: number;
+  axisAuthority: number;
+  axisSystem: number;
+  dominantAxis: string;
+  politicalActors?: string;  // JSON array
+  activismSignal?: boolean;
+  conflictSignal?: boolean;
+  polarizationSignals?: string; // JSON object
+  reviewFlag?: boolean;
+  reviewReason?: string;
+  semanticSummary?: string;
+}
+
 export interface PostEntry {
   id: string;
   sessionId: string;
@@ -46,25 +79,14 @@ export interface PostEntry {
   attentionLevel: string;
   allText: string;
   seenCount: number;
-  enrichment?: {
-    politicalScore: number;
-    polarizationScore: number;
-    confidenceScore: number;
-    mainTopics: string;
-    axisEconomic: number;
-    axisSocietal: number;
-    axisAuthority: number;
-    axisSystem: number;
-    dominantAxis: string;
-    mediaCategory: string;
-    mediaQuality: string;
-  };
+  enrichment?: PostEnrichment;
 }
 
 export interface DbStats {
   totalSessions: number;
   totalPosts: number;
   totalEnriched: number;
+  totalDwellMs: number;
   attention: Record<string, number>;
   political: Record<string, number>;
   axes?: { economic: number; societal: number; authority: number; system: number };
@@ -72,6 +94,17 @@ export interface DbStats {
   avgConfidence?: number;
   topCategories: Array<{ category: string; count: number }>;
   topUsers: Array<{ username: string; count: number; totalDwellMs: number }>;
+  topDomains: Array<{ domain: string; count: number }>;
+  topTopics: Array<{ topic: string; count: number }>;
+  topNarratives?: Array<{ narrative: string; count: number }>;
+  topTones?: Array<{ tone: string; count: number }>;
+  topEmotions?: Array<{ emotion: string; count: number }>;
+  topActors?: Array<{ topic: string; count: number }>;
+  dwellByTopic?: Array<{ topic: string; totalDwellMs: number; avgDwellMs: number; count: number }>;
+  attentionPolitical?: Record<string, { avgPolitical: number; avgPolarization: number; count: number }>;
+  polarizingAccounts?: Array<{ username: string; avgPolarization: number; avgPolitical: number; count: number; totalDwellMs: number }>;
+  sponsoredStats?: { sponsored?: { count: number; avgDwellMs: number; avgPolitical: number }; organic?: { count: number; avgDwellMs: number; avgPolitical: number } };
+  signals?: { activism: number; conflict: number; moralAbsolute: number; enemyDesignation: number; ingroupOutgroup: number; total: number };
 }
 
 // ── Queries ──────────────────────────────────────────────────
@@ -96,21 +129,38 @@ export async function getPosts(sessionId: string, offset = 0, limit = 50): Promi
 
 export async function getStats(): Promise<DbStats> {
   const result = await getPlugin().queryStats();
-  // Parse nested JSON strings if needed
   const stats: DbStats = {
     totalSessions: result.totalSessions || 0,
     totalPosts: result.totalPosts || 0,
     totalEnriched: result.totalEnriched || 0,
+    totalDwellMs: result.totalDwellMs || 0,
     attention: typeof result.attention === 'string' ? JSON.parse(result.attention) : (result.attention || {}),
     political: typeof result.political === 'string' ? JSON.parse(result.political) : (result.political || {}),
     topCategories: typeof result.topCategories === 'string' ? JSON.parse(result.topCategories) : (result.topCategories || []),
     topUsers: typeof result.topUsers === 'string' ? JSON.parse(result.topUsers) : (result.topUsers || []),
+    topDomains: typeof result.topDomains === 'string' ? JSON.parse(result.topDomains) : (result.topDomains || []),
+    topTopics: typeof result.topTopics === 'string' ? JSON.parse(result.topTopics) : (result.topTopics || []),
   };
   if (result.axes) {
     stats.axes = typeof result.axes === 'string' ? JSON.parse(result.axes) : result.axes;
   }
   if (result.avgPolarization !== undefined) stats.avgPolarization = result.avgPolarization;
   if (result.avgConfidence !== undefined) stats.avgConfidence = result.avgConfidence;
+  if (result.topNarratives) {
+    stats.topNarratives = typeof result.topNarratives === 'string' ? JSON.parse(result.topNarratives) : result.topNarratives;
+  }
+  if (result.topTones) {
+    stats.topTones = typeof result.topTones === 'string' ? JSON.parse(result.topTones) : result.topTones;
+  }
+  // Advanced cross-analyses
+  const parseField = (f: any) => typeof f === 'string' ? JSON.parse(f) : (f || undefined);
+  if (result.topEmotions) stats.topEmotions = parseField(result.topEmotions);
+  if (result.topActors) stats.topActors = parseField(result.topActors);
+  if (result.dwellByTopic) stats.dwellByTopic = parseField(result.dwellByTopic);
+  if (result.attentionPolitical) stats.attentionPolitical = parseField(result.attentionPolitical);
+  if (result.polarizingAccounts) stats.polarizingAccounts = parseField(result.polarizingAccounts);
+  if (result.sponsoredStats) stats.sponsoredStats = parseField(result.sponsoredStats);
+  if (result.signals) stats.signals = parseField(result.signals);
   return stats;
 }
 
@@ -121,6 +171,29 @@ export async function exportSession(sessionId: string): Promise<any> {
   } catch {
     return {};
   }
+}
+
+// ── Enrichment daemon queries ───────────────────────────────
+
+export async function getUnenrichedPosts(limit = 20): Promise<any[]> {
+  const result = await getPlugin().queryUnenrichedPosts({ limit });
+  try {
+    return JSON.parse(result.posts || '[]');
+  } catch {
+    return [];
+  }
+}
+
+export async function countUnenrichedPosts(): Promise<number> {
+  const result = await getPlugin().countUnenrichedPosts();
+  return result.count || 0;
+}
+
+export async function saveEnrichmentFromApp(dbPostId: string, enrichment: Record<string, any>): Promise<void> {
+  await getPlugin().saveEnrichmentFromApp({
+    dbPostId,
+    enrichment: JSON.stringify(enrichment),
+  });
 }
 
 export function safeParse(json: string | null | undefined): string[] {
