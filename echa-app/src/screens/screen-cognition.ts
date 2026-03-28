@@ -13,6 +13,7 @@ import type { CognitionControlsChangeDetail } from '../components/cognition-cont
 import '../components/cognition-controls.js';
 import '../components/cognition-bubble-view.js';
 import '../components/cognition-bar-view.js';
+import '../components/cognition-radar-view.js';
 
 @customElement('screen-cognition')
 export class ScreenCognition extends LitElement {
@@ -408,14 +409,10 @@ export class ScreenCognition extends LitElement {
                     ></cognition-bar-view>
                   `
               : html`
-                  <div class="placeholder">
-                    <div>
-                      <strong>Radar prêt</strong>
-                      <p>
-                        Le shell est prêt à afficher un profil radar dans la prochaine tâche.
-                      </p>
-                    </div>
-                  </div>
+                  <cognition-radar-view
+                    .themes=${this.bubbleData?.themes ?? []}
+                    .subtitle=${`Profil global de la session ${session ? new Date(session.capturedAt).toLocaleDateString('fr-FR') : 'sélectionnée'}`}
+                  ></cognition-radar-view>
                 `}
           </section>
 
