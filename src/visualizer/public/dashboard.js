@@ -180,7 +180,8 @@ function handleEnrichment(postId, data) {
   // Add to stream
   const topics = (data.mainTopics || []).join(', ');
   const polScore = data.politicalScore || 0;
-  addStreamEntry('enrich', `${topics || 'aucun theme'} | pol:${polScore}/4 | polar:${(data.polarizationScore || 0).toFixed(2)}`);
+  const mediaCat = data.mediaCategory ? ` | ${data.mediaCategory}` : '';
+  addStreamEntry('enrich', `${topics || 'aucun theme'} | pol:${polScore}/4 | polar:${(data.polarizationScore || 0).toFixed(2)}${mediaCat}`);
 
   // Render if it's the focused post
   if (state.focusedPost?.postId === postId) {
@@ -336,6 +337,40 @@ function renderEnrichmentForPost(postId) {
     html += signal('Ennemi designe', data.enemyDesignationSignal);
     html += '</div>';
 
+    // Political Axes (compass)
+    if (data.politicalAxes) {
+      const ax = data.politicalAxes;
+      const hasSignal = Math.abs(ax.economic) + Math.abs(ax.societal) + Math.abs(ax.authority) + Math.abs(ax.system) > 0;
+      if (hasSignal) {
+        html += '<div class="enrich-section">';
+        html += '<div class="enrich-section-title">Axes politiques</div>';
+        html += axisBar('Economique', ax.economic, 'gauche', 'droite');
+        html += axisBar('Societal', ax.societal, 'progressiste', 'conservateur');
+        html += axisBar('Autorite', ax.authority, 'libertaire', 'autoritaire');
+        html += axisBar('Systeme', ax.system, 'anti-systeme', 'institutionnel');
+        if (data.dominantAxis) {
+          html += `<div style="font-size:10px;color:var(--text-dim);margin-top:4px">Axe dominant: <strong style="color:var(--accent)">${esc(data.dominantAxis)}</strong></div>`;
+        }
+        html += '</div>';
+      }
+    }
+
+    // Media category
+    if (data.mediaCategory || data.mediaQuality) {
+      html += '<div class="enrich-section">';
+      html += '<div class="enrich-section-title">Type de media</div>';
+      if (data.mediaCategory) {
+        html += `<span class="topic-tag" style="background:#2a1a3a;color:#bc8cff">${esc(data.mediaCategory)}</span>`;
+      }
+      if (data.mediaQuality && data.mediaQuality !== 'neutre') {
+        const qColor = data.mediaQuality === 'factuel' ? 'var(--green)' :
+                       data.mediaQuality === 'trompeur' ? 'var(--red)' :
+                       data.mediaQuality === 'sensationnel' ? 'var(--orange)' : 'var(--yellow)';
+        html += `<span class="topic-tag" style="background:#1a1a2a;color:${qColor}">${esc(data.mediaQuality)}</span>`;
+      }
+      html += '</div>';
+    }
+
     // Entities
     if (data.politicalActors?.length || data.institutions?.length) {
       html += '<div class="enrich-section">';
@@ -442,6 +477,24 @@ function politicalColor(score) {
   if (score <= 2) return 'var(--yellow)';
   if (score <= 3) return 'var(--orange)';
   return 'var(--red)';
+}
+
+function axisBar(label, value, negLabel, posLabel) {
+  // value is -1 to +1, render as centered bar
+  const pct = Math.round(((value + 1) / 2) * 100); // 0=full left, 50=center, 100=full right
+  const color = Math.abs(value) < 0.1 ? 'var(--text-dim)' :
+                value < 0 ? '#58a6ff' : '#db6d28';
+  const display = value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+  return `<div class="score-bar" style="margin-bottom:2px">
+    <span class="score-label" style="width:80px;font-size:11px">${label}</span>
+    <span style="font-size:9px;color:var(--text-dim);width:70px;text-align:right">${negLabel}</span>
+    <div class="score-track" style="position:relative">
+      <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border)"></div>
+      <div class="score-fill" style="width:${Math.abs(value) * 50}%;margin-left:${value < 0 ? (50 - Math.abs(value) * 50) : 50}%;background:${color}"></div>
+    </div>
+    <span style="font-size:9px;color:var(--text-dim);width:75px">${posLabel}</span>
+    <span class="score-value" style="color:${color}">${display}</span>
+  </div>`;
 }
 
 function polarizationColor(score) {

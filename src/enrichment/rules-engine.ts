@@ -44,6 +44,7 @@ export interface RulesResult {
     politicalActorMatches: ReturnType<typeof detectPoliticalActors>;
     polarizationMatches: Record<string, string[]>;
     topicMatches: { id: string; matchCount: number }[];
+    axesMatches: Record<string, { negative: string[]; positive: string[] }>;
   };
 }
 

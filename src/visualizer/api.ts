@@ -141,6 +141,75 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
       json(res, posts);
     },
   },
+  // ── Political axes aggregation ────────────────────────────────────
+  {
+    method: 'GET',
+    pattern: /^\/api\/enrichment\/axes$/,
+    handler: async (_req, res) => {
+      const enriched = await prisma.postEnriched.findMany({
+        select: {
+          axisEconomic: true,
+          axisSocietal: true,
+          axisAuthority: true,
+          axisSystem: true,
+          dominantAxis: true,
+          politicalExplicitnessScore: true,
+        },
+      });
+
+      // Aggregate averages (only posts with signal, i.e. at least one axis != 0)
+      let sumEco = 0, sumSoc = 0, sumAuth = 0, sumSys = 0;
+      let withSignal = 0;
+      const dominantCounts: Record<string, number> = {};
+
+      for (const e of enriched) {
+        const hasSignal = e.axisEconomic !== 0 || e.axisSocietal !== 0 || e.axisAuthority !== 0 || e.axisSystem !== 0;
+        if (hasSignal) {
+          withSignal++;
+          sumEco += e.axisEconomic;
+          sumSoc += e.axisSocietal;
+          sumAuth += e.axisAuthority;
+          sumSys += e.axisSystem;
+        }
+        if (e.dominantAxis) {
+          dominantCounts[e.dominantAxis] = (dominantCounts[e.dominantAxis] || 0) + 1;
+        }
+      }
+
+      const n = withSignal || 1;
+      const round = (v: number) => Math.round(v * 100) / 100;
+
+      // Distribution per axis: count negative / neutral / positive
+      const distribution = {
+        economic: { negative: 0, neutral: 0, positive: 0 },
+        societal: { negative: 0, neutral: 0, positive: 0 },
+        authority: { negative: 0, neutral: 0, positive: 0 },
+        system: { negative: 0, neutral: 0, positive: 0 },
+      };
+      for (const e of enriched) {
+        for (const axis of ['economic', 'societal', 'authority', 'system'] as const) {
+          const key = `axis${axis.charAt(0).toUpperCase() + axis.slice(1)}` as keyof typeof e;
+          const val = e[key] as number;
+          if (val < -0.1) distribution[axis].negative++;
+          else if (val > 0.1) distribution[axis].positive++;
+          else distribution[axis].neutral++;
+        }
+      }
+
+      json(res, {
+        total: enriched.length,
+        withSignal,
+        averages: {
+          economic: round(sumEco / n),
+          societal: round(sumSoc / n),
+          authority: round(sumAuth / n),
+          system: round(sumSys / n),
+        },
+        dominantCounts,
+        distribution,
+      });
+    },
+  },
   // ── Debug history / session metrics ───────────────────────────────
   {
     method: 'GET',
