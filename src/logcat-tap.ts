@@ -130,26 +130,33 @@ export class LogcatTap extends EventEmitter {
 
   start(): void {
     const adbPath = findAdbPath();
-
-    // Clear logcat buffer
-    const clear = spawn(adbPath, ['logcat', '-c']);
-    clear.on('close', () => {
-      // Listen to ECHA_DATA (AccessibilityService), ECHA_INSTA (WebView bridge), ECHA_MLKIT
-      this.logcat = spawn(adbPath, [
-        'logcat', '-s', 'ECHA_DATA:I', 'ECHA_INSTA:I', 'ECHA_MLKIT:I', '*:S', '-v', 'raw',
-      ]);
-
-      this.logcat.stdout?.on('data', (data: Buffer) => {
+    const attachOutput = (proc: ChildProcess): void => {
+      proc.stdout?.on('data', (data: Buffer) => {
         for (const line of data.toString('utf-8').split('\n')) {
           const trimmed = line.trim();
           if (trimmed) this.processLine(trimmed);
         }
       });
 
-      this.logcat.stderr?.on('data', (data: Buffer) => {
+      proc.stderr?.on('data', (data: Buffer) => {
         const msg = data.toString().trim();
         if (msg) this.emit('error', { message: msg, context: 'adb-stderr' });
       });
+    };
+
+    // First replay the existing buffer so the dashboard can recover after disconnects.
+    const dump = spawn(adbPath, [
+      'logcat', '-d', '-s', 'ECHA_DATA:I', 'ECHA_INSTA:I', 'ECHA_MLKIT:I', '*:S', '-v', 'raw',
+    ]);
+    attachOutput(dump);
+
+    dump.on('close', () => {
+      // Then keep following live output without clearing the buffer.
+      this.logcat = spawn(adbPath, [
+        'logcat', '-T', '1', '-s', 'ECHA_DATA:I', 'ECHA_INSTA:I', 'ECHA_MLKIT:I', '*:S', '-v', 'raw',
+      ]);
+
+      attachOutput(this.logcat);
 
       this.logcat.on('close', (code) => {
         this.emit('status', 'disconnected');
