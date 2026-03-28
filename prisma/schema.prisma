@@ -18,7 +18,45 @@ model Session {
   sourceFile  String?  // chemin JSON source
   createdAt   DateTime @default(now())
 
-  posts Post[]
+  posts   Post[]
+  metrics SessionMetrics?
+}
+
+// Métriques de qualité par session — historique debug
+model SessionMetrics {
+  id        String @id @default(cuid())
+  sessionId String @unique
+
+  // Parsing
+  totalLines   Int   @default(0)
+  parsedEvents Int   @default(0)
+  parseErrors  Int   @default(0)
+  parseRate    Float @default(0) // 0-100
+
+  // Chunks
+  chunkSuccess Int @default(0)
+  chunkFails   Int @default(0)
+
+  // Bridge
+  bridgeEvents Int @default(0)
+  bridgeErrors Int @default(0)
+
+  // MLKit
+  mlkitResults Int @default(0)
+
+  // Enrichissement
+  enrichedPosts    Int   @default(0)
+  avgPoliticalScore Float @default(0)
+  avgPolarization  Float @default(0)
+  avgConfidence    Float @default(0)
+
+  // Erreurs détaillées (JSON array of {timestamp, message, context})
+  errorLog String @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id])
 }
 
 model Post {
@@ -49,8 +87,8 @@ model Post {
   seenCount      Int      @default(1)
   createdAt      DateTime @default(now())
 
-  session   Session        @relation(fields: [sessionId], references: [id])
-  semantics PostSemantic[]
+  session    Session       @relation(fields: [sessionId], references: [id])
+  enrichment PostEnriched?
 
   @@index([sessionId])
   @@index([username])
@@ -60,21 +98,89 @@ model Post {
   @@index([isSuggested])
 }
 
-// Phase 2 : enrichissement sémantique LLM
-model PostSemantic {
-  id         String   @id @default(cuid())
-  postId     String
-  provider   String   // openai | ollama | local
-  model      String   // gpt-4o-mini | llama3 | etc
-  summary    String   @default("")
-  topics     String   @default("[]") // JSON array de tags sémantiques
-  sentiment  String   @default("neutral") // positive | neutral | negative
-  confidence Float    @default(0)
-  embedding  Bytes?   // vector pour similarity search
-  createdAt  DateTime @default(now())
+// Phase 2 : enrichissement sémantique LLM — spec post_enriched (ROADMAP §6)
+model PostEnriched {
+  id     String @id @default(cuid())
+  postId String @unique
+
+  // ── Méta enrichissement ──
+  provider String // openai | ollama | rules
+  model    String // gpt-4o-mini | llama3 | rules-v1
+  version  String @default("1") // version des règles/prompts
+
+  // ── Texte consolidé (couche 4) ──
+  normalizedText  String @default("") // fusion caption+OCR+allText nettoyé
+  semanticSummary String @default("") // résumé LLM
+  keywordTerms    String @default("[]") // JSON array
+
+  // ── Catégorisation sémantique ──
+  mainTopics      String @default("[]") // JSON array — taxonomie 24 thèmes
+  secondaryTopics String @default("[]") // JSON array
+  contentDomain   String @default("") // ex: "actualité", "divertissement"
+  audienceTarget  String @default("") // ex: "grand public", "militant"
+
+  // ── Entités et objets du discours ──
+  persons         String @default("[]") // JSON array
+  organizations   String @default("[]") // JSON array
+  institutions    String @default("[]") // JSON array
+  countries       String @default("[]") // JSON array
+  locations       String @default("[]") // JSON array
+  politicalActors String @default("[]") // JSON array
+
+  // ── Tonalité et émotion ──
+  tone             String @default("neutral") // informatif | émotionnel | sarcastique | militant | neutre
+  primaryEmotion   String @default("") // colère | joie | peur | tristesse | dégoût | surprise | neutre
+  emotionIntensity Float  @default(0) // 0-1
+
+  // ── Portée politique (§6.5 A) ──
+  politicalExplicitnessScore Int    @default(0) // 0=apolitique, 1=social, 2=indirect, 3=explicite, 4=militant
+  politicalIssueTags         String @default("[]") // JSON array — immigration, sécurité, etc.
+  publicPolicyTags           String @default("[]") // JSON array
+  institutionalReferenceScore Float @default(0) // 0-1
+  activismSignal             Boolean @default(false)
+
+  // ── Polarisation (§6.5 B) ──
+  polarizationScore      Float   @default(0) // 0-1
+  ingroupOutgroupSignal  Boolean @default(false)
+  conflictSignal         Boolean @default(false)
+  moralAbsoluteSignal    Boolean @default(false)
+  enemyDesignationSignal Boolean @default(false)
+
+  // ── Axes politiques (political compass) ──
+  axisEconomic  Float   @default(0) // -1 gauche → +1 droite
+  axisSocietal  Float   @default(0) // -1 progressiste → +1 conservateur
+  axisAuthority Float   @default(0) // -1 libertaire → +1 autoritaire
+  axisSystem    Float   @default(0) // -1 anti-système → +1 institutionnel
+  dominantAxis  String  @default("") // economic | societal | authority | system | ""
+
+  // ── Catégorie média ──
+  mediaCategory String @default("") // divertissement | information | opinion | intox | pub | education
+  mediaQuality  String @default("") // factuel | émotionnel | sensationnel | trompeur | neutre
+
+  // ── Narratif (§6.4) ──
+  narrativeFrame       String @default("") // déclin | urgence | injustice | révélation | etc.
+  callToActionType     String @default("aucun") // aucun | commenter | partager | s'indigner | etc.
+  problemSolutionPattern String @default("")
+
+  // ── Qualité ──
+  confidenceScore Float   @default(0) // 0-1
+  reviewFlag      Boolean @default(false)
+  reviewReason    String  @default("")
+
+  // ── Embedding optionnel ──
+  embedding Bytes? // vector pour similarity search
+
+  // ── Timestamps ──
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   post Post @relation(fields: [postId], references: [id])
 
   @@index([postId])
   @@index([provider])
+  @@index([politicalExplicitnessScore])
+  @@index([polarizationScore])
+  @@index([narrativeFrame])
+  @@index([confidenceScore])
+  @@index([reviewFlag])
 }
