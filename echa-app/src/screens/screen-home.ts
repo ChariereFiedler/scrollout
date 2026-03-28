@@ -270,6 +270,40 @@ export class ScreenHome extends LitElement {
         cursor: pointer;
       }
       .btn-cta:active { transform: scale(0.97); }
+
+      /* ── Wrapped CTA ── */
+      .wrapped-banner {
+        background: linear-gradient(135deg, #6B6BFF 0%, #8B44E8 100%);
+        border-radius: var(--radius);
+        padding: 18px 20px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform 0.15s;
+      }
+      .wrapped-banner:active { transform: scale(0.98); }
+      .wrapped-banner .wb-left {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .wrapped-banner .wb-title {
+        font-family: var(--font-heading);
+        font-weight: 900;
+        font-size: 18px;
+        color: #fff;
+      }
+      .wrapped-banner .wb-sub {
+        font-size: 11px;
+        color: rgba(255,255,255,0.75);
+      }
+      .wrapped-banner .wb-arrow {
+        font-size: 20px;
+        color: rgba(255,255,255,0.8);
+      }
     `,
   ];
 
@@ -283,6 +317,10 @@ export class ScreenHome extends LitElement {
 
   private async loadStats() {
     try { this.stats = await getStats(); } catch { /* */ }
+  }
+
+  private openWrapped() {
+    this.dispatchEvent(new CustomEvent('open-wrapped', { bubbles: true, composed: true }));
   }
 
   private async launch() {
@@ -307,6 +345,16 @@ export class ScreenHome extends LitElement {
         <div class="dots">${scrolloutDots.map(c => html`<span style="background:${c}"></span>`)}</div>
         <div class="subtitle">ton feed, decrypte</div>
       </div>
+
+      ${hasData ? html`
+        <div class="wrapped-banner" @click=${this.openWrapped}>
+          <div class="wb-left">
+            <div class="wb-title">Ton Wrapped est pret</div>
+            <div class="wb-sub">Decouvre ce que l'algorithme t'a vraiment montre</div>
+          </div>
+          <span class="wb-arrow">→</span>
+        </div>
+      ` : ''}
 
       ${!hasData ? html`
         <div class="empty">

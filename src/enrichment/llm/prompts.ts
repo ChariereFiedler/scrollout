@@ -55,7 +55,10 @@ Croise TOUTES les sources disponibles pour déterminer le message et l'intention
 
   return `Analyse ce post Instagram et produis un JSON structuré.
 
-IMPORTANT : Le nom d'utilisateur (@username) est un signal sémantique fort. Utilise-le pour inférer le domaine du compte (ex: @boardgamegeek → jeux de société, @franceculture → culture/média, @tagheuer → luxe/horlogerie). Cela aide à classifier quand le texte du post est pauvre.
+IMPORTANT — RÈGLES CRITIQUES :
+1. Le nom d'utilisateur (@username) est un signal sémantique fort. Utilise-le pour inférer le domaine du compte (ex: @boardgamegeek → jeux de société, @franceculture → culture/média, @tagheuer → luxe/horlogerie).
+2. main_topics ne doit JAMAIS être vide []. Même un post très pauvre en texte a un domaine identifiable via le username, le type de média, ou les hashtags. En dernier recours, utilise "divertissement" ou "lifestyle".
+3. secondary_topics doit être rempli dès qu'un thème secondaire est détectable, même faiblement.
 
 --- POST ---
 Auteur : @${input.username}
@@ -66,12 +69,38 @@ ${input.normalizedText || '(texte vide ou non disponible)'}
 ${rulesContext}${videoInstruction}${preciseSubjectsBlock}
 --- FIN POST ---
 
+LISTE DES 24 THÈMES (utilise UNIQUEMENT ces identifiants) :
+- actualite : info, breaking news, faits divers
+- politique : élections, partis, lois, institutions FR
+- geopolitique : conflits internationaux, diplomatie, guerres
+- economie : emploi, inflation, pouvoir d'achat, réformes
+- ecologie : climat, biodiversité, pollution, transition
+- immigration : migration, intégration, frontières
+- securite : police, délinquance, terrorisme, justice pénale
+- justice : droit, procès, réformes judiciaires
+- sante : médecine, épidémies, système de santé, bien-être physique
+- religion : islam, christianisme, laïcité, spiritualité
+- education : école, université, formation, pédagogie
+- culture : cinéma, musique, séries, littérature, art, patrimoine
+- humour : memes, satire, parodie, blagues
+- divertissement : gaming, jeux de société, people, anime, téléréalité, contenus viraux
+- lifestyle : food, cuisine, voyage, déco, animaux, quotidien
+- beaute : skincare, maquillage, coiffure, mode, fashion
+- sport : football, fitness, MMA, JO, compétitions sportives (PAS jeux de société)
+- business : entrepreneuriat, crypto, coaching, investissement, hustle
+- developpement_personnel : méditation, motivation, coaching bien-être, astrologie
+- technologie : IA, dev, startups tech, gadgets, apps
+- feminisme : droits des femmes, patriarcat, charge mentale
+- masculinite : manosphère, redpill, masculinité positive, paternité
+- identite : racisme, LGBTQ+, diaspora, représentation
+- societe : inégalités, urbanisme, éducation civique, vivre-ensemble
+
 Produis un JSON avec EXACTEMENT ces champs :
 
 {
   "semantic_summary": "résumé en 1-2 phrases du contenu du post",
-  "main_topics": ["1-3 thèmes principaux parmi: actualite, politique, geopolitique, economie, ecologie, immigration, securite, justice, sante, religion, education, culture, humour, divertissement, lifestyle, beaute, sport, business, developpement_personnel, technologie, feminisme, masculinite, identite, societe"],
-  "secondary_topics": ["0-3 thèmes secondaires parmi LA MÊME LISTE ci-dessus. Remplis ce champ dès qu'un thème secondaire est détectable, même faiblement. Ne laisse [] que si le post est vraiment mono-thème."],
+  "main_topics": ["1-3 thèmes principaux parmi la liste ci-dessus. JAMAIS vide."],
+  "secondary_topics": ["0-3 thèmes secondaires. Un post food peut aussi être lifestyle. Un post politique peut aussi être humour. Ne laisse [] que si vraiment mono-thème."],
   "subjects": ["IDs des sujets détectés (niveau 3 de la taxonomie), issus des indices pré-calculés ou identifiés par toi"],
   "precise_subjects": [{"id": "ID du sujet précis si candidat fourni, sinon null", "position": "pour | contre | neutre | ambigu", "confidence": 0.0 à 1.0}],
   "content_domain": "un mot résumant le domaine : actualité | divertissement | lifestyle | politique | éducation | business | autre",
@@ -104,7 +133,7 @@ Produis un JSON avec EXACTEMENT ces champs :
 }
 
 ÉCHELLE POLITIQUE :
-0 = apolitique (beauté, food, gaming...)
+0 = apolitique (beauté, food, gaming, jeux de société...)
 1 = sujet social/culturel sans enjeu public clair (bien-être, développement perso avec mention vague de société)
 2 = enjeu public indirect (économie, santé publique, éducation — sans militantisme)
 3 = sujet politique explicite (élections, partis, lois, institutions nommées)

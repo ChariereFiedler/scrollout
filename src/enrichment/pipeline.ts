@@ -14,6 +14,7 @@ import { shouldUseVision, callVisionLLM } from './vision';
 import type { EnrichmentPromptInput } from './llm/prompts';
 import { formatMLKitLabelsAsText } from './dictionaries/mlkit-labels';
 import type { MLKitLabel } from './dictionaries/mlkit-labels';
+import { applyTopicCorrections } from './topic-corrections';
 
 export interface EnrichmentOptions {
   llmProvider: LLMProvider;
@@ -135,6 +136,42 @@ async function callLLM(
     console.error(`[enrich] LLM error:`, err instanceof Error ? err.message : err);
     return null;
   }
+}
+
+// ─── Post-processing : correction des topics LLM ────────────────────
+// Voir topic-corrections.ts pour le système extensible de règles
+
+/**
+ * Infère un topic de fallback à partir du username et du mediaType.
+ * Utilisé quand ni le LLM ni les rules n'ont produit de topics.
+ */
+export function inferFallbackTopic(username: string, mediaType: string): string {
+  const u = (username || '').toLowerCase();
+
+  // Patterns de comptes connus par domaine
+  const domainSignals: [string[], string][] = [
+    [['food', 'cook', 'cuisine', 'chef', 'restaurant', 'fork', 'eat', 'recipe', 'boulang', 'patisser'], 'lifestyle'],
+    [['game', 'gaming', 'gamer', 'esport', 'boardgame', 'dice', 'meeple', 'tabletop', 'ludo'], 'divertissement'],
+    [['art', 'draw', 'paint', 'illustrat', 'design', 'photo', 'gallery'], 'culture'],
+    [['music', 'musique', 'dj', 'beat', 'rap', 'rock', 'jazz'], 'culture'],
+    [['fitness', 'gym', 'muscle', 'workout', 'sport', 'running', 'marathon'], 'sport'],
+    [['beauty', 'beaute', 'makeup', 'skincare', 'cosmetic', 'hair', 'nail'], 'beaute'],
+    [['fashion', 'mode', 'style', 'wear', 'outfit', 'dior', 'chanel', 'gucci', 'vuitton', 'zara'], 'beaute'],
+    [['tech', 'dev', 'code', 'hack', 'ai', 'startup', 'software', 'digital'], 'technologie'],
+    [['news', 'info', 'journal', 'actu', 'media', 'presse', 'reporter'], 'actualite'],
+    [['yoga', 'meditat', 'mindful', 'zen', 'spirit', 'coach'], 'developpement_personnel'],
+    [['crypto', 'bitcoin', 'trading', 'invest', 'business', 'entrepreneur'], 'business'],
+    [['humour', 'humor', 'comedy', 'fun', 'lol', 'meme', 'blague'], 'humour'],
+    [['travel', 'voyage', 'trip', 'wander', 'explore', 'nomad'], 'lifestyle'],
+  ];
+
+  for (const [signals, topic] of domainSignals) {
+    if (signals.some(s => u.includes(s))) return topic;
+  }
+
+  // Fallback par mediaType
+  if (mediaType === 'reel' || mediaType === 'video') return 'divertissement';
+  return 'lifestyle'; // default le plus safe pour Instagram
 }
 
 /**
@@ -389,6 +426,28 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
         llmResult = await callLLM(llmProvider, normalizedText, post.username, hashtags, post.mediaType, rulesResult);
       }
       if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
+    }
+
+    // 3.5. Post-process LLM topics — système extensible de corrections
+    if (llmResult) {
+      applyTopicCorrections(llmResult.main_topics, llmResult.secondary_topics, post.username, normalizedText);
+    }
+
+    // 3.6. Validate LLM topics — fallback if empty after normalization
+    if (llmResult && llmResult.main_topics) {
+      const validTopics = normalizeTopics(llmResult.main_topics);
+      if (validTopics.length === 0) {
+        // LLM returned topics but all were rejected by normalization — use rules or infer from context
+        if (rulesResult.mainTopics.length > 0) {
+          llmResult.main_topics = rulesResult.mainTopics;
+          console.log(`[enrich] #${stats.processed} @${post.username} — ⚠️ LLM topics empty after normalize, using rules: [${rulesResult.mainTopics}]`);
+        } else {
+          // Last resort: infer from mediaType/username
+          const fallbackTopic = inferFallbackTopic(post.username, post.mediaType);
+          llmResult.main_topics = [fallbackTopic];
+          console.log(`[enrich] #${stats.processed} @${post.username} — ⚠️ LLM+rules topics empty, fallback: ${fallbackTopic}`);
+        }
+      }
     }
 
     // 4. Merge

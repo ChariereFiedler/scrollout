@@ -423,6 +423,250 @@ Le WebView tracker (`tracker.js`) gérait déjà les stories via détection URL 
 
 ---
 
+## EPIC-014 : Qualité sémantique — Dimension par post et détection de thèmes
+**Statut** : `todo`
+**Description** : Améliorer la qualité et la profondeur de l'analyse sémantique par post. Réduire le taux de topics vides, enrichir la taxonomie sur les thèmes sous-représentés, et fiabiliser la détection de thèmes pour que les dashboards soient exploitables.
+**Dépend de** : EPIC-010, EPIC-012
+
+### Contexte et diagnostic (2026-03-28)
+
+Données factuelles sur 155 posts enrichis :
+- **26% de posts enrichis avec mainTopics vide** (40/155) — inacceptable pour un dashboard
+- **Confidence moyenne : 0.68** — correcte mais insuffisante pour les posts pauvres en texte
+- **Distribution très déséquilibrée** : divertissement (64), culture (51) captent 74% des posts. 12 thèmes sur 24 ont < 3 occurrences
+- **5 thèmes sans aucun precise subject** : culture, divertissement, sport, beauté, dev_perso
+- **49 posts enrichis rules-only** (32%) → ces posts ont confiance réduite (×0.6) et topics souvent vides
+- **Post-processing ad hoc** : correction boardgame sport→divertissement codée en dur dans pipeline.ts
+
+### Tâche 014-1 : Diagnostic approfondi — profiler les posts à topics vides
+**Statut** : `todo`
+**Priorité** : haute (pré-requis pour cibler les corrections)
+
+**Objectif** : Comprendre POURQUOI 40 posts enrichis ont des topics vides.
+
+**Implémentation** :
+- [ ] Script `scripts/diagnose-empty-topics.ts` : pour chaque post avec mainTopics=[], extraire :
+  - `normalizedText` (longueur, langue)
+  - `provider` (rules vs LLM)
+  - `mediaType` (photo/video/reel/story)
+  - `username` (pattern de comptes récurrents)
+  - `confidenceScore`
+  - Le texte brut (caption, allText) pour comprendre si le contenu est classifiable
+- [ ] Produire un rapport catégorisé : texte insuffisant | LLM n'a pas renvoyé de topics | rules-engine n'a pas matché | bug pipeline
+- [ ] Identifier les patterns récurrents : comptes sans caption, reels purement visuels, stories textuelles, etc.
+
+**Sortie** : `data/diagnostic-empty-topics.json` + rapport console
+
+---
+
+### Tâche 014-2 : Fallback intelligent pour posts à texte pauvre
+**Statut** : `todo`
+**Priorité** : haute (quick win — réduit le taux de topics vides)
+
+**Problème** : Les posts sans caption (reels, stories) ou avec caption très courte passent le seuil minimum (10 chars, 3 mots) mais n'ont pas assez de signal pour le rules-engine, et le LLM n'a pas de matière.
+
+**Implémentation** :
+- [ ] Dans `pipeline.ts` : pour les posts à texte pauvre (< 50 chars significatifs) + topics vides après rules :
+  - Utiliser `username` comme signal principal (créer `dictionaries/account-domains.ts` : mapping comptes connus → domaines/thèmes)
+  - Utiliser `mediaType` comme indice secondaire (reel sans texte = probable divertissement)
+  - Utiliser `mlkitLabels` si disponibles (mapping labels ML Kit → thèmes)
+  - Utiliser `imageUrls` : si vision activée, forcer le passage en vision pour ces posts
+- [ ] Créer `src/enrichment/dictionaries/account-domains.ts` :
+  - Mapping `username → { themes: string[], confidence: number }` pour les comptes fréquents du dataset
+  - Extraction semi-automatique : analyser les posts enrichis avec bons topics, agréger par username
+- [ ] Ajouter une étape `inferFromContext()` dans le pipeline entre rules et LLM
+- [ ] Test : ré-enrichir 10 posts à topics vides → vérifier que le fallback produit des topics cohérents
+
+**Fichiers impactés** : `pipeline.ts`, nouveau `dictionaries/account-domains.ts`
+
+---
+
+### Tâche 014-3 : Enrichir la taxonomie — precise subjects pour thèmes lacunaires
+**Statut** : `todo`
+**Priorité** : moyenne (profondeur sémantique — requis pour le site "89 dimensions")
+
+**Problème** : 5 thèmes n'ont aucun precise subject, ce qui empêche le matching cross-perspectives et appauvrit l'analyse :
+- `culture` (5 subjects, 0 precise) — musique, cinéma, art, littérature, patrimoine
+- `divertissement` (4 subjects, 0 precise) — jeux vidéo, jeux de société, streaming, contenus viraux
+- `sport` (5 subjects, 0 precise) — football, JO, dopage, e-sport, sport féminin
+- `beaute` (3 subjects, 0 precise) — standards, industrie cosmétique, chirurgie esthétique
+- `developpement_personnel` (3 subjects, 0 precise) — coaching, productivité, bien-être mental
+
+**Implémentation** :
+- [ ] Pour chaque thème, ajouter 2-4 precise subjects (propositions débattables typiques Instagram) :
+  - `culture` : "Le cinéma français est en déclin", "Le streaming tue la musique", "L'IA menace la création artistique"
+  - `divertissement` : "Les jeux vidéo rendent violent", "Le streaming remplace la TV traditionnelle", "Les réseaux sociaux sont addictifs"
+  - `sport` : "L'e-sport est un vrai sport", "Le dopage est inévitable au haut niveau", "Le sport féminin est sous-médiatisé"
+  - `beaute` : "Les standards de beauté sur Instagram sont toxiques", "La chirurgie esthétique devrait être mieux encadrée"
+  - `developpement_personnel` : "Le coaching est souvent du charlatanisme", "La productivité est une injonction toxique"
+- [ ] Ajouter des `knownPositions` avec narratifs et acteurs typiques pour chaque precise subject
+- [ ] Test : vérifier que `getPreciseSubjectsForTheme()` retourne les nouveaux PS
+
+**Fichiers impactés** : `dictionaries/taxonomy.ts`
+
+---
+
+### Tâche 014-4 : Élargir les keywords des thèmes sous-représentés
+**Statut** : `todo`
+**Priorité** : haute (améliore directement le rules-engine)
+
+**Problème** : Les thèmes avec peu de matchs (religion: 0, masculinite: 0, identite: 0, business: 0 dans le dataset) ont peut-être des keywords trop étroits ou trop spécialisés pour le contenu Instagram typique.
+
+**Implémentation** :
+- [ ] Analyser les posts classés "divertissement" ou "culture" qui pourraient être mieux classés :
+  - Posts avec hashtags food/cuisine/voyage → vérifier que lifestyle matche
+  - Posts avec contenu religion/spiritualité → vérifier les keywords
+  - Posts business/entrepreneuriat → vérifier matchs
+- [ ] Enrichir les keywords des subjects pour chaque thème sous-représenté :
+  - `religion` : ajouter termes Instagram courants (spiritualité, méditation guidée, halal, casher, prière, ramadan, noël, pâques)
+  - `business` : ajouter vocabulaire entrepreneurial Instagram (side hustle, dropshipping, formation, mastermind, freelance, personal branding)
+  - `identite` : ajouter termes identitaires courants (communauté, représentation, fierté, roots, diaspora, origines)
+  - `masculinite` : ajouter signaux (alpha, sigma, grindset, redpill, mode homme, musculation)
+- [ ] Ajouter des aliases LLM manquants dans `TOPIC_ALIASES` de `topics-keywords.ts` :
+  - `spiritualité` → `religion`
+  - `entrepreneuriat` → `business`
+  - `startup` → `business`
+  - `fitness` → `sport`
+  - `wellness` → `sante`
+  - `self-care` → `developpement_personnel`
+- [ ] Test : relancer le rules-engine sur le dataset complet → vérifier que les thèmes sous-représentés gagnent en couverture
+
+**Fichiers impactés** : `dictionaries/taxonomy.ts`, `dictionaries/topics-keywords.ts`
+
+---
+
+### Tâche 014-5 : Améliorer le prompt LLM — réduire les topics vides
+**Statut** : `todo`
+**Priorité** : haute (le LLM est la source principale de topics pour 68% des enrichis)
+
+**Problème** : Le LLM retourne parfois `main_topics: []` ou un topic non canonique qui est rejeté par `normalizeTopics()`. Le prompt actuel liste les 24 thèmes inline dans une longue chaîne, ce qui peut être perdu dans le contexte.
+
+**Implémentation** :
+- [ ] Dans `prompts.ts` : restructurer le prompt pour rendre les thèmes plus saillants :
+  - Séparer la liste des thèmes dans un bloc dédié (pas inline dans la description du champ)
+  - Ajouter des exemples concrets par thème (1-2 mots-clés Instagram typiques)
+  - Ajouter une instruction explicite : "main_topics ne doit JAMAIS être vide — même un post très pauvre a un domaine identifiable"
+  - Ajouter un fallback dans l'instruction : "Si le texte est trop court pour classifier, utilise le nom d'utilisateur et le type de média comme indices"
+- [ ] Dans `prompts.ts` : ajouter `secondary_topics` instruction plus forte : "Remplis dès qu'un thème secondaire est détectable. Un post de food peut aussi être lifestyle. Un post politique peut aussi être humour."
+- [ ] Dans `pipeline.ts` : ajouter une validation post-LLM : si `main_topics` est vide après normalisation, logger un warning et tenter un retry avec un prompt simplifié, ou fallback sur rules
+- [ ] Test : enrichir 20 posts avec le nouveau prompt → vérifier réduction du taux de topics vides
+
+**Fichiers impactés** : `llm/prompts.ts`, `pipeline.ts`
+
+---
+
+### Tâche 014-6 : Post-processing systématique des topics LLM
+**Statut** : `todo`
+**Priorité** : moyenne (remplace le hack boardgame ad hoc par un système extensible)
+
+**Problème** : `postProcessLLMTopics()` dans pipeline.ts est un hack ad hoc pour le cas boardgame→sport. Ce pattern va se reproduire pour d'autres domaines.
+
+**Implémentation** :
+- [ ] Créer `src/enrichment/topic-corrections.ts` — système de règles de correction :
+  ```ts
+  interface TopicCorrectionRule {
+    name: string;
+    signals: string[];          // mots-clés dans username+text déclenchant la règle
+    replacements: Record<string, string>;  // topic_source → topic_corrigé
+    addTopics?: string[];       // topics à ajouter si absents
+  }
+  ```
+- [ ] Migrer la règle boardgame existante + ajouter d'autres cas connus :
+  - Fitness accounts classés "sport" → garder sport mais ajouter "lifestyle"
+  - Food accounts classés "lifestyle" seul → ajouter "culture" si contenu gastronomique
+  - Comptes média (journalistes, rédactions) → ajouter "actualite" si absent
+  - Comptes beauté/mode → normaliser beaute vs lifestyle
+- [ ] Appeler `applyTopicCorrections()` dans pipeline.ts à la place de `postProcessLLMTopics()`
+- [ ] Test : vérifier que les corrections existantes passent + nouvelles règles
+
+**Fichiers impactés** : nouveau `enrichment/topic-corrections.ts`, `pipeline.ts` (remplacer `postProcessLLMTopics`)
+
+---
+
+### Tâche 014-7 : Script de ré-enrichissement ciblé
+**Statut** : `todo`
+**Priorité** : haute (après 014-2 à 014-5, il faut appliquer les améliorations au dataset existant)
+
+**Problème** : Les 155 posts déjà enrichis ne bénéficieront pas des améliorations sans ré-enrichissement.
+
+**Implémentation** :
+- [ ] Créer `scripts/re-enrich.ts` :
+  - Flag `--empty-topics` : ré-enrichir uniquement les posts avec mainTopics=[]
+  - Flag `--rules-only-upgrade` : ré-enrichir les 49 posts rules-only avec LLM
+  - Flag `--low-confidence` : ré-enrichir les posts avec confidenceScore < 0.5
+  - Flag `--all` : tout ré-enrichir (destructif, demande confirmation)
+  - Supprime l'entrée PostEnriched existante avant de ré-enrichir
+  - Affiche un diff avant/après pour validation
+- [ ] Test : ré-enrichir 5 posts à topics vides → vérifier amélioration
+
+**Fichiers impactés** : nouveau `scripts/re-enrich.ts`, réutilise `enrichment/pipeline.ts`
+
+---
+
+### Tâche 014-8 : Métriques de qualité sémantique
+**Statut** : `todo`
+**Priorité** : moyenne (monitoring continu pour éviter la régression)
+
+**Problème** : Pas de visibilité automatique sur la qualité de l'enrichissement. On ne découvre les topics vides qu'en inspectant manuellement la DB.
+
+**Implémentation** :
+- [ ] Ajouter au visualizer (`src/visualizer/api.ts`) un endpoint `/api/enrichment-quality` :
+  - Taux de topics vides (mainTopics=[])
+  - Distribution des confidenceScore (histogramme)
+  - Taux de reviewFlag
+  - Couverture des thèmes (combien de thèmes ont > 5 posts)
+  - Ratio rules-only vs LLM-enriched
+  - Top 10 usernames avec le plus de topics vides
+- [ ] Ajouter au daemon (`src/enrichment/daemon.ts`) : log de qualité après chaque batch :
+  - `[daemon] Quality: 85% topics OK, avg conf 0.72, 2 review flags`
+- [ ] Test : vérifier endpoint retourne les bonnes métriques
+
+**Fichiers impactés** : `visualizer/api.ts`, `enrichment/daemon.ts`
+
+---
+
+### Résumé des améliorations attendues
+
+| Métrique | Avant | Cible après EPIC-014 |
+|----------|-------|---------------------|
+| Posts avec mainTopics vide | 26% (40/155) | < 5% |
+| Confidence moyenne | 0.68 | > 0.75 |
+| Thèmes avec > 5 posts | 5/24 (21%) | > 12/24 (50%) |
+| Precise subjects totaux | 48 | > 60 |
+| Correction topics ad hoc | 1 hardcodée | Système extensible |
+| Monitoring qualité | aucun | Endpoint + logs daemon |
+
+### Ordre d'exécution
+
+```mermaid
+graph TD
+    T1[014-1 Diagnostic topics vides] --> T2[014-2 Fallback posts pauvres]
+    T1 --> T4[014-4 Keywords sous-représentés]
+    T1 --> T5[014-5 Prompt LLM amélioré]
+    T4 --> T3[014-3 Precise subjects lacunaires]
+    T5 --> T6[014-6 Post-processing systématique]
+    T2 --> T7[014-7 Ré-enrichissement ciblé]
+    T4 --> T7
+    T5 --> T7
+    T6 --> T7
+    T7 --> T8[014-8 Métriques qualité]
+```
+
+### Estimation effort
+
+| Tâche | Effort | Impact |
+|-------|--------|--------|
+| 014-1 Diagnostic | Faible | Déblocage — éclaire toutes les autres tâches |
+| 014-2 Fallback posts pauvres | Moyen | Très élevé — réduit topics vides de 50%+ |
+| 014-3 Precise subjects | Faible | Moyen — profondeur sémantique |
+| 014-4 Keywords élargis | Moyen | Élevé — meilleure couverture rules-engine |
+| 014-5 Prompt LLM | Moyen | Très élevé — source principale de topics |
+| 014-6 Post-processing | Faible | Moyen — maintenabilité |
+| 014-7 Ré-enrichissement | Moyen | Très élevé — applique les gains au dataset |
+| 014-8 Métriques | Faible | Élevé — monitoring continu |
+
+---
+
 ## Dépendances
 
 ```mermaid
@@ -433,8 +677,9 @@ graph TD
     E010 -->|done| E012[EPIC-012 Analyse vidéo]
     E000 --> E013[EPIC-013 Stories]
     E002 --> E013
-    E010 --> E011[EPIC-011 Calibration]
-    E012 --> E011
+    E010 --> E014[EPIC-014 Qualité sémantique]
+    E012 --> E014
+    E014 --> E011[EPIC-011 Calibration]
     E013 --> E011
     E011 --> E020[EPIC-020 Profil utilisateur]
     E010 --> E030[EPIC-030 Dashboard]
@@ -444,6 +689,7 @@ graph TD
 ```
 
 ## Changelog
+- 2026-03-28 : ajout EPIC-014 qualité sémantique (diagnostic, fallback, taxonomie, prompt, ré-enrichissement, métriques)
 - 2026-03-28 : ajout EPIC-013 support Stories Instagram (filtres retirés, détection story, extraction)
 - 2026-03-28 : ajout EPIC-012 analyse vidéo (OCR, sous-titres, transcription audio, prompt LLM enrichi)
 - 2026-03-28 : création du système epic/task, migration depuis ROADMAP.md + REPLAN.md

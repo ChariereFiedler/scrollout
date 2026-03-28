@@ -32,11 +32,8 @@ export class ScreenCognition extends LitElement {
         overflow: hidden;
         margin-bottom: 14px;
         padding: 18px;
-        border-radius: 20px;
-        background: radial-gradient(circle at top right, rgba(193, 53, 132, 0.22), transparent 36%),
-                    radial-gradient(circle at top left, rgba(56, 151, 240, 0.18), transparent 34%),
-                    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.08));
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: var(--radius);
+        background: var(--surface2);
       }
 
       .hero-top {
@@ -47,27 +44,32 @@ export class ScreenCognition extends LitElement {
       }
 
       .back-btn {
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(255, 255, 255, 0.04);
-        color: var(--text);
-        border-radius: 999px;
-        padding: 8px 12px;
-        font-size: 11px;
-        font-weight: 700;
-        font-family: inherit;
-        white-space: nowrap;
+        background: var(--surface3);
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        border-radius: var(--radius-pill);
+        padding: 6px 14px;
+        font-size: 10px;
+        font-family: var(--font-mono);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        cursor: pointer;
       }
+      .back-btn:active { opacity: 0.7; }
 
       .eyebrow {
+        font-family: var(--font-mono);
         font-size: 10px;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.04em;
         color: var(--text-dim);
         margin-bottom: 8px;
       }
 
       h2 {
+        font-family: var(--font-heading);
         font-size: 20px;
+        font-weight: 700;
         line-height: 1.1;
         margin-bottom: 8px;
       }
@@ -91,9 +93,9 @@ export class ScreenCognition extends LitElement {
         align-items: center;
         gap: 6px;
         padding: 6px 10px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: var(--radius-pill);
+        background: var(--surface3);
+        border: 1px solid var(--border);
         color: var(--text);
         font-size: 11px;
         font-weight: 700;
@@ -101,6 +103,9 @@ export class ScreenCognition extends LitElement {
 
       .badge-label {
         color: var(--text-dim);
+        font-family: var(--font-mono);
+        font-size: 9px;
+        text-transform: uppercase;
       }
 
       .grid {
@@ -110,13 +115,9 @@ export class ScreenCognition extends LitElement {
 
       .viewport {
         min-height: 280px;
-        border-radius: 20px;
-        padding: 18px;
-        border: 1px dashed rgba(56, 151, 240, 0.25);
-        background:
-          radial-gradient(circle at 20% 15%, rgba(56, 151, 240, 0.10), transparent 18%),
-          radial-gradient(circle at 85% 30%, rgba(193, 53, 132, 0.12), transparent 20%),
-          linear-gradient(180deg, rgba(20, 20, 20, 0.92), rgba(10, 10, 10, 0.98));
+        border-radius: var(--radius);
+        padding: 16px;
+        background: var(--surface2);
       }
 
       .viewport-head {
@@ -128,9 +129,10 @@ export class ScreenCognition extends LitElement {
       }
 
       .viewport-title {
-        font-size: 11px;
+        font-family: var(--font-mono);
+        font-size: 10px;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
+        letter-spacing: 0.04em;
         color: var(--text-dim);
       }
 
@@ -167,9 +169,9 @@ export class ScreenCognition extends LitElement {
       }
 
       .theme-card {
-        background: var(--surface2);
+        background: var(--surface3);
         border: 1px solid var(--border);
-        border-radius: 14px;
+        border-radius: var(--radius-sm);
         padding: 12px;
       }
 
@@ -215,18 +217,20 @@ export class ScreenCognition extends LitElement {
 
       .state {
         margin-top: 14px;
-        padding: 14px;
-        border-radius: 14px;
+        padding: 16px;
+        border-radius: var(--radius);
         background: var(--surface2);
-        border: 1px solid var(--border);
       }
 
       .state .label {
+        font-family: var(--font-mono);
         font-size: 10px;
         text-transform: uppercase;
-        letter-spacing: 0.6px;
+        letter-spacing: 0.04em;
         color: var(--text-dim);
-        margin-bottom: 6px;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
       }
 
       .state .value {
@@ -237,10 +241,10 @@ export class ScreenCognition extends LitElement {
 
       .error {
         padding: 14px;
-        border-radius: 14px;
-        background: rgba(237, 73, 86, 0.10);
-        border: 1px solid rgba(237, 73, 86, 0.20);
-        color: var(--red);
+        border-radius: var(--radius-sm);
+        background: rgba(255, 34, 34, 0.1);
+        border: 1px solid rgba(255, 34, 34, 0.2);
+        color: var(--rouge);
         font-size: 12px;
         line-height: 1.5;
       }

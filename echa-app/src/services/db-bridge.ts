@@ -7,18 +7,39 @@ function getPlugin(): any {
   if ((window as any).Capacitor?.Plugins?.InstaWebView) {
     return (window as any).Capacitor.Plugins.InstaWebView;
   }
-  // Mock for browser dev
+  // Mock for browser dev — use injected stats or fallback to empty
   console.warn('[ECHA] DB bridge: plugin not available (browser mode)');
+  const mock = (window as any).__SCROLLOUT_MOCK_STATS;
   return {
     querySessions: async () => ({ sessions: '[]' }),
     queryPosts: async () => ({ posts: '[]' }),
-    queryStats: async () => ({
+    queryStats: async () => mock ? {
+      totalSessions: mock.totalSessions,
+      totalPosts: mock.totalPosts,
+      totalEnriched: mock.totalEnriched,
+      totalDwellMs: mock.totalDwellMs,
+      attention: JSON.stringify(mock.attention),
+      political: JSON.stringify(mock.political),
+      axes: JSON.stringify(mock.axes),
+      avgPolarization: mock.avgPolarization,
+      avgConfidence: mock.avgConfidence,
+      topCategories: JSON.stringify(mock.topCategories || []),
+      topUsers: JSON.stringify(mock.topUsers || []),
+      topDomains: JSON.stringify(mock.topDomains || []),
+      topTopics: JSON.stringify(mock.topTopics || []),
+      topNarratives: JSON.stringify(mock.topNarratives || []),
+      topTones: JSON.stringify(mock.topTones || []),
+      topEmotions: JSON.stringify(mock.topEmotions || []),
+      signals: JSON.stringify(mock.signals || {}),
+      sponsoredStats: JSON.stringify(mock.sponsoredStats || {}),
+      mediaTypes: JSON.stringify(mock.mediaTypes || []),
+    } : {
       totalSessions: 0, totalPosts: 0, totalEnriched: 0,
       attention: {}, political: {}, axes: {},
       topCategories: '[]', topUsers: '[]',
       topDomains: '[]', topTopics: '[]',
       totalDwellMs: 0,
-    }),
+    },
     queryExportSession: async () => ({ data: '{}' }),
   };
 }
@@ -105,6 +126,7 @@ export interface DbStats {
   polarizingAccounts?: Array<{ username: string; avgPolarization: number; avgPolitical: number; count: number; totalDwellMs: number }>;
   sponsoredStats?: { sponsored?: { count: number; avgDwellMs: number; avgPolitical: number }; organic?: { count: number; avgDwellMs: number; avgPolitical: number } };
   signals?: { activism: number; conflict: number; moralAbsolute: number; enemyDesignation: number; ingroupOutgroup: number; total: number };
+  mediaTypes?: Array<{ type: string; count: number; totalDwellMs: number }>;
 }
 
 // ── Queries ──────────────────────────────────────────────────
@@ -161,6 +183,7 @@ export async function getStats(): Promise<DbStats> {
   if (result.polarizingAccounts) stats.polarizingAccounts = parseField(result.polarizingAccounts);
   if (result.sponsoredStats) stats.sponsoredStats = parseField(result.sponsoredStats);
   if (result.signals) stats.signals = parseField(result.signals);
+  if (result.mediaTypes) stats.mediaTypes = parseField(result.mediaTypes);
   return stats;
 }
 

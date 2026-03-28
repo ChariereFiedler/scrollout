@@ -4,3 +4,4 @@ import './screens/screen-cognition.js';
 import './screens/screen-enrichment.js';
 import './screens/screen-posts.js';
 import './screens/screen-settings.js';
+import './screens/screen-wrapped.js';

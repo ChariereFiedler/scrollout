@@ -274,6 +274,95 @@ export class ScreenEnrichment extends LitElement {
         color: var(--text-dim);
       }
 
+      /* ── Media type comparison ── */
+      .media-types {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .mt-card {
+        flex: 1;
+        min-width: 80px;
+        background: var(--surface3);
+        border-radius: var(--radius-sm);
+        padding: 12px 8px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .mt-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+      }
+      .mt-icon {
+        font-size: 20px;
+        margin-bottom: 4px;
+      }
+      .mt-count {
+        font-family: var(--font-heading);
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+      .mt-label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-dim);
+        margin-top: 2px;
+      }
+      .mt-dwell {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-muted);
+        margin-top: 4px;
+      }
+      .mt-bar-section {
+        margin-top: 12px;
+      }
+      .mt-stacked {
+        display: flex;
+        height: 28px;
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 6px;
+      }
+      .mt-seg {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--bg);
+        min-width: 0;
+        overflow: hidden;
+        transition: flex 0.4s;
+      }
+      .mt-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+      }
+      .mt-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        color: var(--text-dim);
+      }
+      .mt-legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
       /* ── Tones ── */
       .tone-row {
         display: flex;
@@ -450,6 +539,14 @@ export class ScreenEnrichment extends LitElement {
         `)}
       </div>
 
+      <!-- Media type comparison -->
+      ${s.mediaTypes && s.mediaTypes.length > 0 ? html`
+        <div class="section">
+          <div class="section-label">Types de contenu</div>
+          ${this.renderMediaTypes(s.mediaTypes, s.totalPosts)}
+        </div>
+      ` : ''}
+
       <!-- Topics -->
       ${s.topTopics.length > 0 ? html`
         <div class="section">
@@ -582,6 +679,89 @@ export class ScreenEnrichment extends LitElement {
               `;
             })}
           </div>
+        </div>
+      ` : ''}
+    `;
+  }
+
+  private renderMediaTypes(types: Array<{ type: string; count: number; totalDwellMs: number }>, totalPosts: number) {
+    const mtColors: Record<string, string> = {
+      photo: '#6B6BFF',
+      carousel: '#6BE88B',
+      video: '#FF7B33',
+      reel: '#E88BE8',
+      story: '#FFE94A',
+      igtv: '#88CCFF',
+    };
+    const mtIcons: Record<string, string> = {
+      photo: '\u{1F4F7}',      // camera
+      carousel: '\u{1F5BC}',   // framed picture
+      video: '\u{1F3AC}',      // clapper board
+      reel: '\u{1F4F1}',       // mobile phone
+      story: '\u{23F3}',       // hourglass
+      igtv: '\u{1F4FA}',       // television
+    };
+    const total = types.reduce((a, t) => a + t.count, 0);
+    const totalDwell = types.reduce((a, t) => a + t.totalDwellMs, 0);
+
+    return html`
+      <!-- Cards -->
+      <div class="media-types">
+        ${types.map(t => {
+          const color = mtColors[t.type] || '#888';
+          const icon = mtIcons[t.type] || '\u{1F4C4}';
+          const pct = total > 0 ? Math.round(t.count / total * 100) : 0;
+          const avgDwell = t.count > 0 ? Math.round(t.totalDwellMs / t.count / 1000 * 10) / 10 : 0;
+          return html`
+            <div class="mt-card" style="border-top: 3px solid ${color}">
+              <div class="mt-icon">${icon}</div>
+              <div class="mt-count" style="color:${color}">${t.count}</div>
+              <div class="mt-label">${t.type}</div>
+              <div class="mt-dwell">${pct}% — ${avgDwell}s moy</div>
+            </div>
+          `;
+        })}
+      </div>
+
+      <!-- Stacked bar -->
+      <div class="mt-bar-section">
+        <div class="mt-stacked">
+          ${types.map(t => {
+            const pct = total > 0 ? (t.count / total * 100) : 0;
+            const color = mtColors[t.type] || '#888';
+            return pct > 0 ? html`
+              <div class="mt-seg" style="flex:${pct};background:${color}">
+                ${pct > 10 ? `${Math.round(pct)}%` : ''}
+              </div>
+            ` : nothing;
+          })}
+        </div>
+        <div class="mt-legend">
+          ${types.map(t => {
+            const color = mtColors[t.type] || '#888';
+            return html`
+              <div class="mt-legend-item">
+                <span class="mt-legend-dot" style="background:${color}"></span>
+                ${t.type} (${t.count})
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+
+      <!-- Dwell time comparison -->
+      ${totalDwell > 0 ? html`
+        <div style="margin-top:12px;font-family:var(--font-mono);font-size:9px;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px">Temps passe par type</div>
+        <div class="mt-stacked">
+          ${types.map(t => {
+            const pct = totalDwell > 0 ? (t.totalDwellMs / totalDwell * 100) : 0;
+            const color = mtColors[t.type] || '#888';
+            return pct > 0 ? html`
+              <div class="mt-seg" style="flex:${pct};background:${color};opacity:0.8">
+                ${pct > 10 ? `${Math.round(pct)}%` : ''}
+              </div>
+            ` : nothing;
+          })}
         </div>
       ` : ''}
     `;

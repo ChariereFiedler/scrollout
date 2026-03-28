@@ -542,7 +542,7 @@ export const THEMES: Theme[] = [
       {
         id: 'redpill',
         label: 'Red pill & manosph\u00e8re',
-        keywords: ['red pill', 'redpill', 'alpha', 'sigma', 'grindset', 'andrew tate', 'tate', 'mgtow', 'manosph\u00e8re', 'manosphere', 'high value', 'hypergamie'],
+        keywords: ['red pill', 'redpill', 'alpha', 'sigma', 'grindset', 'andrew tate', 'tate', 'mgtow', 'manosph\u00e8re', 'manosphere', 'high value', 'hypergamie', 'incel', 'blackpill', 'bluepill', 'beta', 'chad', 'simp', 'pickme', 'gynocentrisme', 'misandrie', 'feminazi', 'mra', 'mens rights'],
         preciseSubjects: [
           {
             id: 'crise_masculinite',
@@ -557,7 +557,7 @@ export const THEMES: Theme[] = [
       {
         id: 'masculinite_positive',
         label: 'Masculinit\u00e9 positive',
-        keywords: ['masculinit\u00e9 positive', 'masculinite positive', 'homme moderne', 'paternit\u00e9', 'paternite', 'homme f\u00e9ministe', 'vuln\u00e9rabilit\u00e9', 'sant\u00e9 mentale homme'],
+        keywords: ['masculinit\u00e9 positive', 'masculinite positive', 'homme moderne', 'paternit\u00e9', 'paternite', 'homme f\u00e9ministe', 'vuln\u00e9rabilit\u00e9', 'sant\u00e9 mentale homme', 'homme d\u00e9construit', 'charge mentale homme', 'cong\u00e9 paternit\u00e9', 'conge paternite', 'p\u00e8re au foyer', 'p\u00e8re c\u00e9libataire', 'parentalit\u00e9', 'male ally', 'soft boy'],
         preciseSubjects: [],
       },
     ],
@@ -570,7 +570,7 @@ export const THEMES: Theme[] = [
       {
         id: 'racisme',
         label: 'Racisme & antiracisme',
-        keywords: ['racisme', 'raciste', 'antiracisme', 'discrimination', 'racis\u00e9', 'racise', 'woke', 'd\u00e9colonial', 'decolonial', 'privil\u00e8ge blanc', 'privilege blanc', 'racisme syst\u00e9mique'],
+        keywords: ['racisme', 'raciste', 'antiracisme', 'discrimination', 'racis\u00e9', 'racise', 'woke', 'd\u00e9colonial', 'decolonial', 'privil\u00e8ge blanc', 'privilege blanc', 'racisme syst\u00e9mique', 'diversit\u00e9', 'diversite', 'inclusion', 'repr\u00e9sentativit\u00e9', 'representativite', 'micro-agression', 'tokenisme', 'colorblind'],
         preciseSubjects: [
           {
             id: 'racisme_systemique_france',
@@ -585,7 +585,7 @@ export const THEMES: Theme[] = [
       {
         id: 'lgbtq',
         label: 'LGBTQ+',
-        keywords: ['lgbtq', 'lgbt', 'gay', 'lesbienne', 'transgenre', 'trans', 'non-binaire', 'non binaire', 'queer', 'pride', 'marche des fiert\u00e9s', 'pma', 'gpa', 'drag', 'homophobie', 'transphobie'],
+        keywords: ['lgbtq', 'lgbt', 'gay', 'lesbienne', 'transgenre', 'trans', 'non-binaire', 'non binaire', 'queer', 'pride', 'marche des fiert\u00e9s', 'pma', 'gpa', 'drag', 'homophobie', 'transphobie', 'coming out', 'rainbow', 'arc-en-ciel', 'cisgenre', 'genre fluide', 'm\u00e9genrer', 'deadname'],
         preciseSubjects: [
           {
             id: 'gpa_legaliser',
@@ -608,7 +608,7 @@ export const THEMES: Theme[] = [
       {
         id: 'diaspora',
         label: 'Diaspora & origines',
-        keywords: ['diaspora', 'racines', 'origine', 'binational', 'double culture', 'repr\u00e9sentation', 'representation', 'visibilit\u00e9', 'visibilite', 'minorit\u00e9', 'minorite'],
+        keywords: ['diaspora', 'racines', 'origine', 'binational', 'double culture', 'repr\u00e9sentation', 'representation', 'visibilit\u00e9', 'visibilite', 'minorit\u00e9', 'minorite', 'communaut\u00e9', 'communaute', 'expat', 'int\u00e9gration', 'integration', 'assimilation', 'identit\u00e9 culturelle', 'm\u00e9tissage', 'metissage', 'cr\u00e9ole', 'creole', 'afro', 'maghr\u00e9bine', 'maghrebine', 'asiatique'],
         preciseSubjects: [],
       },
     ],
@@ -713,19 +713,19 @@ export const THEMES: Theme[] = [
       {
         id: 'entrepreneuriat',
         label: 'Entrepreneuriat',
-        keywords: ['entrepreneur', 'startup', 'entreprise', 'cr\u00e9ation d\'entreprise', 'levée de fonds', 'scale', 'pitch', 'incubateur'],
+        keywords: ['entrepreneur', 'startup', 'entreprise', 'cr\u00e9ation d\'entreprise', 'lev\u00e9e de fonds', 'scale', 'pitch', 'incubateur', 'side hustle', 'solopreneur', 'freelance', 'personal branding', 'business plan', 'ceo', 'founder', 'acquisition', 'saas', 'b2b', 'b2c', 'mvp', 'product market fit'],
         preciseSubjects: [],
       },
       {
         id: 'crypto_trading',
         label: 'Crypto & trading',
-        keywords: ['crypto', 'bitcoin', 'ethereum', 'trading', 'blockchain', 'nft', 'defi', 'web3', 'token', 'altcoin', 'bull', 'bear'],
+        keywords: ['crypto', 'bitcoin', 'ethereum', 'trading', 'blockchain', 'nft', 'defi', 'web3', 'token', 'altcoin', 'bull', 'bear', 'hodl', 'pump', 'dump', 'airdrop', 'staking', 'memecoin', 'solana', 'whale', 'diamond hands', 'to the moon', 'dyor', 'fomo'],
         preciseSubjects: [],
       },
       {
         id: 'coaching_hustle',
         label: 'Coaching & hustle culture',
-        keywords: ['coaching', 'mindset', 'hustle', 'revenus passifs', 'formation', 'dropshipping', 'e-commerce', 'ecommerce', 'affiliation', 'money'],
+        keywords: ['coaching', 'mindset', 'hustle', 'revenus passifs', 'formation', 'dropshipping', 'e-commerce', 'ecommerce', 'affiliation', 'money', 'libert\u00e9 financi\u00e8re', 'liberte financiere', 'argent facile', 'mlm', 'syst\u00e8me pyramidal', 'mastermind', 'mentoring', 'webinaire', 'tunnel de vente', 'scalable', 'personal brand'],
         preciseSubjects: [
           {
             id: 'hustle_culture_toxique',
@@ -740,7 +740,7 @@ export const THEMES: Theme[] = [
       {
         id: 'investissement',
         label: 'Investissement',
-        keywords: ['investissement', 'immobilier', 'scpi', 'assurance vie', 'pea', 'bourse', 'patrimoine', 'rente'],
+        keywords: ['investissement', 'immobilier', 'scpi', 'assurance vie', 'pea', 'bourse', 'patrimoine', 'rente', 'etf', 'dividende', 'crowdfunding', 'rentier', 'rendement', 'portefeuille', 'action', 'obligation', 'livret a', 'plus-value'],
         preciseSubjects: [],
       },
     ],
@@ -953,32 +953,50 @@ export const THEMES: Theme[] = [
       {
         id: 'cinema',
         label: 'Cin\u00e9ma',
-        keywords: ['cin\u00e9ma', 'cinema', 'film', 'r\u00e9alisateur', 'realisateur', 'acteur', 'actrice', 'cannes', 'c\u00e9sar', 'cesar', 'oscar', 'blockbuster', 'box office'],
-        preciseSubjects: [],
+        keywords: ['cin\u00e9ma', 'cinema', 'film', 'r\u00e9alisateur', 'realisateur', 'acteur', 'actrice', 'cannes', 'c\u00e9sar', 'cesar', 'oscar', 'blockbuster', 'box office', 'trailer', 'bande-annonce', 'bande annonce', 'avant-premi\u00e8re', 'avant premiere', 'cin\u00e9phile', 'cinephile', 'screening'],
+        preciseSubjects: [
+          {
+            id: 'cinema_francais_declin',
+            statement: 'Le cin\u00e9ma fran\u00e7ais est en d\u00e9clin face au streaming',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['declin', 'denonciation'], typicalActors: ['cin\u00e9astes traditionnels', 'exploitants salles'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['plateformes', 'jeunes r\u00e9alisateurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'musique',
         label: 'Musique',
-        keywords: ['musique', 'rappeur', 'rap', 'chanteur', 'chanteuse', 'album', 'single', 'concert', 'festival', 'spotify', 'victoires de la musique', 'playlist'],
+        keywords: ['musique', 'rappeur', 'rap', 'chanteur', 'chanteuse', 'album', 'single', 'concert', 'festival', 'spotify', 'victoires de la musique', 'playlist', 'dj', 'beatmaker', 'feat', 'featuring', 'clip', 'vinyle', 'vinyl', 'rock', 'pop', 'electro', 'jazz', 'classique', 'afrobeat', 'm\u00e9lodie'],
         preciseSubjects: [],
       },
       {
         id: 'series_tv',
         label: 'S\u00e9ries & TV',
-        keywords: ['s\u00e9rie', 'serie', 'netflix', 'disney+', 'prime video', '\u00e9mission', 'emission', 't\u00e9l\u00e9r\u00e9alit\u00e9', 'telerealite', 'saison', '\u00e9pisode', 'episode'],
+        keywords: ['s\u00e9rie', 'serie', 'netflix', 'disney+', 'prime video', '\u00e9mission', 'emission', 't\u00e9l\u00e9r\u00e9alit\u00e9', 'telerealite', 'saison', '\u00e9pisode', 'episode', 'binge', 'spoiler', 'cliffhanger', 'recap', 'rewatch', 'showrunner', 'hbo', 'apple tv', 'canal+', 'canal plus'],
         preciseSubjects: [],
       },
       {
         id: 'litterature',
         label: 'Litt\u00e9rature',
-        keywords: ['livre', 'roman', 'auteur', 'autrice', 'litt\u00e9rature', 'litterature', 'goncourt', 'lecture', 'librairie', 'best-seller', 'bd', 'manga'],
+        keywords: ['livre', 'roman', 'auteur', 'autrice', 'litt\u00e9rature', 'litterature', 'goncourt', 'lecture', 'librairie', 'best-seller', 'bd', 'manga', 'booktok', 'bookstagram', 'biblioth\u00e8que', 'bibliotheque', 'page turner', 'tbr', 'reading list', 'kindle'],
         preciseSubjects: [],
       },
       {
         id: 'art_patrimoine',
         label: 'Art & patrimoine',
-        keywords: ['mus\u00e9e', 'musee', 'exposition', 'galerie', 'patrimoine', '\u0153uvre', 'oeuvre', 'artiste', 'peinture', 'sculpture', 'street art', 'beaux-arts', 'art contemporain'],
-        preciseSubjects: [],
+        keywords: ['mus\u00e9e', 'musee', 'exposition', 'galerie', 'patrimoine', '\u0153uvre', 'oeuvre', 'artiste', 'peinture', 'sculpture', 'street art', 'beaux-arts', 'art contemporain', 'vernissage', 'biennale', 'design', 'photographie', 'illustration', 'graffiti', 'fresque', 'architecture'],
+        preciseSubjects: [
+          {
+            id: 'ia_menace_creation',
+            statement: 'L\'IA g\u00e9n\u00e9rative menace la cr\u00e9ation artistique',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'denonciation'], typicalActors: ['artistes', 'illustrateurs', 'syndicats'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['tech', 'startups IA', 'early adopters'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -1024,25 +1042,34 @@ export const THEMES: Theme[] = [
       {
         id: 'gaming',
         label: 'Jeux vid\u00e9o & gaming',
-        keywords: ['jeu vid\u00e9o', 'jeu video', 'gaming', 'gamer', 'playstation', 'xbox', 'nintendo', 'switch', 'pc gaming', 'esport', 'twitch', 'stream', 'fortnite', 'minecraft'],
-        preciseSubjects: [],
+        keywords: ['jeu vid\u00e9o', 'jeu video', 'gaming', 'gamer', 'playstation', 'xbox', 'nintendo', 'switch', 'pc gaming', 'esport', 'twitch', 'stream', 'fortnite', 'minecraft', 'ps5', 'ps4', 'xbox series', 'steam', 'epic games', 'fps', 'rpg', 'mmorpg', 'battle royale', 'speedrun', 'gameplay', 'raid'],
+        preciseSubjects: [
+          {
+            id: 'jeux_video_violence',
+            statement: 'Les jeux vid\u00e9o rendent violent',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'ordre'], typicalActors: ['conservateurs', 'parents', 'politiques'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'derision'], typicalActors: ['gamers', 'chercheurs', 'industrie'] },
+            ],
+          },
+        ],
       },
       {
         id: 'people_celebrites',
         label: 'People & c\u00e9l\u00e9brit\u00e9s',
-        keywords: ['people', 'c\u00e9l\u00e9brit\u00e9', 'celebrite', 'star', 'buzz', 'viral', 'influenceur', 'influenceuse', 'youtubeur', 'tiktokeur'],
+        keywords: ['people', 'c\u00e9l\u00e9brit\u00e9', 'celebrite', 'star', 'buzz', 'viral', 'influenceur', 'influenceuse', 'youtubeur', 'tiktokeur', 'gossip', 'paparazzi', 'tapis rouge', 'red carpet', 'interview', 'podcast', 'clash', 'drama'],
         preciseSubjects: [],
       },
       {
         id: 'telerealite',
         label: 'T\u00e9l\u00e9r\u00e9alit\u00e9',
-        keywords: ['t\u00e9l\u00e9r\u00e9alit\u00e9', 'telerealite', 'reality', 'les marseillais', 'koh lanta', 'secret story', 'star academy'],
+        keywords: ['t\u00e9l\u00e9r\u00e9alit\u00e9', 'telerealite', 'reality', 'les marseillais', 'koh lanta', 'secret story', 'star academy', 'candidat', 'villa', 'les anges', 'tpmp', 'touche pas \u00e0 mon poste', 'big brother', 'bachelor'],
         preciseSubjects: [],
       },
       {
         id: 'anime_manga',
         label: 'Anime & manga',
-        keywords: ['anime', 'manga', 'otaku', 'shonen', 'one piece', 'naruto', 'dragon ball', 'cosplay', 'japanimation', 'webtoon'],
+        keywords: ['anime', 'manga', 'otaku', 'shonen', 'one piece', 'naruto', 'dragon ball', 'cosplay', 'japanimation', 'webtoon', 'shojo', 'seinen', 'isekai', 'demon slayer', 'jujutsu kaisen', 'crunchyroll', 'fan art', 'figurine', 'waifu'],
         preciseSubjects: [],
       },
     ],
@@ -1055,31 +1082,40 @@ export const THEMES: Theme[] = [
       {
         id: 'football',
         label: 'Football',
-        keywords: ['football', 'ligue 1', 'champions league', 'psg', 'coupe du monde', 'mbappe', 'mbapp\u00e9', 'ballon d\'or', 'mercato', 'premier league', 'liga', 'serie a', 'bundesliga'],
+        keywords: ['football', 'ligue 1', 'champions league', 'psg', 'coupe du monde', 'mbappe', 'mbapp\u00e9', 'ballon d\'or', 'mercato', 'premier league', 'liga', 'serie a', 'bundesliga', 'but', 'goal', 'gardien', 'penalty', 'carton rouge', 'transfert', 'supporter', 'ultras', 'tifo', 'stade', 'derby', 'classico'],
         preciseSubjects: [],
       },
       {
         id: 'sports_combat',
         label: 'Sports de combat & MMA',
-        keywords: ['mma', 'ufc', 'boxe', 'kickboxing', 'judo', 'karat\u00e9', 'karate', 'combat', 'octogone', 'ko'],
+        keywords: ['mma', 'ufc', 'boxe', 'kickboxing', 'judo', 'karat\u00e9', 'karate', 'combat', 'octogone', 'ko', 'ring', 'round', 'ceinture', 'sparring', 'muay thai', 'bjj', 'jiu-jitsu', 'grappling'],
         preciseSubjects: [],
       },
       {
         id: 'jo_competition',
         label: 'JO & comp\u00e9titions internationales',
-        keywords: ['jeux olympiques', 'olympique', 'paralympique', 'champion du monde', 'm\u00e9daille d\'or', 'medaille d\'or', 'coupe du monde', 'championnat du monde', 'paris 2024'],
+        keywords: ['jeux olympiques', 'olympique', 'paralympique', 'champion du monde', 'm\u00e9daille d\'or', 'medaille d\'or', 'coupe du monde', 'championnat du monde', 'paris 2024', 'record', 'qualifications', 's\u00e9lection', 'selection', '\u00e9quipe de france', 'equipe de france', 'bleus', 'bleues'],
         preciseSubjects: [],
       },
       {
         id: 'fitness',
         label: 'Fitness & musculation',
-        keywords: ['musculation', 'fitness', 'crossfit', 'running', 'marathon', 'gym', 's\u00e8che', 'seche', 'prise de masse', 'protein', 'coach sportif'],
-        preciseSubjects: [],
+        keywords: ['musculation', 'fitness', 'crossfit', 'running', 'marathon', 'gym', 's\u00e8che', 'seche', 'prise de masse', 'protein', 'coach sportif', 'workout', 'wod', 'squat', 'deadlift', 'bench press', 'cardio', 'hiit', 'gains', 'lean', 'bulk', 'macro', 'whey', 'abs'],
+        preciseSubjects: [
+          {
+            id: 'sport_feminin_sous_mediatise',
+            statement: 'Le sport f\u00e9minin est sous-m\u00e9diatis\u00e9',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'denonciation'], typicalActors: ['sportives', 'f\u00e9ministes', 'associations'] },
+              { label: 'contre', typicalNarratives: ['ordre'], typicalActors: ['m\u00e9dias traditionnels', 'conservateurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'autres_sports',
         label: 'Autres sports',
-        keywords: ['tennis', 'rugby', 'basket', 'nba', 'cyclisme', 'tour de france', 'f1', 'formule 1', 'natation', 'athl\u00e9tisme', 'golf', 'ski'],
+        keywords: ['tennis', 'rugby', 'basket', 'nba', 'cyclisme', 'tour de france', 'f1', 'formule 1', 'natation', 'athl\u00e9tisme', 'golf', 'ski', 'padel', 'surf', 'escalade', 'climbing', 'trail', 'triathlon', 'volley', 'handball', 'patinage'],
         preciseSubjects: [],
       },
     ],
@@ -1151,19 +1187,28 @@ export const THEMES: Theme[] = [
       {
         id: 'skincare',
         label: 'Skincare',
-        keywords: ['skincare', 'soin', 'cr\u00e8me', 'creme', 's\u00e9rum', 'serum', 'nettoyant', 'routine soin', 'acn\u00e9', 'acne', 'peau', 'hydratant', 'spf'],
-        preciseSubjects: [],
+        keywords: ['skincare', 'soin', 'cr\u00e8me', 'creme', 's\u00e9rum', 'serum', 'nettoyant', 'routine soin', 'acn\u00e9', 'acne', 'peau', 'hydratant', 'spf', 'niacinamide', 'retinol', 'vitamine c', 'the ordinary', 'cerave', 'routine', 'glow', 'clean beauty', 'dermatologue'],
+        preciseSubjects: [
+          {
+            id: 'standards_beaute_toxiques',
+            statement: 'Les standards de beaut\u00e9 sur Instagram sont toxiques',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['body positive', 'f\u00e9ministes', 'psychologues'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['influenceuses beaut\u00e9', 'marques'] },
+            ],
+          },
+        ],
       },
       {
         id: 'maquillage',
         label: 'Maquillage',
-        keywords: ['maquillage', 'makeup', 'mascara', 'rouge \u00e0 l\u00e8vres', 'foundation', 'fond de teint', 'tuto', 'tutorial', 'contouring'],
+        keywords: ['maquillage', 'makeup', 'mascara', 'rouge \u00e0 l\u00e8vres', 'foundation', 'fond de teint', 'tuto', 'tutorial', 'contouring', 'grwm', 'get ready with me', 'fenty', 'sephora', 'palette', 'highlighter', 'blush', 'liner', 'gloss', 'primer', 'setting spray'],
         preciseSubjects: [],
       },
       {
         id: 'coiffure',
         label: 'Coiffure',
-        keywords: ['coiffure', 'cheveux', 'hair', 'coloration', 'coupe', 'lissage', 'boucles', 'natural hair'],
+        keywords: ['coiffure', 'cheveux', 'hair', 'coloration', 'coupe', 'lissage', 'boucles', 'natural hair', 'balayage', 'ombr\u00e9', 'ombre', 'braids', 'tresses', 'twist', 'silk press', 'curly girl', 'shampoing'],
         preciseSubjects: [],
       },
     ],
@@ -1176,20 +1221,29 @@ export const THEMES: Theme[] = [
       {
         id: 'meditation_mindfulness',
         label: 'M\u00e9ditation & pleine conscience',
-        keywords: ['m\u00e9ditation', 'meditation', 'pleine conscience', 'mindfulness', 'respiration', 'yoga', 'zen', 'calme', 'stress', 'relaxation'],
+        keywords: ['m\u00e9ditation', 'meditation', 'pleine conscience', 'mindfulness', 'respiration', 'yoga', 'zen', 'calme', 'stress', 'relaxation', 'sophrologie', 'hypnose', 'coh\u00e9rence cardiaque', 'coherence cardiaque', 'ancrage', 'grounding', 'self-care', 'morning routine', 'journaling'],
         preciseSubjects: [],
       },
       {
         id: 'motivation',
         label: 'Motivation & citations',
-        keywords: ['motivation', 'confiance en soi', 'affirmation', 'r\u00e9silience', 'resilience', 'citation', 'quote', 'inspirant', 'growth', 'croissance personnelle'],
+        keywords: ['motivation', 'confiance en soi', 'affirmation', 'r\u00e9silience', 'resilience', 'citation', 'quote', 'inspirant', 'growth', 'croissance personnelle', 'discipline', 'objectif', 'vision board', 'gratitude', 'never give up', 'focus', 'achieve', 'manifest'],
         preciseSubjects: [],
       },
       {
         id: 'spiritualite_new_age',
         label: 'Spiritualit\u00e9 & new age',
-        keywords: ['spiritualit\u00e9', 'spiritualite', 'loi d\'attraction', 'manifestation', 'chakra', '\u00e9nergie', 'energie', 'astrologie', 'tarot', 'cristal', 'pleine lune'],
-        preciseSubjects: [],
+        keywords: ['spiritualit\u00e9', 'spiritualite', 'loi d\'attraction', 'manifestation', 'chakra', '\u00e9nergie', 'energie', 'astrologie', 'tarot', 'cristal', 'pleine lune', 'horoscope', 'signe astro', 'lithoth\u00e9rapie', 'lithotherapie', 'oracle', 'soin \u00e9nerg\u00e9tique', 'reiki'],
+        preciseSubjects: [
+          {
+            id: 'coaching_charlatanisme',
+            statement: 'Le coaching en d\u00e9veloppement personnel est souvent du charlatanisme',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'derision'], typicalActors: ['sceptiques', 'journalistes', 'scientifiques'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['coachs', 'influenceurs dev perso'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -1288,7 +1342,7 @@ export const THEMES: Theme[] = [
       {
         id: 'laicite',
         label: 'La\u00efcit\u00e9',
-        keywords: ['la\u00efcit\u00e9', 'laicite', 'loi 1905', 's\u00e9paration \u00e9glise \u00e9tat', 'separation eglise etat', 'neutralit\u00e9', 'signes religieux'],
+        keywords: ['la\u00efcit\u00e9', 'laicite', 'loi 1905', 's\u00e9paration \u00e9glise \u00e9tat', 'separation eglise etat', 'neutralit\u00e9', 'signes religieux', 'burkini', 'voile', 'loi s\u00e9paratisme', 'pros\u00e9lytisme', 'charlie hebdo'],
         preciseSubjects: [
           {
             id: 'voile_espace_public',
@@ -1311,7 +1365,7 @@ export const THEMES: Theme[] = [
       {
         id: 'islam_france',
         label: 'Islam en France',
-        keywords: ['islam', 'musulman', 'mosqu\u00e9e', 'mosquee', 'ramadan', 'halal', 'imam', 'islamisme', 'islamophobie', 'radicalisation', 's\u00e9paratisme'],
+        keywords: ['islam', 'musulman', 'mosqu\u00e9e', 'mosquee', 'ramadan', 'halal', 'imam', 'islamisme', 'islamophobie', 'radicalisation', 's\u00e9paratisme', 'abaya', 'hijab', 'iftar', 'eid', 'a\u00efd', 'aid', 'haram', 'salam', 'mashallah', 'inshallah', 'oumma', 'coran', 'deen'],
         preciseSubjects: [
           {
             id: 'islamophobie_france',
@@ -1326,13 +1380,13 @@ export const THEMES: Theme[] = [
       {
         id: 'christianisme',
         label: 'Christianisme',
-        keywords: ['chr\u00e9tien', 'chretien', 'catholique', '\u00e9glise', 'eglise', 'pape', 'messe', 'pri\u00e8re', 'priere', 'no\u00ebl', 'noel', 'p\u00e2ques', 'paques', 'vatican', '\u00e9vang\u00e9lique'],
+        keywords: ['chr\u00e9tien', 'chretien', 'catholique', '\u00e9glise', 'eglise', 'pape', 'messe', 'pri\u00e8re', 'priere', 'no\u00ebl', 'noel', 'p\u00e2ques', 'paques', 'vatican', '\u00e9vang\u00e9lique', 'bible', 'j\u00e9sus', 'jesus', 'gospel', 'b\u00e9n\u00e9diction', 'benediction', 'foi', 'croyant', 'dieu', 'seigneur', 'amen', 'car\u00eame', 'careme', 'communion', 'bapt\u00eame', 'bapteme'],
         preciseSubjects: [],
       },
       {
         id: 'antisemitisme',
         label: 'Antis\u00e9mitisme',
-        keywords: ['antisémitisme', 'antisemitisme', 'juif', 'juda\u00efsme', 'judaisme', 'synagogue', 'shoah', 'holocauste', 'crif', 'kippa'],
+        keywords: ['antis\u00e9mitisme', 'antisemitisme', 'juif', 'juda\u00efsme', 'judaisme', 'synagogue', 'shoah', 'holocauste', 'crif', 'kippa', '\u00e9toile de david', 'shabbat', 'torah', 'hanouka', 'kippour', 'casher'],
         preciseSubjects: [],
       },
     ],

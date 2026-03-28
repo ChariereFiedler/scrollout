@@ -324,6 +324,59 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
       });
     },
   },
+  {
+    method: 'GET',
+    pattern: /^\/api\/enrichment-quality$/,
+    handler: async (_req, res) => {
+      const totalPosts = await prisma.post.count();
+      const totalEnriched = await prisma.postEnriched.count();
+      const emptyTopics = await prisma.postEnriched.count({
+        where: { OR: [{ mainTopics: '[]' }, { mainTopics: '' }] },
+      });
+      const reviewFlags = await prisma.postEnriched.count({ where: { reviewFlag: true } });
+      const rulesOnly = await prisma.postEnriched.count({ where: { provider: 'rules' } });
+      const avgConf = await prisma.postEnriched.aggregate({ _avg: { confidenceScore: true } });
+      const avgPol = await prisma.postEnriched.aggregate({ _avg: { polarizationScore: true } });
+
+      // Confidence distribution
+      const allEnriched = await prisma.postEnriched.findMany({
+        select: { confidenceScore: true, mainTopics: true },
+      });
+      const confBuckets = { low: 0, medium: 0, good: 0, high: 0 };
+      for (const e of allEnriched) {
+        if (e.confidenceScore < 0.3) confBuckets.low++;
+        else if (e.confidenceScore < 0.5) confBuckets.medium++;
+        else if (e.confidenceScore < 0.7) confBuckets.good++;
+        else confBuckets.high++;
+      }
+
+      // Theme coverage
+      const topicCount: Record<string, number> = {};
+      for (const e of allEnriched) {
+        try {
+          const topics: string[] = JSON.parse(e.mainTopics);
+          for (const t of topics) topicCount[t] = (topicCount[t] || 0) + 1;
+        } catch { /* skip */ }
+      }
+      const themesWithPosts = Object.keys(topicCount).length;
+      const themesAbove5 = Object.values(topicCount).filter(c => c >= 5).length;
+
+      json(res, {
+        totalPosts,
+        totalEnriched,
+        emptyTopicsCount: emptyTopics,
+        emptyTopicsRate: totalEnriched > 0 ? Math.round(emptyTopics / totalEnriched * 1000) / 10 : 0,
+        reviewFlags,
+        rulesOnly,
+        llmEnriched: totalEnriched - rulesOnly,
+        avgConfidence: avgConf._avg.confidenceScore ? Math.round(avgConf._avg.confidenceScore * 1000) / 1000 : null,
+        avgPolarization: avgPol._avg.polarizationScore ? Math.round(avgPol._avg.polarizationScore * 1000) / 1000 : null,
+        confidenceDistribution: confBuckets,
+        themeCoverage: { total: 24, withPosts: themesWithPosts, above5Posts: themesAbove5 },
+        topicDistribution: Object.entries(topicCount).sort((a, b) => b[1] - a[1]),
+      });
+    },
+  },
 ];
 
 // ── Mobile sync proxy ─────────────────────────────────────────────

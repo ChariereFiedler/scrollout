@@ -95,6 +95,17 @@ async function tick(options: DaemonOptions) {
     stats.consecutiveErrors = 0;
 
     log(`Batch terminé: ${result.succeeded}/${result.processed} enrichis, ${result.failed} erreurs, ${result.skipped} skippés`);
+
+    // Quality metrics after batch
+    try {
+      const totalEnriched = await prisma.postEnriched.count();
+      const emptyTopics = await prisma.postEnriched.count({ where: { OR: [{ mainTopics: '[]' }, { mainTopics: '' }] } });
+      const reviewFlags = await prisma.postEnriched.count({ where: { reviewFlag: true } });
+      const avgConf = await prisma.postEnriched.aggregate({ _avg: { confidenceScore: true } });
+      const topicsOk = totalEnriched > 0 ? Math.round((totalEnriched - emptyTopics) / totalEnriched * 100) : 0;
+      log(`Quality: ${topicsOk}% topics OK, avg conf ${avgConf._avg.confidenceScore?.toFixed(2) ?? '?'}, ${reviewFlags} review flags, ${emptyTopics} empty topics`);
+    } catch { /* non-critical */ }
+
     options.onStatusChange?.(getStatus());
   } catch (err) {
     stats.consecutiveErrors++;

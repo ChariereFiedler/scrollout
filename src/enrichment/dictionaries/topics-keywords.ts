@@ -73,6 +73,35 @@ const TOPIC_ALIASES: Record<string, string> = (() => {
   map['crypto'] = 'business';
   map['mode'] = 'beaute';
   map['fashion'] = 'beaute';
+  // Aliases ajoutés 014-4
+  map['spiritualité'] = 'religion';
+  map['spiritualite'] = 'religion';
+  map['entrepreneuriat'] = 'business';
+  map['startup'] = 'business';
+  map['trading'] = 'business';
+  map['fitness'] = 'sport';
+  map['musculation'] = 'sport';
+  map['wellness'] = 'sante';
+  map['bien-être'] = 'sante';
+  map['bien-etre'] = 'sante';
+  map['self-care'] = 'developpement_personnel';
+  map['coaching'] = 'developpement_personnel';
+  map['méditation'] = 'developpement_personnel';
+  map['meditation'] = 'developpement_personnel';
+  map['manga'] = 'divertissement';
+  map['anime'] = 'divertissement';
+  map['mma'] = 'sport';
+  map['football'] = 'sport';
+  map['skincare'] = 'beaute';
+  map['maquillage'] = 'beaute';
+  map['makeup'] = 'beaute';
+  map['people'] = 'divertissement';
+  map['célébrités'] = 'divertissement';
+  map['celebrites'] = 'divertissement';
+  map['série'] = 'culture';
+  map['series'] = 'culture';
+  map['littérature'] = 'culture';
+  map['litterature'] = 'culture';
   return map;
 })();
 

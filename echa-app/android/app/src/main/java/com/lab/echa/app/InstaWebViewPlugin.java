@@ -3,10 +3,8 @@ package com.lab.echa.app;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
+
 import android.util.Log;
-import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
@@ -16,7 +14,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.JavascriptInterface;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
+
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -61,8 +59,6 @@ public class InstaWebViewPlugin extends Plugin {
     private String enrichmentScript = "";
     private final List<String> collectedData = new ArrayList<>();
     private boolean instagramVisible = false;
-    private boolean cognitionButtonVisible = false;
-    private ImageButton cognitionButton;
 
     // ML Kit
     private ImageLabeler labeler;
@@ -76,8 +72,6 @@ public class InstaWebViewPlugin extends Plugin {
 
     // Tab bar height in dp
     private static final int TAB_BAR_HEIGHT_DP = 52;
-    private static final int COGNITION_BUTTON_SIZE_DP = 56;
-    private static final int COGNITION_BUTTON_MARGIN_DP = 16;
 
     @Override
     public void load() {
@@ -145,82 +139,6 @@ public class InstaWebViewPlugin extends Plugin {
             return getContext().getResources().getDimensionPixelSize(resourceId);
         }
         return 0;
-    }
-
-    private void ensureCognitionButton(Activity activity) {
-        if (cognitionButton != null) return;
-
-        cognitionButton = new ImageButton(activity);
-        cognitionButton.setImageResource(R.mipmap.ic_launcher_foreground);
-        cognitionButton.setScaleType(ImageButton.ScaleType.CENTER_INSIDE);
-        cognitionButton.setBackgroundColor(Color.parseColor("#C13584"));
-        cognitionButton.setColorFilter(Color.WHITE);
-        cognitionButton.setPadding(dpToPx(10), dpToPx(10), dpToPx(10), dpToPx(10));
-        cognitionButton.setContentDescription("Ouvrir les visualisations cognitives");
-        cognitionButton.setElevation(dpToPx(10));
-
-        final float[] down = new float[2];
-        final float[] start = new float[2];
-        final boolean[] dragging = new boolean[] { false };
-
-        cognitionButton.setOnTouchListener((view, event) -> {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    down[0] = event.getRawX();
-                    down[1] = event.getRawY();
-                    start[0] = view.getX();
-                    start[1] = view.getY();
-                    dragging[0] = false;
-                    return false;
-                case MotionEvent.ACTION_MOVE:
-                    float dx = event.getRawX() - down[0];
-                    float dy = event.getRawY() - down[1];
-                    if (Math.abs(dx) > dpToPx(4) || Math.abs(dy) > dpToPx(4)) {
-                        dragging[0] = true;
-                        int parentWidth = ((View) view.getParent()).getWidth();
-                        int parentHeight = ((View) view.getParent()).getHeight();
-                        float nextX = Math.max(dpToPx(8), Math.min(parentWidth - view.getWidth() - dpToPx(8), start[0] + dx));
-                        float nextY = Math.max(getStatusBarHeight(), Math.min(parentHeight - view.getHeight() - dpToPx(8), start[1] + dy));
-                        view.setX(nextX);
-                        view.setY(nextY);
-                    }
-                    return dragging[0];
-                case MotionEvent.ACTION_UP:
-                    return dragging[0];
-                default:
-                    return false;
-            }
-        });
-
-        cognitionButton.setOnClickListener(v -> {
-            hideInstaWebView();
-            JSObject ret = new JSObject();
-            notifyListeners("openCognition", ret);
-        });
-
-        FrameLayout rootView = activity.findViewById(android.R.id.content);
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
-            dpToPx(COGNITION_BUTTON_SIZE_DP),
-            dpToPx(COGNITION_BUTTON_SIZE_DP)
-        );
-        params.gravity = Gravity.END | Gravity.BOTTOM;
-        params.rightMargin = dpToPx(COGNITION_BUTTON_MARGIN_DP);
-        params.bottomMargin = dpToPx(TAB_BAR_HEIGHT_DP + COGNITION_BUTTON_MARGIN_DP);
-        rootView.addView(cognitionButton, params);
-    }
-
-    private void updateCognitionButtonVisibility() {
-        if (cognitionButton != null) {
-            boolean shouldShow = instagramVisible && cognitionButtonVisible;
-            cognitionButton.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
-        }
-    }
-
-    private void removeCognitionButton(Activity activity) {
-        if (cognitionButton == null) return;
-        FrameLayout rootView = activity.findViewById(android.R.id.content);
-        rootView.removeView(cognitionButton);
-        cognitionButton = null;
     }
 
     @PluginMethod()
@@ -343,10 +261,8 @@ public class InstaWebViewPlugin extends Plugin {
             // Reserve space for Scrollout tab bar + system navigation bar
             params.bottomMargin = dpToPx(TAB_BAR_HEIGHT_DP) + getNavigationBarHeight();
             rootView.addView(instaWebView, params);
-            ensureCognitionButton(activity);
 
             instagramVisible = true;
-            updateCognitionButtonVisibility();
             instaWebView.loadUrl("https://www.instagram.com/accounts/login/");
             Log.i(TAG, "Instagram WebView opened with bottom margin: " + params.bottomMargin + "px (tab=" + dpToPx(TAB_BAR_HEIGHT_DP) + " + nav=" + getNavigationBarHeight() + ")");
 
@@ -384,23 +300,10 @@ public class InstaWebViewPlugin extends Plugin {
         call.resolve(ret);
     }
 
-    @PluginMethod()
-    public void setCognitionButtonVisible(PluginCall call) {
-        boolean visible = call.getBoolean("visible", false);
-        getActivity().runOnUiThread(() -> {
-            cognitionButtonVisible = visible;
-            updateCognitionButtonVisibility();
-            JSObject ret = new JSObject();
-            ret.put("status", visible ? "visible" : "hidden");
-            call.resolve(ret);
-        });
-    }
-
     private void showInstaWebView() {
         if (instaWebView != null) {
             instaWebView.setVisibility(View.VISIBLE);
             instagramVisible = true;
-            updateCognitionButtonVisibility();
         }
     }
 
@@ -408,7 +311,6 @@ public class InstaWebViewPlugin extends Plugin {
         if (instaWebView != null) {
             instaWebView.setVisibility(View.GONE);
             instagramVisible = false;
-            updateCognitionButtonVisibility();
         }
     }
 
@@ -423,9 +325,6 @@ public class InstaWebViewPlugin extends Plugin {
                 instaWebView = null;
                 instagramVisible = false;
             }
-            if (cognitionButton != null) {
-                removeCognitionButton(activity);
-            }
             JSObject ret = new JSObject();
             ret.put("status", "closed");
             call.resolve(ret);
@@ -438,7 +337,6 @@ public class InstaWebViewPlugin extends Plugin {
         if (activity != null) {
             activity.runOnUiThread(() -> {
                 hideInstaWebView();
-                removeCognitionButton(activity);
                 if (instaWebView != null) {
                     FrameLayout rootView = activity.findViewById(android.R.id.content);
                     rootView.removeView(instaWebView);

@@ -14,7 +14,6 @@ function getPlugin(): any {
     closeInstagram: async () => ({ status: 'mock' }),
     showInstagram: async () => ({ status: 'mock' }),
     hideInstagram: async () => ({ status: 'mock' }),
-    setCognitionButtonVisible: async () => ({ status: 'mock' }),
     isInstagramOpen: async () => ({ open: false, visible: false }),
     exportSession: async () => ({ path: '', data: '{}' }),
     getCollectedData: async () => ({ count: 0, data: '[]' }),
@@ -41,10 +40,6 @@ export async function hideInstagram(): Promise<{ status: string }> {
   return getPlugin().hideInstagram();
 }
 
-export async function setCognitionButtonVisible(visible: boolean): Promise<{ status: string }> {
-  return getPlugin().setCognitionButtonVisible({ visible });
-}
-
 export async function isInstagramOpen(): Promise<{ open: boolean; visible: boolean }> {
   return getPlugin().isInstagramOpen();
 }
@@ -61,6 +56,3 @@ export async function onTrackerData(callback: (data: any) => void): Promise<{ re
   return getPlugin().addListener('trackerData', callback);
 }
 
-export async function onOpenCognition(callback: () => void): Promise<NativeListenerHandle> {
-  return getPlugin().addListener('openCognition', callback);
-}

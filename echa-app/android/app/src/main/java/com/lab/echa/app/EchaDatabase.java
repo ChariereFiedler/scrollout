@@ -628,6 +628,21 @@ public class EchaDatabase extends SQLiteOpenHelper {
         c8.close();
         stats.put("topUsers", topUsers);
 
+        // ── Media type distribution (photo, video, carousel, reel, story) ──
+        JSONArray mediaTypes = new JSONArray();
+        Cursor cmt = getReadableDatabase().rawQuery(
+                "SELECT mediaType, COUNT(*) as cnt, SUM(dwellTimeMs) as totalDwell " +
+                "FROM posts GROUP BY mediaType ORDER BY cnt DESC", null);
+        while (cmt.moveToNext()) {
+            JSONObject mt = new JSONObject();
+            mt.put("type", cmt.getString(0));
+            mt.put("count", cmt.getInt(1));
+            mt.put("totalDwellMs", cmt.getLong(2));
+            mediaTypes.put(mt);
+        }
+        cmt.close();
+        stats.put("mediaTypes", mediaTypes);
+
         return stats;
     }
 

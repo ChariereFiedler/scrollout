@@ -9,6 +9,7 @@ import {
   triggerNow,
   type DaemonStatus,
 } from '../services/enrichment-daemon.js';
+import { getStats, type DbStats } from '../services/db-bridge.js';
 
 @customElement('screen-settings')
 export class ScreenSettings extends LitElement {
@@ -19,9 +20,9 @@ export class ScreenSettings extends LitElement {
 
       .page-header {
         display: flex;
+        justify-content: space-between;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 24px;
+        margin-bottom: 20px;
       }
       .page-title {
         font-family: var(--font-heading);
@@ -46,7 +47,64 @@ export class ScreenSettings extends LitElement {
         border-bottom: 1px solid var(--border);
       }
 
+      /* ── Daemon status card ── */
+      .daemon-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px;
+        background: var(--surface3);
+        border-radius: var(--radius-sm);
+        margin-bottom: 14px;
+      }
+      .daemon-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .daemon-indicator.on {
+        background: var(--vert-menthe);
+        box-shadow: 0 0 8px var(--vert-menthe);
+        animation: blink 2s ease-in-out infinite;
+      }
+      .daemon-indicator.off { background: var(--text-muted); }
+      @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+      .daemon-info { flex: 1; }
+      .daemon-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+      .daemon-detail { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+      /* ── Stats row ── */
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .stat-mini {
+        background: var(--surface3);
+        border-radius: var(--radius-sm);
+        padding: 10px 6px;
+        text-align: center;
+      }
+      .stat-mini-val {
+        font-family: var(--font-heading);
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+      .stat-mini-label {
+        font-family: var(--font-mono);
+        font-size: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-dim);
+        margin-top: 3px;
+      }
+
+      /* ── Field ── */
       .field { margin-bottom: 14px; }
+      .field:last-child { margin-bottom: 0; }
       .field label {
         display: block;
         font-family: var(--font-mono);
@@ -56,7 +114,9 @@ export class ScreenSettings extends LitElement {
         letter-spacing: 0.03em;
         margin-bottom: 6px;
       }
-      .field input {
+      .field input[type="url"],
+      .field input[type="password"],
+      .field input[type="number"] {
         width: 100%;
         background: var(--surface3);
         border: 1px solid var(--border);
@@ -78,80 +138,108 @@ export class ScreenSettings extends LitElement {
         line-height: 1.5;
       }
 
-      .btn {
+      /* ── Toggle row ── */
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .toggle-row:last-child { border-bottom: none; }
+      .toggle-label { font-size: 13px; }
+      .toggle-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+      .toggle {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        flex-shrink: 0;
+      }
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .toggle-track {
+        position: absolute;
+        inset: 0;
+        background: var(--surface3);
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        transition: background 0.2s;
+        cursor: pointer;
+      }
+      .toggle-track::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--text-dim);
+        transition: transform 0.2s, background 0.2s;
+      }
+      .toggle input:checked + .toggle-track {
         background: var(--bleu-indigo);
-        color: #fff;
+        border-color: var(--bleu-indigo);
+      }
+      .toggle input:checked + .toggle-track::after {
+        transform: translateX(20px);
+        background: #fff;
+      }
+
+      /* ── Buttons ── */
+      .btn-row {
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
         border: none;
-        padding: 12px 24px;
+        padding: 12px 20px;
         border-radius: var(--radius-pill);
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
         font-family: var(--font-body);
         cursor: pointer;
-        width: 100%;
         transition: transform 0.15s;
       }
       .btn:active { transform: scale(0.97); }
+      .btn-primary { background: var(--bleu-indigo); color: #fff; flex: 1; }
+      .btn-danger { background: var(--rouge); color: #fff; flex: 1; }
+      .btn-secondary { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
 
-      .status {
+      .status-bar {
         margin-top: 12px;
-        padding: 12px;
+        padding: 10px 14px;
         border-radius: var(--radius-sm);
-        font-size: 12px;
-        text-align: center;
-      }
-      .status-ok {
-        background: rgba(107, 232, 139, 0.1);
-        color: var(--vert-menthe);
-        border: 1px solid rgba(107, 232, 139, 0.2);
-      }
-      .status-err {
-        background: rgba(255, 34, 34, 0.1);
-        color: var(--rouge);
-        border: 1px solid rgba(255, 34, 34, 0.2);
-      }
-      .status-pending {
-        background: var(--surface3);
-        color: var(--text-dim);
-      }
-
-      .current-url {
+        font-size: 11px;
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-top: 12px;
       }
-      .current-url .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--vert-menthe);
-        flex-shrink: 0;
-      }
-      .current-url .url {
-        font-family: var(--font-mono);
-        font-size: 12px;
-        color: var(--bleu-indigo);
-        word-break: break-all;
-      }
+      .status-bar.ok { background: rgba(107, 232, 139, 0.1); color: var(--vert-menthe); }
+      .status-bar.err { background: rgba(255, 34, 34, 0.1); color: var(--rouge); }
+      .status-bar.pending { background: var(--surface3); color: var(--text-dim); }
 
-      /* ── About section ── */
+      /* ── About ── */
       .about {
         text-align: center;
-        padding: 20px 16px;
+        padding: 24px 16px;
       }
       .about-logo {
         font-family: var(--font-heading);
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 900;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
       }
       .about-logo .o { color: var(--bleu-indigo); }
       .about-dots {
         display: flex;
         justify-content: center;
         gap: 4px;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
       }
       .about-dots span {
         width: 6px;
@@ -161,23 +249,46 @@ export class ScreenSettings extends LitElement {
       }
       .about-tagline {
         font-family: var(--font-mono);
-        font-size: 9px;
+        font-size: 10px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--text-muted);
-        margin-bottom: 4px;
+        margin-bottom: 6px;
       }
       .about-version {
         font-size: 11px;
         color: var(--text-muted);
+        margin-bottom: 16px;
       }
+      .about-manifesto {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--text-dim);
+        max-width: 300px;
+        margin: 0 auto 16px;
+      }
+      .about-manifesto strong { color: var(--orange); font-weight: 600; }
       .about-privacy {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
         font-family: var(--font-mono);
         font-size: 9px;
-        color: var(--text-dim);
-        margin-top: 12px;
-        line-height: 1.6;
+        color: var(--text-muted);
         letter-spacing: 0.02em;
+      }
+      .privacy-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+      }
+      .privacy-dot {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: var(--vert-menthe);
+        flex-shrink: 0;
       }
     `,
   ];
@@ -185,18 +296,18 @@ export class ScreenSettings extends LitElement {
   @state() private apiUrl = localStorage.getItem('echa-api-url') || 'http://localhost:3000';
   @state() private status: 'idle' | 'testing' | 'ok' | 'error' = 'idle';
   @state() private statusMsg = '';
-
-  // Enrichment daemon
   @state() private openaiKey = localStorage.getItem('scrollout-openai-key') || '';
   @state() private daemonInterval = parseInt(localStorage.getItem('scrollout-daemon-interval') || '120');
   @state() private daemonStatus: DaemonStatus = getDaemonStatus();
   @state() private rulesOnly = localStorage.getItem('scrollout-rules-only') === 'true';
+  @state() private stats: DbStats | null = null;
 
   private unsubDaemon?: () => void;
 
   connectedCallback() {
     super.connectedCallback();
     this.unsubDaemon = onStatusChange(s => { this.daemonStatus = s; });
+    this.loadStats();
   }
 
   disconnectedCallback() {
@@ -204,19 +315,22 @@ export class ScreenSettings extends LitElement {
     this.unsubDaemon?.();
   }
 
+  private async loadStats() {
+    try { this.stats = await getStats(); } catch { /* */ }
+  }
+
   private toggleDaemon() {
     if (this.daemonStatus.running) {
       stopDaemon();
     } else {
       if (!this.rulesOnly && !this.openaiKey) {
-        this.statusMsg = 'Clé API OpenAI requise pour le mode LLM';
+        this.statusMsg = 'Cle API OpenAI requise pour le mode LLM';
         this.status = 'error';
         return;
       }
       localStorage.setItem('scrollout-openai-key', this.openaiKey);
       localStorage.setItem('scrollout-daemon-interval', String(this.daemonInterval));
       localStorage.setItem('scrollout-rules-only', String(this.rulesOnly));
-
       startDaemon({
         intervalSec: this.daemonInterval,
         batchSize: 10,
@@ -229,9 +343,8 @@ export class ScreenSettings extends LitElement {
 
   private async manualEnrich() {
     if (!this.daemonStatus.running) {
-      // Start temporarily for a single trigger
       if (!this.rulesOnly && !this.openaiKey) {
-        this.statusMsg = 'Clé API OpenAI requise';
+        this.statusMsg = 'Cle API OpenAI requise';
         this.status = 'error';
         return;
       }
@@ -252,14 +365,13 @@ export class ScreenSettings extends LitElement {
     const url = this.apiUrl.replace(/\/+$/, '');
     this.status = 'testing';
     this.statusMsg = 'Test de connexion...';
-
     try {
       const res = await fetch(`${url}/api/stats`, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       localStorage.setItem('echa-api-url', url);
       this.status = 'ok';
-      this.statusMsg = `Connecte — ${data.totalPosts ?? 0} posts, ${data.totalSessions ?? 0} sessions`;
+      this.statusMsg = `${data.totalPosts ?? 0} posts, ${data.totalSessions ?? 0} sessions`;
     } catch (e: any) {
       this.status = 'error';
       this.statusMsg = e.message || 'Connexion impossible';
@@ -267,44 +379,68 @@ export class ScreenSettings extends LitElement {
   }
 
   render() {
+    const ds = this.daemonStatus;
+    const s = this.stats;
+    const enrichRate = s && s.totalPosts > 0 ? Math.round(s.totalEnriched / s.totalPosts * 100) : 0;
+
     return html`
       <div class="page-header">
         <div class="page-title">Configuration</div>
       </div>
 
+      <!-- Daemon status overview -->
       <div class="section">
-        <div class="section-label">Serveur Scrollout</div>
-        <div class="field">
-          <label>URL du serveur</label>
-          <input
-            type="url"
-            .value=${this.apiUrl}
-            @input=${(e: Event) => { this.apiUrl = (e.target as HTMLInputElement).value; }}
-            placeholder="http://192.168.x.x:3000"
-          />
-          <div class="hint">
-            Adresse IP du PC ou tourne le visualizer.
-            Le device et le PC doivent etre sur le meme reseau WiFi.
+        <div class="section-label">Moteur d'analyse</div>
+
+        <div class="daemon-card">
+          <div class="daemon-indicator ${ds.running ? 'on' : 'off'}"></div>
+          <div class="daemon-info">
+            <div class="daemon-title">${ds.running ? 'Enrichissement actif' : 'Enrichissement inactif'}</div>
+            <div class="daemon-detail">
+              ${ds.running
+                ? html`${ds.totalSucceeded} enrichis, ${ds.pendingPosts} en attente${ds.lastEnrichAt ? html` — dernier ${new Date(ds.lastEnrichAt).toLocaleTimeString()}` : ''}`
+                : 'Le daemon n\'est pas demarre'}
+            </div>
           </div>
         </div>
 
-        <button class="btn" @click=${this.testAndSave}>Tester la connexion</button>
-
-        ${this.status !== 'idle' ? html`
-          <div class="status ${this.status === 'ok' ? 'status-ok' : this.status === 'error' ? 'status-err' : 'status-pending'}">
-            ${this.statusMsg}
+        ${s ? html`
+          <div class="stats-row">
+            <div class="stat-mini">
+              <div class="stat-mini-val" style="color:var(--bleu-indigo)">${s.totalPosts}</div>
+              <div class="stat-mini-label">Posts</div>
+            </div>
+            <div class="stat-mini">
+              <div class="stat-mini-val" style="color:var(--vert-menthe)">${s.totalEnriched}</div>
+              <div class="stat-mini-label">Enrichis</div>
+            </div>
+            <div class="stat-mini">
+              <div class="stat-mini-val" style="color:var(--jaune)">${enrichRate}%</div>
+              <div class="stat-mini-label">Taux</div>
+            </div>
+            <div class="stat-mini">
+              <div class="stat-mini-val" style="color:var(--orange)">${s.totalSessions}</div>
+              <div class="stat-mini-label">Sessions</div>
+            </div>
           </div>
         ` : ''}
 
-        <div class="current-url">
-          <span class="dot" style="background:${this.status === 'ok' ? 'var(--vert-menthe)' : 'var(--text-muted)'}"></span>
-          <span class="url">${localStorage.getItem('echa-api-url') || 'http://localhost:3000'}</span>
+        <div class="btn-row">
+          <button
+            class="btn ${ds.running ? 'btn-danger' : 'btn-primary'}"
+            @click=${this.toggleDaemon}
+          >
+            ${ds.running ? 'Arreter' : 'Demarrer'}
+          </button>
+          <button class="btn btn-secondary" @click=${this.manualEnrich}>
+            Enrichir maintenant
+          </button>
         </div>
       </div>
 
-      <!-- Enrichissement auto -->
+      <!-- LLM config -->
       <div class="section">
-        <div class="section-label">Enrichissement automatique</div>
+        <div class="section-label">Intelligence artificielle</div>
 
         <div class="field">
           <label>Cle API OpenAI</label>
@@ -314,10 +450,7 @@ export class ScreenSettings extends LitElement {
             @input=${(e: Event) => { this.openaiKey = (e.target as HTMLInputElement).value; }}
             placeholder="sk-..."
           />
-          <div class="hint">
-            Necessaire pour l'enrichissement LLM (gpt-4o-mini).
-            Sans cle, seules les regles locales sont appliquees.
-          </div>
+          <div class="hint">gpt-4o-mini — analyse semantique, polarisation, emotions.</div>
         </div>
 
         <div class="field">
@@ -329,42 +462,44 @@ export class ScreenSettings extends LitElement {
             min="30"
             max="3600"
           />
+          <div class="hint">Frequence de verification des posts non enrichis.</div>
         </div>
 
-        <div class="field" style="display:flex;align-items:center;gap:10px;">
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Mode hors-ligne</div>
+            <div class="toggle-desc">Regles locales uniquement, pas d'appel API</div>
+          </div>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              .checked=${this.rulesOnly}
+              @change=${(e: Event) => { this.rulesOnly = (e.target as HTMLInputElement).checked; }}
+            />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Server sync (secondary) -->
+      <div class="section">
+        <div class="section-label">Sync PC (optionnel)</div>
+        <div class="field">
+          <label>URL du serveur</label>
           <input
-            type="checkbox"
-            id="rulesOnly"
-            .checked=${this.rulesOnly}
-            @change=${(e: Event) => { this.rulesOnly = (e.target as HTMLInputElement).checked; }}
+            type="url"
+            .value=${this.apiUrl}
+            @input=${(e: Event) => { this.apiUrl = (e.target as HTMLInputElement).value; }}
+            placeholder="http://192.168.x.x:3000"
           />
-          <label for="rulesOnly" style="margin:0;cursor:pointer;">Rules only (pas de LLM, gratuit)</label>
         </div>
 
-        <div style="display:flex;gap:8px;">
-          <button
-            class="btn"
-            style="flex:1;background:${this.daemonStatus.running ? 'var(--rouge)' : 'var(--bleu-indigo)'}"
-            @click=${this.toggleDaemon}
-          >
-            ${this.daemonStatus.running ? 'Arreter' : 'Demarrer'} le daemon
-          </button>
-          <button
-            class="btn"
-            style="flex:0 0 auto;background:var(--surface3);color:var(--text);"
-            @click=${this.manualEnrich}
-          >
-            Enrichir maintenant
-          </button>
-        </div>
+        <button class="btn btn-secondary" style="width:100%" @click=${this.testAndSave}>Tester la connexion</button>
 
-        ${this.daemonStatus.running || this.daemonStatus.totalProcessed > 0 ? html`
-          <div class="status ${this.daemonStatus.running ? 'status-ok' : 'status-pending'}">
-            ${this.daemonStatus.running ? 'En cours' : 'Arrete'}
-            — ${this.daemonStatus.totalSucceeded} enrichis,
-            ${this.daemonStatus.totalFailed} erreurs,
-            ${this.daemonStatus.pendingPosts} en attente
-            ${this.daemonStatus.lastEnrichAt ? html`<br/>Dernier: ${new Date(this.daemonStatus.lastEnrichAt).toLocaleTimeString()}` : ''}
+        ${this.status !== 'idle' ? html`
+          <div class="status-bar ${this.status === 'ok' ? 'ok' : this.status === 'error' ? 'err' : 'pending'}">
+            <span class="daemon-indicator ${this.status === 'ok' ? 'on' : 'off'}" style="width:8px;height:8px;"></span>
+            ${this.statusMsg}
           </div>
         ` : ''}
       </div>
@@ -377,10 +512,16 @@ export class ScreenSettings extends LitElement {
         </div>
         <div class="about-tagline">Reprends le controle sur ton feed</div>
         <div class="about-version">v0.1.0-alpha</div>
+
+        <div class="about-manifesto">
+          L'algorithme te connait. <strong>Toi, tu ne le connais pas.</strong><br/>
+          Scrollout rend visible ce qui est invisible.
+        </div>
+
         <div class="about-privacy">
-          Aucune donnee ne quitte ton telephone.<br/>
-          Pas de tracking. Pas de cloud. Pas de compte.<br/>
-          Fait avec colere et TypeScript.
+          <div class="privacy-item"><span class="privacy-dot"></span>Aucune donnee ne quitte ton telephone</div>
+          <div class="privacy-item"><span class="privacy-dot"></span>Pas de tracking, pas de cloud, pas de compte</div>
+          <div class="privacy-item"><span class="privacy-dot"></span>Open source — tout le code est auditable</div>
         </div>
       </div>
     `;
