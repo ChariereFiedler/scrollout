@@ -1,0 +1,70 @@
+---
+const stats = [
+  { value: '89', label: 'dimensions sémantiques', color: 'var(--color-bleu-indigo)' },
+  { value: '24', label: 'thèmes détectés', color: 'var(--color-jaune)' },
+  { value: '14', label: 'types de narratifs', color: 'var(--color-rose)' },
+  { value: '4', label: 'axes politiques', color: 'var(--color-orange)' },
+];
+---
+
+<div class="numbers-band">
+  <div class="numbers-row">
+    {stats.map((s) => (
+      <div class="number-item">
+        <div class="number-dot" style={`background: ${s.color}`}></div>
+        <h3>{s.value}</h3>
+        <p class="mono">{s.label}</p>
+      </div>
+    ))}
+  </div>
+</div>
+
+<style>
+  .numbers-band {
+    background: var(--bg-grey-light);
+    padding: 80px 24px;
+  }
+
+  .numbers-row {
+    max-width: var(--container-width);
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 40px;
+    text-align: center;
+  }
+
+  .number-item {
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .number-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+  }
+
+  .number-item h3 {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    line-height: 1;
+  }
+
+  .number-item p {
+    margin-top: 8px;
+    color: var(--text-grey);
+  }
+
+  @media (max-width: 640px) {
+    .numbers-band { padding: 48px 16px; }
+    .numbers-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    .number-item { min-width: auto; }
+    .number-dot { width: 12px; height: 12px; margin-bottom: 8px; }
+  }
+</style>

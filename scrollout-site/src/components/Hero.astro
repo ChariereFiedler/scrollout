@@ -1,159 +1,136 @@
 ---
+import Dots from './Dots.astro';
 ---
 
 <section class="hero">
-  <div class="hero-bg"></div>
-  <div class="container">
-    <p class="pre-title">open source / android / gratuit</p>
-    <h1>
-      <span class="logo">Scroll<span class="accent">out</span></span>
-    </h1>
-    <p class="tagline">
-      Tu scrolles.<br/>
-      L'algorithme choisit.<br/>
-      <strong class="accent">Tu ne vois rien.</strong>
-    </p>
-    <p class="sub">
-      Scrollout capture ce qu'Instagram te montre vraiment
-      et te rend visible ce qui est invisible : les thèmes, la polarisation,
-      les narratifs, ta bulle de filtre.
-    </p>
-    <div class="cta-row">
-      <a href="#manifeste" class="btn btn-primary">Lire le manifeste</a>
-      <a href="https://gitlab.com/scrollout" class="btn btn-ghost" target="_blank" rel="noopener">
-        Code source
-      </a>
-    </div>
+  <div class="hero-top-label mono">open source / android / gratuit</div>
+  <h1 class="logo-text">Scroll<span class="o">o</span>ut</h1>
+
+  <Dots />
+
+  <h2 class="hero-hook">
+    Tu scrolles.<br />
+    L'algorithme choisit.<br />
+    <span class="highlight">Tu ne vois rien.</span>
+  </h2>
+
+  <p class="hero-desc">
+    Scrollout capture ce qu'Instagram te montre vraiment et te rend visible
+    ce qui est invisible&nbsp;: les thèmes, la polarisation, les narratifs,
+    ta bulle de filtre.
+  </p>
+
+  <div class="hero-actions">
+    <a href="#manifeste" class="btn btn-black">Lire le manifeste</a>
+    <a href="#fonctionnement" class="btn btn-ghost">Comment ça marche</a>
+    <a href="https://gitlab.com/scrollout" class="btn btn-ghost" target="_blank" rel="noopener">Code source &rarr;</a>
   </div>
-  <div class="scroll-hint" aria-hidden="true">
-    <span></span>
+
+  <div class="scroll-indicator" aria-hidden="true">
+    <div class="scroll-line"></div>
   </div>
 </section>
 
 <style>
   .hero {
-    position: relative;
     min-height: 100vh;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
+    align-items: center;
     text-align: center;
-    overflow: hidden;
-    padding: 80px 24px 60px;
+    padding: 80px 24px 40px;
   }
 
-  .hero-bg {
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0, 229, 255, 0.08) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(255, 107, 53, 0.05) 0%, transparent 60%);
-    z-index: 0;
-  }
-
-  .container {
-    position: relative;
-    z-index: 1;
-  }
-
-  .pre-title {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 32px;
-  }
-
-  h1 {
-    font-size: clamp(4rem, 12vw, 9rem);
-    font-weight: 900;
-    letter-spacing: -0.04em;
-    line-height: 0.95;
-    margin-bottom: 40px;
-  }
-
-  .accent {
-    color: var(--accent);
-  }
-
-  .tagline {
-    font-size: clamp(1.2rem, 3vw, 1.8rem);
-    font-weight: 500;
-    line-height: 1.5;
+  .hero-top-label {
+    color: var(--text-grey);
     margin-bottom: 24px;
-    max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
   }
 
-  .sub {
-    font-size: 1.05rem;
-    color: var(--text-dim);
-    max-width: 520px;
-    margin: 0 auto 48px;
+  .logo-text {
+    font-size: clamp(4.5rem, 16vw, 10rem);
+    margin-bottom: 0;
+    letter-spacing: -0.03em;
+  }
+
+  .o {
+    display: inline-block;
+    color: var(--color-bleu-indigo);
+  }
+
+  .hero-hook {
+    font-size: clamp(1.6rem, 5vw, 2.8rem);
+    margin: 40px 0 32px;
+    font-weight: 900;
+    line-height: 1.35;
+  }
+
+  .hero-hook .highlight {
+    color: var(--color-orange);
+    display: block;
+  }
+
+  .hero-desc {
+    max-width: 580px;
+    color: var(--text-grey);
+    font-size: 1.15rem;
+    margin-bottom: 48px;
     line-height: 1.7;
   }
 
-  .cta-row {
+  .hero-actions {
     display: flex;
-    gap: 16px;
-    justify-content: center;
+    gap: 12px;
     flex-wrap: wrap;
+    justify-content: center;
   }
 
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    padding: 14px 36px;
-    border-radius: 999px;
-    font-weight: 600;
-    font-size: 15px;
-    transition: all 0.25s ease;
-    cursor: pointer;
-    border: none;
+  .scroll-indicator {
+    margin-top: 60px;
+    display: flex;
+    justify-content: center;
   }
 
-  .btn-primary {
-    background: var(--accent);
-    color: var(--black);
-  }
-
-  .btn-primary:hover {
-    box-shadow: 0 0 30px rgba(0, 229, 255, 0.4);
-    transform: translateY(-2px);
-    opacity: 1;
-  }
-
-  .btn-ghost {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    color: var(--white);
-  }
-
-  .btn-ghost:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    opacity: 1;
-  }
-
-  .scroll-hint {
-    position: absolute;
-    bottom: 32px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-
-  .scroll-hint span {
-    display: block;
+  .scroll-line {
     width: 2px;
-    height: 32px;
-    background: linear-gradient(to bottom, var(--accent), transparent);
-    animation: scroll-down 2s ease-in-out infinite;
+    height: 48px;
+    background: linear-gradient(to bottom, var(--text-black), transparent);
+    animation: pulse-down 2.5s ease-in-out infinite;
   }
 
-  @keyframes scroll-down {
-    0%, 100% { opacity: 0; transform: translateY(-8px); }
-    50% { opacity: 1; transform: translateY(8px); }
+  @keyframes pulse-down {
+    0%, 100% { opacity: 0.2; transform: scaleY(0.6); }
+    50% { opacity: 1; transform: scaleY(1); }
+  }
+
+  @media (max-width: 640px) {
+    .hero {
+      min-height: auto;
+      padding: 60px 16px 40px;
+    }
+
+    .logo-text {
+      font-size: clamp(3rem, 14vw, 5rem);
+    }
+
+    .hero-hook {
+      font-size: 1.4rem;
+      margin: 28px 0 24px;
+    }
+
+    .hero-desc {
+      font-size: 1rem;
+      margin-bottom: 32px;
+    }
+
+    .hero-actions {
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .scroll-indicator {
+      margin-top: 40px;
+    }
   }
 </style>

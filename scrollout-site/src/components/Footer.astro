@@ -1,0 +1,104 @@
+---
+const dots = [
+  'var(--color-jaune)',
+  'var(--color-vert-menthe)',
+  'var(--color-bleu-indigo)',
+  'var(--color-orange)',
+  'var(--color-rose)',
+  'var(--color-violet)',
+  'var(--color-rouge)',
+  'var(--color-bleu-ciel)',
+  'var(--color-vert-eau)',
+];
+---
+
+<footer>
+  <div class="footer-content">
+    <span class="footer-logo">Scrollout</span>
+    <div class="footer-dots">
+      {dots.map((c) => <div class="fdot" style={`background: ${c}`} />)}
+    </div>
+    <p class="footer-tagline">Fait avec colère et TypeScript.</p>
+    <div class="footer-links">
+      <a href="https://gitlab.com/scrollout" target="_blank" rel="noopener">GITLAB</a>
+      <a href="#">DOCUMENTATION</a>
+      <a href="#">LICENCE ISC</a>
+    </div>
+    <p class="footer-copy">&copy; 2025 Scrollout. Open source sous licence ISC.</p>
+  </div>
+</footer>
+
+<style>
+  footer {
+    background: var(--text-black);
+    color: var(--bg-white);
+    padding: 80px 24px;
+    text-align: center;
+  }
+
+  .footer-content {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .footer-logo {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 20px;
+  }
+
+  .footer-dots {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+
+  .fdot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    opacity: 0.7;
+  }
+
+  .footer-tagline {
+    font-size: 0.95rem;
+    color: #999;
+    margin-bottom: 32px;
+  }
+
+  .footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+
+  .footer-links a {
+    color: #777;
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover {
+    color: white;
+  }
+
+  .footer-copy {
+    opacity: 0.3;
+    font-size: 0.7rem;
+  }
+
+  @media (max-width: 640px) {
+    footer { padding: 48px 16px; }
+    .footer-logo { font-size: 1.6rem; }
+    .footer-links { gap: 20px; flex-wrap: wrap; }
+    .footer-links a { font-size: 0.65rem; }
+  }
+</style>

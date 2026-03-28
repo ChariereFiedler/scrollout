@@ -1,0 +1,111 @@
+---
+---
+
+<section id="revele">
+  <span class="section-label mono">Ce qu'on te montre</span>
+  <h2 class="reveal-title">Ton feed raconte une histoire.<br/><span class="accent">Tu ne la connais pas encore.</span></h2>
+
+  <div class="reveal-grid">
+
+    <div class="reveal-card">
+      <div class="card-dot" style="background: var(--color-jaune);"></div>
+      <h3>De quoi on te parle</h3>
+      <p>Politique, humour, lifestyle, actualité... Scrollout identifie les thèmes qui dominent ton feed. Tu découvres de quoi ton attention se nourrit vraiment.</p>
+    </div>
+
+    <div class="reveal-card">
+      <div class="card-dot" style="background: var(--color-orange);"></div>
+      <h3>Le poids du politique</h3>
+      <p>Quelle part de ton feed est politique ? Est-ce que l'algorithme te pousse du contenu engagé sans que tu l'aies demandé ?</p>
+    </div>
+
+    <div class="reveal-card">
+      <div class="card-dot" style="background: var(--color-violet);"></div>
+      <h3>Le niveau de polarisation</h3>
+      <p>Les contenus qu'on te montre opposent-ils des camps ? Désignent-ils des ennemis ? Scrollout mesure la charge conflictuelle de ton feed.</p>
+    </div>
+
+    <div class="reveal-card">
+      <div class="card-dot" style="background: var(--color-rose);"></div>
+      <h3>Les récits qu'on te répète</h3>
+      <p>Déclin, urgence, injustice, mobilisation... Chaque contenu porte un récit. Quand le même revient en boucle, ce n'est plus de l'info — c'est du conditionnement.</p>
+    </div>
+
+    <div class="reveal-card">
+      <div class="card-dot" style="background: var(--color-bleu-indigo);"></div>
+      <h3>Le spectre idéologique</h3>
+      <p>Au-delà du gauche/droite simpliste. Où se situe ce que tu consommes sur les grands clivages : économie, société, rapport à l'autorité, rapport au système.</p>
+    </div>
+
+    <div class="reveal-card">
+      <div class="card-dot" style="background: var(--color-vert-eau);"></div>
+      <h3>Ta bulle de filtre</h3>
+      <p>Ton feed est-il divers ou enfermé dans une boucle ? Scrollout mesure la diversité de ce qu'on te propose. Moins c'est varié, plus la bulle est épaisse.</p>
+    </div>
+
+  </div>
+</section>
+
+<style>
+  .reveal-title {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    margin-bottom: 48px;
+    line-height: 1.25;
+  }
+
+  .accent {
+    color: var(--color-orange);
+  }
+
+  .reveal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+  }
+
+  .reveal-card {
+    background: var(--bg-white);
+    padding: 28px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.3s ease;
+  }
+
+  .reveal-card:hover {
+    transform: translateY(-4px);
+  }
+
+  .card-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-bottom: 16px;
+  }
+
+  .reveal-card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+  }
+
+  .reveal-card p {
+    font-size: 1rem;
+    color: var(--text-grey);
+    line-height: 1.65;
+  }
+
+  @media (max-width: 720px) {
+    .reveal-grid { grid-template-columns: 1fr; }
+
+    .reveal-card {
+      padding: 20px;
+    }
+
+    .reveal-card h3 {
+      font-size: 1.15rem;
+    }
+
+    .reveal-card p {
+      font-size: 0.9rem;
+    }
+  }
+</style>

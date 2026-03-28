@@ -1,0 +1,66 @@
+---
+import Dots from './Dots.astro';
+---
+
+<section class="cta">
+  <h2>Scrollout est open source.</h2>
+  <p class="cta-sub">L'algorithme ne changera pas tout seul.</p>
+
+  <Dots />
+
+  <div class="cta-buttons">
+    <a href="#" class="btn btn-black">Installer sur Android</a>
+    <a href="https://gitlab.com/scrollout" class="btn btn-ghost" target="_blank" rel="noopener">Voir le code source</a>
+    <a href="https://gitlab.com/scrollout/-/issues" class="btn btn-ghost" target="_blank" rel="noopener">Contribuer</a>
+  </div>
+
+  <p class="cta-privacy mono">
+    Scrollout ne collecte aucune donnée. Tout reste sur ton téléphone. Zero tracking, zero cloud, zero bullshit.
+  </p>
+</section>
+
+<style>
+  .cta {
+    text-align: center;
+    padding: 120px 24px;
+  }
+
+  .cta h2 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    margin-bottom: 12px;
+  }
+
+  .cta-sub {
+    font-size: 1.3rem;
+    color: var(--text-grey);
+    margin-bottom: 8px;
+  }
+
+  .cta-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 40px;
+  }
+
+  .cta-privacy {
+    color: var(--text-grey);
+    max-width: 500px;
+    margin: 0 auto;
+    font-size: 0.7rem;
+    line-height: 1.6;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  @media (max-width: 640px) {
+    .cta { padding: 60px 16px; }
+    .cta-sub { font-size: 1.05rem; }
+    .cta-buttons {
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+  }
+</style>

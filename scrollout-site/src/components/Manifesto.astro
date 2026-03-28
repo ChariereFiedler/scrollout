@@ -1,176 +1,142 @@
 ---
 ---
 
-<section class="manifesto" id="manifeste">
-  <div class="container">
-    <div class="manifesto-grid">
-      <div class="manifesto-label">
-        <span class="label-tag">Manifeste</span>
-      </div>
-      <div class="manifesto-content">
-        <h2>
-          L'algorithme te connait.<br/>
-          <span class="accent">Toi, tu ne le connais pas.</span>
-        </h2>
+<section id="manifeste">
+  <div class="manifesto-grid">
+    <div class="manifesto-sidebar">
+      <span class="mono">Manifeste</span>
+    </div>
+    <div class="manifesto-content">
+      <h2 class="manifesto-title">
+        L'algorithme te connaît.<br />
+        <span class="accent">Toi, tu ne le connais pas.</span>
+      </h2>
 
-        <div class="blocks">
-          <div class="block">
-            <div class="block-number">01</div>
+      <div class="blocks">
+        <div class="block">
+          <div class="block-num" style="background: var(--color-orange);">01</div>
+          <div>
             <h3>Le feed n'est pas neutre</h3>
-            <p>
-              Chaque post que tu vois a été choisi pour toi. Pas par tes amis.
-              Par un algorithme qui optimise ton temps d'ecran, pas ta compréhension du monde.
-              Ce que tu ne vois pas compte autant que ce que tu vois.
-            </p>
-          </div>
-
-          <div class="block">
-            <div class="block-number">02</div>
-            <h3>La bulle est invisible</h3>
-            <p>
-              Tu ne peux pas voir ta bulle de filtre depuis l'intérieur.
-              Les mêmes récits, les mêmes angles, les mêmes émotions &mdash;
-              répétés jusqu'à devenir ta normalité. La polarisation n'a pas besoin
-              que tu sois d'accord. Elle a juste besoin que tu regardes.
-            </p>
-          </div>
-
-          <div class="block">
-            <div class="block-number">03</div>
-            <h3>Exposition &ne; conviction</h3>
-            <p>
-              Scrollout ne prétend pas deviner tes opinions.
-              On mesure ce que l'algorithme te <em>montre</em>, pas ce que tu <em>penses</em>.
-              La différence est fondamentale. L'un est un fait mesurable.
-              L'autre serait de la spéculation.
-            </p>
-          </div>
-
-          <div class="block">
-            <div class="block-number">04</div>
-            <h3>Reprends le contrôle</h3>
-            <p>
-              Scrollout rend visible l'invisible. Quels thèmes dominent ton feed ?
-              Quelle part de politique ? Quel niveau de polarisation ?
-              Quels narratifs reviennent en boucle ? Avec ces données,
-              <strong>tu peux décider en connaissance de cause</strong>.
-            </p>
+            <p>Chaque post a été choisi pour toi. Pas par tes amis — par un algorithme qui optimise ton temps d'écran.</p>
           </div>
         </div>
 
-        <blockquote class="manifesto-quote">
-          "On ne peut pas combattre ce qu'on ne peut pas voir."
-        </blockquote>
+        <div class="block">
+          <div class="block-num" style="background: var(--color-violet); color: white;">02</div>
+          <div>
+            <h3>La bulle est invisible</h3>
+            <p>Les mêmes récits, les mêmes angles, répétés jusqu'à devenir ta normalité. La polarisation n'a pas besoin que tu sois d'accord. Elle a juste besoin que tu regardes.</p>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-num" style="background: var(--color-bleu-indigo); color: white;">03</div>
+          <div>
+            <h3>Exposition &ne; conviction</h3>
+            <p>On mesure ce qu'on te montre, pas ce que tu penses. L'un est un fait. L'autre serait de la spéculation.</p>
+          </div>
+        </div>
+
+        <div class="block">
+          <div class="block-num" style="background: var(--color-vert-menthe);">04</div>
+          <div>
+            <h3>Reprends le contrôle</h3>
+            <p>Avec ces données, tu peux décider en connaissance de cause.</p>
+          </div>
+        </div>
       </div>
+
+      <blockquote class="quote">
+        "On ne peut pas combattre ce qu'on ne peut pas voir."
+      </blockquote>
     </div>
   </div>
 </section>
 
 <style>
-  .manifesto {
-    padding: 120px 0 100px;
-    position: relative;
-  }
-
-  .manifesto::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: linear-gradient(to right, transparent, rgba(255,255,255,0.06), transparent);
-  }
-
   .manifesto-grid {
     display: grid;
-    grid-template-columns: 180px 1fr;
-    gap: 60px;
+    grid-template-columns: 1fr;
+    gap: 40px;
   }
 
-  .label-tag {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    color: var(--text-dim);
-    position: sticky;
-    top: 100px;
+  @media (min-width: 768px) {
+    .manifesto-grid {
+      grid-template-columns: 180px 1fr;
+      gap: 60px;
+    }
+    .manifesto-sidebar {
+      position: sticky;
+      top: 40px;
+      height: fit-content;
+    }
+    .manifesto-sidebar .mono {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      opacity: 0.25;
+      font-size: 0.85rem;
+    }
   }
 
-  h2 {
+  .manifesto-title {
     font-size: clamp(1.8rem, 4vw, 2.8rem);
-    margin-bottom: 60px;
+    margin-bottom: 48px;
     line-height: 1.2;
   }
 
-  .accent {
-    color: var(--accent);
-  }
+  .accent { color: var(--color-orange); }
 
   .blocks {
-    display: grid;
-    gap: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
   }
 
   .block {
-    position: relative;
-    padding-left: 48px;
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding: 24px;
+    border-radius: var(--radius-lg);
+    transition: background 0.3s;
   }
 
-  .block-number {
-    position: absolute;
-    left: 0;
-    top: 2px;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--accent);
-    opacity: 0.6;
+  .block:hover { background: var(--bg-grey-light); }
+
+  .block-num {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
   }
 
-  h3 {
-    font-size: 1.2rem;
-    font-weight: 700;
-    margin-bottom: 12px;
-    letter-spacing: -0.01em;
-  }
-
-  p {
-    color: var(--text-dim);
-    line-height: 1.75;
-    font-size: 1.02rem;
-  }
-
-  .manifesto-quote {
-    margin-top: 64px;
-    padding: 32px 40px;
-    border-left: 3px solid var(--accent);
-    background: rgba(0, 229, 255, 0.03);
-    border-radius: 0 var(--radius) var(--radius) 0;
+  .block h3 {
     font-size: 1.3rem;
-    font-weight: 600;
-    font-style: italic;
-    color: var(--white);
-    line-height: 1.5;
+    margin-bottom: 6px;
   }
 
-  @media (max-width: 768px) {
-    .manifesto-grid {
-      grid-template-columns: 1fr;
-      gap: 24px;
-    }
+  .block p {
+    font-size: 1.05rem;
+    color: var(--text-grey);
+    line-height: 1.6;
+  }
 
-    .label-tag {
-      position: static;
-    }
-
-    .block {
-      padding-left: 36px;
-    }
-
-    .manifesto-quote {
-      padding: 24px;
-      font-size: 1.1rem;
-    }
+  .quote {
+    border-left: 6px solid var(--color-orange);
+    background: rgba(255, 123, 51, 0.04);
+    padding: 32px 36px;
+    margin-top: 40px;
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    font-weight: 600;
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    line-height: 1.4;
+    font-style: italic;
   }
 </style>

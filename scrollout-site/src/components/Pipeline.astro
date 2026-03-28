@@ -1,0 +1,112 @@
+---
+const steps = [
+  {
+    num: '01',
+    color: 'var(--color-bleu-ciel)',
+    title: 'Tu scrolles',
+    text: 'Scrollout tourne en arrière-plan pendant que tu utilises Instagram normalement. Rien ne change dans ton expérience. L\'app observe silencieusement ce que l\'algorithme te propose.',
+  },
+  {
+    num: '02',
+    color: 'var(--color-bleu-indigo)',
+    textColor: 'white',
+    title: 'On décrypte',
+    text: 'Chaque contenu est analysé automatiquement\u00a0: de quoi ça parle, quel récit ça porte, si c\'est politique, à quel point c\'est polarisant. Tout ça reste sur ton téléphone.',
+  },
+  {
+    num: '03',
+    color: 'var(--color-vert-menthe)',
+    title: 'Tu comprends',
+    text: 'Tu accèdes à ton profil d\'exposition. Pas un jugement, un miroir. Tu vois enfin ce que l\'algorithme a décidé de te montrer — et ce qu\'il a choisi de te cacher.',
+  },
+];
+---
+
+<section id="fonctionnement">
+  <span class="section-label mono">Comment ça marche</span>
+  <div class="pipeline">
+    {steps.map((s, i) => (
+      <div class="step">
+        <div class="step-header">
+          <div class="step-icon" style={`background: ${s.color}; ${s.textColor ? `color: ${s.textColor}` : ''}`}>
+            {s.num}
+          </div>
+          {i < steps.length - 1 && <div class="step-connector"></div>}
+        </div>
+        <div class="step-content">
+          <h3>{s.title}</h3>
+          <p>{s.text}</p>
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
+
+<style>
+  .pipeline {
+    margin-top: 48px;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 28px;
+    min-height: 160px;
+  }
+
+  .step-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .step-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    z-index: 1;
+  }
+
+  .step-connector {
+    width: 2px;
+    flex: 1;
+    background: linear-gradient(to bottom, #DDD, #EEE);
+    margin: 8px 0;
+  }
+
+  .step-content {
+    padding-bottom: 40px;
+  }
+
+  .step-content h3 {
+    font-size: 1.8rem;
+    margin-bottom: 12px;
+  }
+
+  .step-content p {
+    font-size: 1.1rem;
+    color: var(--text-grey);
+    line-height: 1.7;
+    max-width: 560px;
+  }
+
+  @media (max-width: 640px) {
+    .step {
+      grid-template-columns: 48px 1fr;
+      gap: 20px;
+    }
+
+    .step-icon {
+      width: 44px;
+      height: 44px;
+      font-size: 0.8rem;
+    }
+  }
+</style>

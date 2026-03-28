@@ -1,0 +1,17 @@
+---
+const colors = [
+  'var(--color-jaune)',
+  'var(--color-vert-menthe)',
+  'var(--color-bleu-indigo)',
+  'var(--color-orange)',
+  'var(--color-rose)',
+  'var(--color-violet)',
+  'var(--color-rouge)',
+  'var(--color-bleu-ciel)',
+  'var(--color-vert-eau)',
+];
+---
+
+<div class="dots-row">
+  {colors.map((c) => <div class="dot" style={`background: ${c}`} />)}
+</div>
