@@ -121,9 +121,9 @@ public class NodeExtractor {
                 || lower.equals("profil")
                 || lower.equals("rechercher et explorer")
                 || lower.contains("envoyer un message")
-                || lower.contains("story de")
                 || lower.contains("ajouter à la story")
                 || lower.contains("modifier le profil")
                 || lower.contains("partager le profil");
+        // Note: "story de" is NOT filtered — story content descriptions are valuable
     }
 }

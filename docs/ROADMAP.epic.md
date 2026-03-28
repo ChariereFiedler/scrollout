@@ -211,7 +211,7 @@ Créer `src/profiler/` :
 ---
 
 ## EPIC-012 : Analyse vidéo — Comprendre le message des médias
-**Statut** : `todo`
+**Statut** : `done`
 **Description** : Exploiter tous les signaux disponibles (OCR, sous-titres, transcription audio) pour comprendre le message et les intentions des vidéos/reels Instagram.
 **Dépend de** : EPIC-010
 
@@ -225,7 +225,7 @@ Les vidéos/reels Instagram portent leur message sur 3 canaux actuellement sous-
 **État actuel** : les vidéos sont traitées identiquement aux photos par le pipeline d'enrichissement. Le `mediaType` est passé au LLM mais aucune logique spécifique n'existe.
 
 ### Tâche 012-1 : Persister les résultats MLKit OCR
-**Statut** : `todo`
+**Statut** : `done`
 **Priorité** : haute (quick win — données déjà capturées, jamais stockées)
 
 **Problème** : `MLKitResult` (labels + ocrText) est émis par `logcat-tap.ts` via `this.emit('mlkit', data)` mais n'est rattaché à aucun post ni persisté dans les sessions.
@@ -244,7 +244,7 @@ Les vidéos/reels Instagram portent leur message sur 3 canaux actuellement sous-
 ---
 
 ### Tâche 012-2 : Extraire les sous-titres Instagram de l'arbre accessibilité
-**Statut** : `todo`
+**Statut** : `done`
 **Priorité** : haute (quick win — données déjà dans les nodes, pas identifiées)
 
 **Problème** : Instagram génère des sous-titres auto sur les reels. Ils apparaissent comme noeuds texte dans l'arbre accessibilité mais sont mélangés dans `allText` sans marquage.
@@ -263,7 +263,7 @@ Les vidéos/reels Instagram portent leur message sur 3 canaux actuellement sous-
 ---
 
 ### Tâche 012-3 : Enrichir la normalisation et le prompt LLM pour les vidéos
-**Statut** : `todo`
+**Statut** : `done`
 **Priorité** : haute (dépend de 012-1 et 012-2)
 **Dépend de** : 012-1, 012-2
 
@@ -287,7 +287,7 @@ Les vidéos/reels Instagram portent leur message sur 3 canaux actuellement sous-
 ---
 
 ### Tâche 012-4 : Pipeline transcription audio (Whisper)
-**Statut** : `todo`
+**Statut** : `done`
 **Priorité** : moyenne (nécessite du dev + infrastructure)
 **Dépend de** : 012-3
 
@@ -379,6 +379,50 @@ graph TD
 
 ---
 
+## EPIC-013 : Support Stories Instagram
+**Statut** : `done`
+**Description** : Activer la capture, l'extraction et l'analyse des stories Instagram (AccessibilityService + analyzer).
+**Dépend de** : EPIC-000, EPIC-002
+
+### Contexte
+
+Les stories étaient explicitement filtrées comme bruit de navigation dans :
+- `NodeExtractor.java` : "story de" dans `isNavigationDesc()`
+- `PostTracker.java` : pas de screenType "story"
+- `analyzer.ts` : "story" dans `NOISE_WORDS`
+
+Le WebView tracker (`tracker.js`) gérait déjà les stories via détection URL `/stories/username/`.
+
+### Tâche 013-1 : Retirer les filtres anti-stories
+**Statut** : `done`
+
+- [x] `NodeExtractor.java` : retirer "story de" de `isNavigationDesc()` (garder "ajouter à la story" car c'est un bouton UI)
+- [x] `analyzer.ts` : retirer "story" de `NOISE_WORDS`
+
+### Tâche 013-2 : Détecter le screenType "story"
+**Statut** : `done`
+
+- [x] `PostTracker.java` → `scanForScreenType()` : ajouter détection "story" via desc "story de" ou resourceId "reel_viewer_title"
+
+### Tâche 013-3 : Extraction de stories depuis l'arbre accessibilité
+**Statut** : `done`
+
+- [x] `analyzer.ts` : créer `extractStoriesFromNodes()` qui parse le pattern "Story de username, X sur Y"
+- [x] Extraire : username, frame index/total, texte overlay, hashtags, mentions, sponsorisé, type vidéo
+- [x] Intégrer dans la boucle `analyzeSession()` quand `screenType === 'story'`
+- [x] Ajouter `story` et `story_video` aux mediaTypes de `ExtractedPost`
+
+### Tâche 013-4 : Tests
+**Statut** : `done`
+
+- [x] Test pattern matching stories (4 cas)
+- [x] Test NOISE_WORDS ne filtre plus "story" (2 cas)
+
+**Fichiers modifiés** : `NodeExtractor.java`, `PostTracker.java`, `analyzer.ts`
+**Fichiers créés** : `src/__tests__/story-extraction.test.ts`
+
+---
+
 ## Dépendances
 
 ```mermaid
@@ -386,9 +430,12 @@ graph TD
     E000[EPIC-000 Capture] -->|done| E001[EPIC-001 SQLite]
     E001 -->|done| E002[EPIC-002 Analyse basique]
     E002 -->|done| E010[EPIC-010 Enrichissement post]
+    E010 -->|done| E012[EPIC-012 Analyse vidéo]
+    E000 --> E013[EPIC-013 Stories]
+    E002 --> E013
     E010 --> E011[EPIC-011 Calibration]
-    E010 --> E012[EPIC-012 Analyse vidéo]
     E012 --> E011
+    E013 --> E011
     E011 --> E020[EPIC-020 Profil utilisateur]
     E010 --> E030[EPIC-030 Dashboard]
     E020 --> E030
@@ -397,5 +444,6 @@ graph TD
 ```
 
 ## Changelog
+- 2026-03-28 : ajout EPIC-013 support Stories Instagram (filtres retirés, détection story, extraction)
 - 2026-03-28 : ajout EPIC-012 analyse vidéo (OCR, sous-titres, transcription audio, prompt LLM enrichi)
 - 2026-03-28 : création du système epic/task, migration depuis ROADMAP.md + REPLAN.md

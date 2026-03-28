@@ -286,10 +286,13 @@ public class PostTracker {
         if (node == null || depth > 10) return "unknown";
 
         String resourceId = node.getViewIdResourceName() != null ? node.getViewIdResourceName() : "";
+        String desc = node.getContentDescription() != null ? node.getContentDescription().toString().toLowerCase() : "";
 
         if (resourceId.contains("profile_header")) return "profile";
         if (resourceId.contains("row_feed_photo_profile_name")) return "feed";
         if (resourceId.contains("clips_tab") && depth < 5) return "reels";
+        // Story detection: Instagram shows "Story de username, X sur Y" in story viewer
+        if (resourceId.contains("reel_viewer_title") || desc.startsWith("story de ")) return "story";
 
         int childCount = node.getChildCount();
         for (int i = 0; i < childCount; i++) {

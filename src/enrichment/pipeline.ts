@@ -7,6 +7,8 @@ import { normalizePostText } from './normalize';
 import { applyRules } from './rules-engine';
 import type { LLMProvider } from './llm/provider';
 import { ENRICHMENT_SYSTEM_PROMPT, buildEnrichmentPrompt } from './llm/prompts';
+import type { TranscriptionProvider } from '../media/transcribe';
+import { processVideoMedia } from '../media/pipeline';
 
 export interface EnrichmentOptions {
   llmProvider: LLMProvider;
@@ -15,6 +17,7 @@ export interface EnrichmentOptions {
   rulesOnly?: boolean; // skip LLM, enrichissement rules-only
   dryRun?: boolean; // ne pas persister, juste afficher
   postIds?: string[]; // enrichir seulement ces posts
+  transcriptionProvider?: TranscriptionProvider; // active la transcription audio pour vidéos
 }
 
 interface LLMEnrichmentResult {
@@ -163,6 +166,7 @@ function mergeResults(
       narrativeFrame: '',
       callToActionType: 'aucun',
       problemSolutionPattern: '',
+      audioTranscription: '',
       mediaMessage: '',
       mediaIntent: '',
       confidenceScore: rules.confidenceScore * 0.6, // confiance réduite sans LLM
@@ -220,6 +224,7 @@ function mergeResults(
     narrativeFrame: llm.narrative_frame,
     callToActionType: llm.call_to_action_type,
     problemSolutionPattern: llm.problem_solution_pattern,
+    audioTranscription: '',
     mediaMessage: llm.media_message || '',
     mediaIntent: llm.media_intent || '',
     confidenceScore: Math.round(confidence * 100) / 100,
@@ -240,7 +245,7 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
   failed: number;
   skipped: number;
 }> {
-  const { llmProvider, batchSize = 20, delayMs = 500, rulesOnly = false, dryRun = false, postIds } = options;
+  const { llmProvider, batchSize = 20, delayMs = 500, rulesOnly = false, dryRun = false, postIds, transcriptionProvider } = options;
   const stats = { processed: 0, succeeded: 0, failed: 0, skipped: 0 };
 
   const posts = await loadPostsToEnrich(postIds, batchSize);
@@ -250,6 +255,21 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
     stats.processed++;
     const hashtags = parseHashtags(post.hashtags);
 
+    // 0. Audio transcription for video/reel posts (if provider available)
+    let audioTranscription: string | undefined;
+    if (transcriptionProvider && ['video', 'reel'].includes(post.mediaType) && post.videoUrl) {
+      const mediaResult = await processVideoMedia(post.videoUrl, post.id, {
+        transcriptionProvider,
+      });
+      if (mediaResult.transcription) {
+        audioTranscription = mediaResult.transcription.text;
+        // Persist transcription in PostEnriched later via merge
+        console.log(`[enrich] Audio transcribed for @${post.username}: ${audioTranscription.substring(0, 60)}...`);
+      } else if (mediaResult.error) {
+        console.log(`[enrich] Audio skipped for @${post.username}: ${mediaResult.error}`);
+      }
+    }
+
     // 1. Normalize (include video sources if available)
     const { normalizedText, language, keywordTerms } = normalizePostText({
       caption: post.caption,
@@ -258,6 +278,7 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
       hashtags,
       ocrText: post.ocrText || undefined,
       subtitles: post.subtitles || undefined,
+      audioTranscription,
     });
 
     // Skip si texte trop court
@@ -283,6 +304,11 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
       rulesOnly ? 'rules' : llmProvider.name,
       rulesOnly ? 'rules-v1' : (llmResult ? llmProvider.name : 'rules-v1'),
     );
+
+    // Inject audio transcription if available
+    if (audioTranscription) {
+      merged.audioTranscription = audioTranscription;
+    }
 
     // Log
     const pol = merged.politicalExplicitnessScore;

@@ -21,6 +21,13 @@ npm run db:migrate       # Appliquer migrations Prisma
 npm run db:generate      # Régénérer le client Prisma
 npm run db:ingest        # Ingérer toutes les sessions analysées dans SQLite
 
+# Enrichissement
+npx tsx src/enrich.ts                    # Enrichir (Ollama, batch 20)
+npx tsx src/enrich.ts --openai           # Enrichir via OpenAI
+npx tsx src/enrich.ts --rules-only       # Rules seulement (pas de LLM)
+npx tsx src/enrich.ts --with-audio       # + transcription audio vidéos (Whisper local)
+npx tsx src/enrich.ts --whisper-api      # + transcription via Whisper API (OpenAI)
+
 # Visualizer (debug)
 npm run visualizer       # Lance le dashboard debug sur http://localhost:3000
 
@@ -77,6 +84,11 @@ echa/
 │   ├── db/
 │   │   ├── client.ts             # Prisma client (better-sqlite3 adapter)
 │   │   └── ingest.ts             # Pipeline _analysis.json → SQLite
+│   ├── media/
+│   │   ├── download.ts           # Téléchargement vidéo depuis URL CDN
+│   │   ├── audio-extract.ts      # Extraction audio via ffmpeg
+│   │   ├── transcribe.ts         # Abstraction Whisper (local + API)
+│   │   └── pipeline.ts           # Orchestration download → extract → transcribe
 │   └── visualizer/
 │       ├── server.ts             # HTTP + WebSocket + live ingest
 │       ├── api.ts                # REST API (sessions, posts, stats)

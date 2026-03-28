@@ -54,7 +54,7 @@ interface ExtractedPost {
   caption: string;
   hashtags: string[];
   imageDescription: string;
-  mediaType: 'photo' | 'video' | 'carousel' | 'reel';
+  mediaType: 'photo' | 'video' | 'carousel' | 'reel' | 'story' | 'story_video';
   carouselCount: number;
   likeCount: string;
   likeNum: number;
@@ -293,6 +293,99 @@ function parsePostNodes(nodes: RawNode[]): ExtractedPost {
 }
 
 /**
+ * Extracts stories from accessibility nodes when screenType is "story".
+ * Stories appear as "Story de username, X sur Y, Vus." in content descriptions.
+ */
+function extractStoriesFromNodes(nodes: RawNode[]): ExtractedPost[] {
+  const stories: ExtractedPost[] = [];
+  const storyPattern = /Story de (.+?),\s*(\d+)\s*sur\s*(\d+)/i;
+
+  for (const node of nodes) {
+    const desc = node.desc || '';
+    const match = desc.match(storyPattern);
+    if (match) {
+      const username = match[1].trim();
+      const frameIndex = parseInt(match[2], 10);
+      const totalFrames = parseInt(match[3], 10);
+
+      // Avoid duplicates — use username + frame as key
+      const key = `${username}_frame${frameIndex}`;
+      if (stories.some(s => s.username === key)) continue;
+
+      const post: ExtractedPost = {
+        username,
+        displayName: '',
+        caption: '',
+        hashtags: [],
+        imageDescription: desc,
+        mediaType: 'story',
+        carouselCount: totalFrames,
+        likeCount: '',
+        likeNum: 0,
+        commentCount: '',
+        commentNum: 0,
+        shareCount: '',
+        saveCount: '',
+        date: '',
+        isSponsored: false,
+        isSuggested: false,
+        audioTrack: '',
+        mentionedAccounts: [],
+        allTextContent: '',
+        ocrText: '',
+        mlkitLabels: [],
+        subtitles: '',
+      };
+
+      // Scan surrounding nodes for story content
+      const nodeIdx = nodes.indexOf(node);
+      const contextNodes = nodes.slice(Math.max(0, nodeIdx - 5), Math.min(nodes.length, nodeIdx + 20));
+
+      for (const ctxNode of contextNodes) {
+        const text = ctxNode.text || '';
+        const ctxDesc = ctxNode.desc || '';
+
+        // Sponsored detection
+        if (text === 'Sponsorisé' || text === 'Sponsored' || ctxDesc.includes('Payé par')) {
+          post.isSponsored = true;
+        }
+
+        // Video detection in story
+        if (ctxDesc.includes('video') || ctxDesc.includes('Vidéo')) {
+          post.mediaType = 'story_video';
+        }
+
+        // Text overlays (non-empty text nodes without resourceId)
+        const r = rid(ctxNode);
+        if (!r && text.length > 3 && !text.match(/^\d+$/) && !storyPattern.test(text)) {
+          post.allTextContent += ' ' + text;
+        }
+        if (!r && ctxDesc.length > 3 && !storyPattern.test(ctxDesc)) {
+          post.allTextContent += ' ' + ctxDesc;
+        }
+
+        // Hashtags
+        if (ctxDesc.startsWith('#')) post.hashtags.push(ctxDesc);
+        const hashtagsInText = text.match(/#[\w\u00C0-\u024F]+/g);
+        if (hashtagsInText) post.hashtags.push(...hashtagsInText);
+
+        // Mentions
+        if (ctxDesc.startsWith('@') && ctxDesc.length > 2) {
+          post.mentionedAccounts.push(ctxDesc);
+        }
+      }
+
+      // Build caption from allTextContent
+      post.caption = post.allTextContent.trim().substring(0, 500);
+
+      stories.push(post);
+    }
+  }
+
+  return stories;
+}
+
+/**
  * Extracts Instagram auto-generated subtitles from accessibility nodes.
  * In reel full-screen viewer, subtitles appear as TextView nodes without resourceId
  * with class containing 'SubtitleTextView' or 'ClosedCaption'.
@@ -493,7 +586,7 @@ const CATEGORIES: Array<{ name: string; patterns: RegExp[] }> = [
 ];
 
 // Words to strip from allTextContent (navigation/profile noise)
-const NOISE_WORDS = /\b(home|reels|profil|rechercher|explorer|envoyer|message|story|ajouter|modifier|partager|contacts|découvrir|voir tout|suivre|suivi|followers|publications|j'aime|commentaire|enregistrement|fermer|options|créer|threads|sponsorisé|suggestions)\b/gi;
+const NOISE_WORDS = /\b(home|reels|profil|rechercher|explorer|envoyer|message|ajouter|modifier|partager|contacts|découvrir|voir tout|suivre|suivi|followers|publications|j'aime|commentaire|enregistrement|fermer|options|créer|threads|sponsorisé|suggestions)\b/gi;
 
 function categorizePost(post: ExtractedPost): string {
   // Primary blob: username + caption + hashtags + displayName (most reliable)
@@ -548,7 +641,10 @@ async function analyzeSession(sessionPath: string): Promise<void> {
   for (const evt of events) {
     if (!evt.nodes) continue;
 
-    const posts = extractPostsFromNodes(evt.nodes);
+    // Use story-specific extraction for story screens
+    const posts = evt.screenType === 'story'
+      ? extractStoriesFromNodes(evt.nodes)
+      : extractPostsFromNodes(evt.nodes);
 
     for (const post of posts) {
       const key = post.username;

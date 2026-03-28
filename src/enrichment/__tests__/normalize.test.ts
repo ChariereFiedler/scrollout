@@ -57,6 +57,57 @@ describe('normalizePostText', () => {
     // Trop court (≤2 chars)
     expect(result.keywordTerms).not.toContain('ab');
   });
+
+  it('inclut ocrText avec marqueur [OCR]', () => {
+    const result = normalizePostText({
+      caption: 'Mon reel',
+      imageDesc: '',
+      allText: '',
+      hashtags: [],
+      ocrText: 'SOLDES -50% sur tout le magasin',
+    });
+    expect(result.normalizedText).toContain('[OCR]');
+    expect(result.normalizedText).toContain('SOLDES -50%');
+  });
+
+  it('inclut subtitles avec marqueur [SUBTITLES]', () => {
+    const result = normalizePostText({
+      caption: 'Interview',
+      imageDesc: '',
+      allText: '',
+      hashtags: [],
+      subtitles: 'Bonjour je suis ici pour vous parler de la situation',
+    });
+    expect(result.normalizedText).toContain('[SUBTITLES]');
+    expect(result.normalizedText).toContain('Bonjour je suis ici');
+  });
+
+  it('inclut audioTranscription avec marqueur [AUDIO_TRANSCRIPT]', () => {
+    const result = normalizePostText({
+      caption: 'Podcast',
+      imageDesc: '',
+      allText: '',
+      hashtags: [],
+      audioTranscription: 'Aujourd\'hui on va parler de la réforme des retraites',
+    });
+    expect(result.normalizedText).toContain('[AUDIO_TRANSCRIPT]');
+    expect(result.normalizedText).toContain('réforme des retraites');
+  });
+
+  it('ignore les sources vidéo vides', () => {
+    const result = normalizePostText({
+      caption: 'Test',
+      imageDesc: '',
+      allText: '',
+      hashtags: [],
+      ocrText: '',
+      subtitles: '   ',
+      audioTranscription: undefined,
+    });
+    expect(result.normalizedText).not.toContain('[OCR]');
+    expect(result.normalizedText).not.toContain('[SUBTITLES]');
+    expect(result.normalizedText).not.toContain('[AUDIO_TRANSCRIPT]');
+  });
 });
 
 describe('detectLanguage', () => {

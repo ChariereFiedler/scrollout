@@ -8,11 +8,14 @@
  *   npx tsx src/enrich.ts --batch 50         # Batch de 50
  *   npx tsx src/enrich.ts --dry-run          # Ne persiste pas
  *   npx tsx src/enrich.ts --post-id "xxx"    # Enrichit un post spécifique
+ *   npx tsx src/enrich.ts --with-audio       # Active la transcription audio vidéos (Whisper)
+ *   npx tsx src/enrich.ts --whisper-api      # Utilise Whisper API au lieu de Whisper local
  */
 import 'dotenv/config';
 import { enrichBatch } from './enrichment/pipeline';
 import { createOllamaProvider } from './enrichment/llm/ollama';
 import { createOpenAIProvider } from './enrichment/llm/openai';
+import { createWhisperLocalProvider, createWhisperAPIProvider, TranscriptionProvider } from './media/transcribe';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -20,6 +23,8 @@ async function main() {
   const useOpenAI = args.includes('--openai');
   const rulesOnly = args.includes('--rules-only');
   const dryRun = args.includes('--dry-run');
+  const withAudio = args.includes('--with-audio');
+  const useWhisperAPI = args.includes('--whisper-api');
 
   const batchIdx = args.indexOf('--batch');
   const batchSize = batchIdx !== -1 ? parseInt(args[batchIdx + 1], 10) : 20;
@@ -45,7 +50,23 @@ async function main() {
     console.log('[enrich] Provider: Ollama (llama3.1:8b)');
   }
 
-  console.log(`[enrich] Batch: ${batchSize}, dryRun: ${dryRun}`);
+  // Audio transcription provider
+  let transcriptionProvider: TranscriptionProvider | undefined;
+  if (withAudio) {
+    if (useWhisperAPI) {
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('[enrich] OPENAI_API_KEY requis pour --whisper-api');
+        process.exit(1);
+      }
+      transcriptionProvider = createWhisperAPIProvider();
+      console.log('[enrich] Audio: Whisper API (OpenAI)');
+    } else {
+      transcriptionProvider = createWhisperLocalProvider();
+      console.log('[enrich] Audio: Whisper local');
+    }
+  }
+
+  console.log(`[enrich] Batch: ${batchSize}, dryRun: ${dryRun}, audio: ${withAudio}`);
 
   const result = await enrichBatch({
     llmProvider,
@@ -54,6 +75,7 @@ async function main() {
     dryRun,
     postIds,
     delayMs: useOpenAI ? 200 : 100, // Ollama local = pas de rate limit strict
+    transcriptionProvider,
   });
 
   console.log(`[enrich] Résultat final:`, result);
