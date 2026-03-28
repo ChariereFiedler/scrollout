@@ -192,7 +192,7 @@ publish:registry:
       echo ""
       echo "Download: ${CI_PROJECT_URL}/-/packages"
 
-# ── Stage: pages (distribution APK) ───────────────────────
+# ── Stage: pages (site Astro + APK download) ──────────────
 
 pages:
   stage: pages
@@ -200,42 +200,22 @@ pages:
   needs:
     - job: build:apk
       artifacts: true
+      optional: true
   rules:
-    - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
-    - mkdir -p public/download
-    - cp "${APK_NAME}" "public/download/${APK_NAME}"
-    - cp "${APK_NAME}" "public/download/scrollout-latest.apk"
+    - cd scrollout-site
+    - npm ci
+    - npx astro build
+    - mv dist ../public
+    - cd ..
+    # Copier l'APK dans le site si disponible
     - |
-      cat > public/index.html <<HTML
-      <!DOCTYPE html>
-      <html lang="fr">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Scrollout - Download APK</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: -apple-system, system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-          .card { background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 48px; max-width: 480px; text-align: center; }
-          h1 { font-size: 2rem; margin-bottom: 8px; color: #fff; }
-          .version { color: #888; font-size: 0.9rem; margin-bottom: 32px; }
-          .btn { display: inline-block; background: #4f46e5; color: #fff; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-size: 1.1rem; font-weight: 600; transition: background 0.2s; }
-          .btn:hover { background: #4338ca; }
-          .meta { margin-top: 24px; font-size: 0.8rem; color: #666; }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <h1>Scrollout</h1>
-          <p class="version">Build ${CI_COMMIT_SHORT_SHA} - $(date -u +%Y-%m-%d)</p>
-          <a class="btn" href="download/scrollout-latest.apk">Telecharger l'APK</a>
-          <p class="meta">Android 7.0+ requis</p>
-        </div>
-      </body>
-      </html>
-      HTML
+      if [ -f "${APK_NAME}" ]; then
+        mkdir -p public/download
+        cp "${APK_NAME}" "public/download/${APK_NAME}"
+        cp "${APK_NAME}" "public/download/scrollout-latest.apk"
+      fi
   artifacts:
     paths:
       - public
