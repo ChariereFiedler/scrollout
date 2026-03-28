@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Session {
+  id          String   @id // timestamp-based
+  capturedAt  DateTime
+  durationSec Float
+  totalEvents Int
+  totalPosts  Int
+  captureMode String   @default("accessibility") // accessibility | adb | webview
+  device      String?
+  sourceFile  String?  // chemin JSON source
+  createdAt   DateTime @default(now())
+
+  posts Post[]
+}
+
+model Post {
+  id             String   @id // session_id:username:hash
+  sessionId      String
+  username       String
+  displayName    String   @default("")
+  caption        String   @default("")
+  hashtags       String   @default("[]") // JSON array
+  imageDesc      String   @default("")
+  imageUrls      String   @default("[]") // JSON array — URLs CDN si dispo
+  mediaType      String   @default("photo") // photo | video | carousel | reel
+  likeCount      Int      @default(0)
+  commentCount   Int      @default(0)
+  shareCount     String   @default("")
+  saveCount      String   @default("")
+  dateLabel      String   @default("") // "il y a 2 jours"
+  isSponsored    Boolean  @default(false)
+  isSuggested    Boolean  @default(false)
+  audioTrack     String   @default("")
+  mentioned      String   @default("[]") // JSON array
+  allText        String   @default("") // blob complet pour full-text search
+  dwellTimeMs    Int      @default(0)
+  attentionLevel String   @default("skipped") // skipped | glanced | viewed | engaged
+  category       String   @default("non classifié")
+  firstSeenAt    Int      @default(0) // timestamp ms
+  lastSeenAt     Int      @default(0)
+  seenCount      Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  session   Session        @relation(fields: [sessionId], references: [id])
+  semantics PostSemantic[]
+
+  @@index([sessionId])
+  @@index([username])
+  @@index([category])
+  @@index([attentionLevel])
+  @@index([isSponsored])
+  @@index([isSuggested])
+}
+
+// Phase 2 : enrichissement sémantique LLM
+model PostSemantic {
+  id         String   @id @default(cuid())
+  postId     String
+  provider   String   // openai | ollama | local
+  model      String   // gpt-4o-mini | llama3 | etc
+  summary    String   @default("")
+  topics     String   @default("[]") // JSON array de tags sémantiques
+  sentiment  String   @default("neutral") // positive | neutral | negative
+  confidence Float    @default(0)
+  embedding  Bytes?   // vector pour similarity search
+  createdAt  DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+
+  @@index([postId])
+  @@index([provider])
+}

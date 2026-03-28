@@ -7,6 +7,7 @@
  */
 import { readFileSync, writeFileSync } from 'fs';
 import path from 'path';
+import { ingestAnalysis, disconnect } from './db/ingest';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -475,7 +476,7 @@ function classifyAttention(dwellSec: number): PostWithAttention['attentionLevel'
 
 // ─── Main analysis ──────────────────────────────────────────────────
 
-function analyzeSession(sessionPath: string): void {
+async function analyzeSession(sessionPath: string): Promise<void> {
   const raw: SessionFile = JSON.parse(readFileSync(sessionPath, 'utf-8'));
   const events = raw.events;
 
@@ -715,6 +716,16 @@ function analyzeSession(sessionPath: string): void {
 
   console.log(`\nRapport: ${reportPath}`);
   console.log(`Analyse: ${analysisPath}`);
+
+  // Auto-ingest dans SQLite
+  try {
+    const result = await ingestAnalysis(analysisPath);
+    console.log(`SQLite: ${result.postCount} posts ingérés (session ${result.sessionId})`);
+  } catch (err) {
+    console.error('[analyzer] Ingest SQLite failed:', err);
+  } finally {
+    await disconnect();
+  }
 }
 
 function pct(part: number, total: number): number {
@@ -737,4 +748,7 @@ const sessionFile = process.argv[2] || (() => {
   return path.join(__dirname, '..', 'data', files[0]);
 })();
 
-analyzeSession(sessionFile);
+analyzeSession(sessionFile).catch(err => {
+  console.error('[analyzer] Fatal:', err);
+  process.exit(1);
+});

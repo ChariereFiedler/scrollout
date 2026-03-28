@@ -8,7 +8,11 @@
     "devices": "tsx scripts/scan-devices.ts scan",
     "devices:wifi": "tsx scripts/scan-devices.ts wifi",
     "devices:list": "tsx scripts/scan-devices.ts list",
-    "apk:install": "tsx scripts/scan-devices.ts install"
+    "apk:install": "tsx scripts/scan-devices.ts install",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:ingest": "tsx src/ingest-all.ts",
+    "analyze": "tsx src/analyzer.ts"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +22,12 @@
     "@types/node": "^25.5.0",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.6.0",
+    "@prisma/client": "^7.6.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.8.0",
+    "prisma": "^7.6.0"
   }
 }

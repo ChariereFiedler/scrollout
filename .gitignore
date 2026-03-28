@@ -12,3 +12,14 @@ coverage/
 Thumbs.db
 data/
 .claude/
+
+/src/generated/prisma
+*.db
+*.db-journal
+
+# Android build artifacts
+.gradle/
+**/build/
+local.properties
+*.iml
+.idea/

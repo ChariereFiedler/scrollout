@@ -14,7 +14,12 @@ npx tsx src/capture.ts [seconds]     # Écoute logcat AccessibilityService (temp
 npx tsx src/auto-capture.ts [n] [ms] # Auto-scroll + screenshot + dump UI
 
 # Analyse
-npx tsx src/analyzer.ts [session.json]  # Analyse complète d'une session
+npx tsx src/analyzer.ts [session.json]  # Analyse complète + auto-ingest SQLite
+
+# Database
+npm run db:migrate       # Appliquer migrations Prisma
+npm run db:generate      # Régénérer le client Prisma
+npm run db:ingest        # Ingérer toutes les sessions analysées dans SQLite
 
 # APK
 npm run apk:install -- <path.apk>    # Install APK sur tous les devices
