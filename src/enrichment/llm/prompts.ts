@@ -1,0 +1,93 @@
+/**
+ * Prompts d'enrichissement — classification multi-label d'un post Instagram.
+ * Conforme à la taxonomie ROADMAP §6.4.
+ */
+
+export const ENRICHMENT_SYSTEM_PROMPT = `Tu es un analyste de contenu spécialisé dans l'analyse de posts Instagram francophones.
+Tu dois produire une analyse structurée en JSON, rigoureuse et factuelle.
+
+IMPORTANT :
+- Tu mesures le CONTENU du post, pas l'opinion de l'auteur ni du lecteur.
+- Tu évalues l'EXPOSITION à un type de contenu, pas l'adhésion.
+- Sois conservateur dans tes scores : en cas de doute, score bas.
+- Justifie toujours tes scores politiques et de polarisation.`;
+
+export function buildEnrichmentPrompt(input: {
+  normalizedText: string;
+  username: string;
+  hashtags: string[];
+  mediaType: string;
+  rulesHints: {
+    mainTopics: string[];
+    politicalScore: number;
+    polarizationScore: number;
+    detectedActors: string[];
+  };
+}): string {
+  const hashtagStr = input.hashtags.length > 0 ? input.hashtags.join(', ') : '(aucun)';
+  const rulesContext = input.rulesHints.mainTopics.length > 0
+    ? `\nIndices pré-calculés (règles) : topics=[${input.rulesHints.mainTopics.join(',')}], political_score=${input.rulesHints.politicalScore}, polarization=${input.rulesHints.polarizationScore}, actors=[${input.rulesHints.detectedActors.join(',')}]`
+    : '';
+
+  return `Analyse ce post Instagram et produis un JSON structuré.
+
+--- POST ---
+Auteur : @${input.username}
+Type : ${input.mediaType}
+Hashtags : ${hashtagStr}
+Texte :
+${input.normalizedText || '(texte vide ou non disponible)'}
+${rulesContext}
+--- FIN POST ---
+
+Produis un JSON avec EXACTEMENT ces champs :
+
+{
+  "semantic_summary": "résumé en 1-2 phrases du contenu du post",
+  "main_topics": ["max 3 thèmes parmi: actualite, politique, geopolitique, economie, ecologie, immigration, securite, justice, sante, religion, education, culture, humour, divertissement, lifestyle, beaute, sport, business, developpement_personnel, technologie, feminisme, masculinite, identite, societe"],
+  "secondary_topics": ["0-3 thèmes secondaires"],
+  "content_domain": "un mot résumant le domaine : actualité | divertissement | lifestyle | politique | éducation | business | autre",
+  "audience_target": "grand public | militant | niche | communautaire | professionnel",
+  "persons": ["personnes nommées dans le post"],
+  "organizations": ["organisations mentionnées"],
+  "institutions": ["institutions publiques mentionnées"],
+  "countries": ["pays mentionnés"],
+  "tone": "informatif | émotionnel | sarcastique | militant | neutre | inspirant | alarmiste",
+  "primary_emotion": "colère | joie | peur | tristesse | dégoût | surprise | fierté | espoir | neutre",
+  "emotion_intensity": 0.0 à 1.0,
+  "political_explicitness_score": 0 à 4,
+  "political_explicitness_justification": "justification en 1 phrase",
+  "political_issue_tags": ["enjeux politiques identifiés"],
+  "public_policy_tags": ["politiques publiques mentionnées"],
+  "institutional_reference_score": 0.0 à 1.0,
+  "activism_signal": true/false,
+  "polarization_score": 0.0 à 1.0,
+  "polarization_justification": "justification en 1 phrase",
+  "ingroup_outgroup_signal": true/false,
+  "conflict_signal": true/false,
+  "moral_absolute_signal": true/false,
+  "enemy_designation_signal": true/false,
+  "narrative_frame": "un parmi: declin | urgence | injustice | revelation | mobilisation | denonciation | empowerment | ordre | menace | aspiration | inspiration | derision | victimisation | heroisation | aucun",
+  "call_to_action_type": "un parmi: aucun | commenter | partager | sindigner | sinformer | voter | soutenir | boycotter | manifester | acheter | suivre_le_compte",
+  "problem_solution_pattern": "description du pattern problème-solution si présent, sinon vide",
+  "confidence_score": 0.0 à 1.0
+}
+
+ÉCHELLE POLITIQUE :
+0 = apolitique (beauté, food, gaming...)
+1 = sujet social/culturel sans enjeu public clair (bien-être, développement perso avec mention vague de société)
+2 = enjeu public indirect (économie, santé publique, éducation — sans militantisme)
+3 = sujet politique explicite (élections, partis, lois, institutions nommées)
+4 = contenu militant / propagandiste / mobilisation (appel à l'action politique, slogan, dénonciation directe)
+
+ÉCHELLE POLARISATION :
+0 = neutre, factuel, sans prise de position marquée
+0.1-0.3 = légèrement orienté mais nuancé
+0.3-0.6 = prise de position nette, vocabulaire chargé
+0.6-0.8 = forte opposition binaire, indignation, ennemi désigné
+0.8-1.0 = contenu hautement polarisant, cadrage moral absolu, appel à la confrontation
+
+Réponds UNIQUEMENT avec le JSON, sans commentaire.`;
+}
+
+export const ENRICHMENT_INDEX = { ENRICHMENT_SYSTEM_PROMPT, buildEnrichmentPrompt };
