@@ -262,7 +262,8 @@ export class CognitionControls extends LitElement {
   }
 
   render() {
-    const hasSessions = this.sessions.length > 0;
+    const primaryDefinition = COGNITIVE_METRICS.find(metric => metric.key === this.primaryMetric);
+    const secondaryDefinition = COGNITIVE_METRICS.find(metric => metric.key === this.secondaryMetric);
 
     return html`
       <section class="panel ${this.loading ? 'disabled' : ''}">
@@ -291,39 +292,23 @@ export class CognitionControls extends LitElement {
           </div>
 
           <div class="field">
-            <label for="session">Session</label>
-            <select id="session" .value=${this.selectedSessionId} @change=${this.onSessionChange} ?disabled=${!hasSessions || this.loading}>
-              ${hasSessions ? this.sessions.map(session => {
-                const date = new Date(session.capturedAt).toLocaleDateString('fr-FR', {
-                  day: '2-digit',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
-                return html`<option value=${session.id}>${date} · ${session.postCount} posts</option>`;
-              }) : html`<option value="">Aucune session disponible</option>`}
-            </select>
-            <div class="hint">Les dimensions proposées viennent uniquement des données stockées dans SQLite pour cette session.</div>
-          </div>
-
-          <div class="field">
             <label for="primary">Dimension primaire</label>
             <select id="primary" .value=${this.primaryMetric} @change=${this.onPrimaryChange}>
               ${COGNITIVE_METRICS.map(metric => html`
-                <option value=${metric.key}>${metric.label} · ${metric.unit} · ${metric.sqliteSource}</option>
+                <option value=${metric.key}>${metric.label}</option>
               `)}
             </select>
-            <div class="hint">Dimension calculée uniquement depuis ${COGNITIVE_METRICS.find(metric => metric.key === this.primaryMetric)?.sqliteSource ?? 'SQLite'}.</div>
+            <div class="hint">${primaryDefinition?.description ?? ''}</div>
           </div>
 
           <div class="field">
             <label for="secondary">Dimension secondaire</label>
             <select id="secondary" .value=${this.secondaryMetric} @change=${this.onSecondaryChange}>
               ${COGNITIVE_METRICS.map(metric => html`
-                <option value=${metric.key}>${metric.label} · ${metric.unit} · ${metric.sqliteSource}</option>
+                <option value=${metric.key}>${metric.label}</option>
               `)}
             </select>
-            <div class="hint">Dimension calculée uniquement depuis ${COGNITIVE_METRICS.find(metric => metric.key === this.secondaryMetric)?.sqliteSource ?? 'SQLite'}.</div>
+            <div class="hint">${secondaryDefinition?.description ?? ''}</div>
           </div>
 
           <div class="field">

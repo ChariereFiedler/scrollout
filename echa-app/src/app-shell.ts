@@ -132,45 +132,15 @@ export class AppShell extends LitElement {
         box-shadow: 0 0 6px var(--vert-menthe);
       }
       .tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); position: absolute; top: 4px; right: calc(50% - 16px); }
-
-      .floating-cognition {
-        position: fixed;
-        left: var(--fab-left, calc(100vw - 84px));
-        top: var(--fab-top, calc(100vh - 180px));
-        width: 56px;
-        height: 56px;
-        border: none;
-        border-radius: 18px;
-        background: #c13584;
-        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
-        display: grid;
-        place-items: center;
-        z-index: 10001;
-        cursor: grab;
-        touch-action: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-      .floating-cognition:active { cursor: grabbing; }
-      .floating-cognition svg { width: 28px; height: 28px; fill: #fff; }
     `,
   ];
 
   @state() activeTab: Tab = 'home';
   @state() igOpen = false;
-  @state() private fabX = 0;
-  @state() private fabY = 0;
-
-  private dragPointerId: number | null = null;
-  private dragStartX = 0;
-  private dragStartY = 0;
-  private fabStartX = 0;
-  private fabStartY = 0;
-  private dragged = false;
   private cognitionListener: { remove: () => Promise<void> } | null = null;
 
   connectedCallback() {
     super.connectedCallback();
-    this.resetFabPosition();
     void this.bindNativeListeners();
     void this.syncCognitionButtonVisibility();
     // Enrichment daemon: purge + auto-start
@@ -257,81 +227,30 @@ export class AppShell extends LitElement {
 
   private async bindNativeListeners() {
     this.cognitionListener = await onOpenCognition(async () => {
-      if (this.igOpen) {
-        try {
-          await hideInstagram();
-        } catch (e) {
-          console.warn('[ECHA] Failed to hide Instagram for cognition:', e);
-        }
-      }
-      this.activeTab = 'cognition';
-      await this.syncCognitionButtonVisibility();
+      await this.switchTab('cognition');
     });
-  }
-
-  private get showWebFab() {
-    return this.activeTab !== 'cognition' && this.activeTab !== 'instagram';
   }
 
   private async syncCognitionButtonVisibility() {
     try {
-      await setCognitionButtonVisible(this.activeTab === 'instagram');
+      await setCognitionButtonVisible(false);
     } catch (e) {
       console.warn('[ECHA] Failed to sync native cognition button visibility:', e);
     }
   }
 
-  // ── FAB drag ───────────────────────────────────────────────
-
-  private resetFabPosition() {
-    this.fabX = Math.max(16, window.innerWidth - 84);
-    this.fabY = Math.max(96, window.innerHeight - 180);
-  }
-
-  private beginFabDrag(event: PointerEvent) {
-    this.dragPointerId = event.pointerId;
-    this.dragStartX = event.clientX;
-    this.dragStartY = event.clientY;
-    this.fabStartX = this.fabX;
-    this.fabStartY = this.fabY;
-    this.dragged = false;
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  }
-
-  private moveFab(event: PointerEvent) {
-    if (this.dragPointerId !== event.pointerId) return;
-    const dx = event.clientX - this.dragStartX;
-    const dy = event.clientY - this.dragStartY;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) this.dragged = true;
-
-    const maxX = Math.max(16, window.innerWidth - 76);
-    const maxY = Math.max(96, window.innerHeight - 140);
-    this.fabX = Math.min(maxX, Math.max(16, this.fabStartX + dx));
-    this.fabY = Math.min(maxY, Math.max(96, this.fabStartY + dy));
-  }
-
-  private endFabDrag(event: PointerEvent) {
-    if (this.dragPointerId !== event.pointerId) return;
-    this.dragPointerId = null;
-  }
-
-  private async openCognitionFromFab() {
-    if (this.dragged) {
-      this.dragged = false;
-      return;
-    }
-    await this.switchTab('cognition');
-  }
-
   // ── Render ─────────────────────────────────────────────────
+
+  private async onInstagramOpenedFromHome() {
+    this.igOpen = true;
+    this.activeTab = 'instagram';
+    await this.syncCognitionButtonVisibility();
+  }
 
   render() {
     return html`
-      <div
-        class="screen-area"
-        style=${`--fab-left:${this.fabX}px;--fab-top:${this.fabY}px;`}
-      >
-        ${this.activeTab === 'home' ? html`<screen-home @instagram-opened=${() => { this.igOpen = true; this.activeTab = 'instagram'; }}></screen-home>` : ''}
+      <div class="screen-area">
+        ${this.activeTab === 'home' ? html`<screen-home @instagram-opened=${this.onInstagramOpenedFromHome}></screen-home>` : ''}
         ${this.activeTab === 'instagram' ? html`
           <div class="ig-placeholder">
             <div class="ig-dots">
@@ -345,23 +264,6 @@ export class AppShell extends LitElement {
         ${this.activeTab === 'enrichment' ? html`<screen-enrichment></screen-enrichment>` : ''}
         ${this.activeTab === 'posts' ? html`<screen-posts></screen-posts>` : ''}
         ${this.activeTab === 'settings' ? html`<screen-settings></screen-settings>` : ''}
-
-        ${this.showWebFab ? html`
-          <button
-            class="floating-cognition"
-            aria-label="Ouvrir les visualisations cognitives"
-            title="Cognition"
-            @pointerdown=${this.beginFabDrag}
-            @pointermove=${this.moveFab}
-            @pointerup=${this.endFabDrag}
-            @pointercancel=${this.endFabDrag}
-            @click=${this.openCognitionFromFab}
-          >
-            <svg viewBox="0 0 108 108" aria-hidden="true">
-              <path d="M66.94 46.02C72.44 50.07 76 56.61 76 64H32C32 56.61 35.56 50.11 40.98 46.06L36.18 41.19C35.45 40.45 35.45 39.3 36.18 38.56C36.91 37.81 38.05 37.81 38.78 38.56L44.25 44.05C47.18 42.57 50.48 41.71 54 41.71C57.48 41.71 60.78 42.57 63.68 44.05L69.11 38.56C69.84 37.81 70.98 37.81 71.71 38.56C72.44 39.3 72.44 40.45 71.71 41.19L66.94 46.02ZM62.94 56.92C64.08 56.92 65 56.01 65 54.88C65 53.76 64.08 52.85 62.94 52.85C61.8 52.85 60.88 53.76 60.88 54.88C60.88 56.01 61.8 56.92 62.94 56.92ZM45.06 56.92C46.2 56.92 47.13 56.01 47.13 54.88C47.13 53.76 46.2 52.85 45.06 52.85C43.92 52.85 43 53.76 43 54.88C43 56.01 43.92 56.92 45.06 56.92Z"/>
-            </svg>
-          </button>
-        ` : ''}
       </div>
 
       <nav>
@@ -381,6 +283,10 @@ export class AppShell extends LitElement {
         <button class="tab ${this.activeTab === 'posts' ? 'active' : ''}" @click=${() => this.switchTab('posts')}>
           <span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>
           Feed
+        </button>
+        <button class="tab ${this.activeTab === 'cognition' ? 'active' : ''}" @click=${() => this.switchTab('cognition')}>
+          <span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M7 4h6.8c3.9 0 6.2 1.8 6.2 8s-2.3 8-6.2 8H7z"/><path d="M10 8h3.5c2.3 0 3.5 1 3.5 4s-1.2 4-3.5 4H10"/></svg></span>
+          Data
         </button>
         <button class="tab ${this.activeTab === 'settings' ? 'active' : ''}" @click=${() => this.switchTab('settings')}>
           <span class="tab-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>

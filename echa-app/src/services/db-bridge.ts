@@ -12,6 +12,7 @@ function getPlugin(): any {
   return {
     querySessions: async () => ({ sessions: '[]' }),
     queryPosts: async () => ({ posts: '[]' }),
+    queryCognitiveThemes: async () => ({ themes: '[]', totalPosts: 0 }),
     queryStats: async () => ({
       totalSessions: 0, totalPosts: 0, totalEnriched: 0,
       attention: {}, political: {}, axes: {},
@@ -107,6 +108,23 @@ export interface DbStats {
   signals?: { activism: number; conflict: number; moralAbsolute: number; enemyDesignation: number; ingroupOutgroup: number; total: number };
 }
 
+export interface CognitiveThemeRow {
+  themeId: string;
+  themeLabel: string;
+  source: 'mainTopics' | 'mediaCategory' | 'fallback';
+  postCount: number;
+  totalDwellTimeMs: number;
+  averageDwellTimeMs: number;
+  engagementScore: number;
+  engagedShare: number;
+  politicalScoreAverage: number;
+  polarizationAverage: number;
+  confidenceAverage: number;
+  enrichedPostCount: number;
+  samplePostIds: string[];
+  sampleUsers: string[];
+}
+
 // ── Queries ──────────────────────────────────────────────────
 
 export async function getSessions(): Promise<SessionSummary[]> {
@@ -124,6 +142,18 @@ export async function getPosts(sessionId: string, offset = 0, limit = 50): Promi
     return JSON.parse(result.posts || '[]');
   } catch {
     return [];
+  }
+}
+
+export async function getCognitiveThemes(sessionId?: string): Promise<{ themes: CognitiveThemeRow[]; totalPosts: number }> {
+  const result = await getPlugin().queryCognitiveThemes(sessionId ? { sessionId } : {});
+  try {
+    return {
+      themes: JSON.parse(result.themes || '[]'),
+      totalPosts: Number(result.totalPosts || 0),
+    };
+  } catch {
+    return { themes: [], totalPosts: 0 };
   }
 }
 

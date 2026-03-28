@@ -987,13 +987,11 @@
 
   window.__echaEnrich = function(post) {
     // Post structure: {username, caption, fullCaption, imageAlts, hashtags, allText}
-    // imageAlts can be array or string — normalize to string
-    const alts = Array.isArray(post.imageAlts) ? post.imageAlts.join(' ') : (post.imageAlts || '');
     const input = {
       caption: post.caption || '',
-      imageDesc: alts,
+      imageDesc: post.imageAlts || '',
       allText: post.allText || post.fullCaption || '',
-      hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+      hashtags: post.hashtags || [],
     };
 
     const normalization = normalizePostText(input);

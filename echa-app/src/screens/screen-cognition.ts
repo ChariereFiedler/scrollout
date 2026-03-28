@@ -1,7 +1,6 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { theme } from '../styles/theme.js';
-import { getSessions, type SessionSummary } from '../services/db-bridge.js';
 import {
   COGNITIVE_METRICS,
   loadCognitiveBubbleData,
@@ -260,11 +259,9 @@ export class ScreenCognition extends LitElement {
     `,
   ];
 
-  @state() private sessions: SessionSummary[] = [];
   @state() private bubbleData: CognitiveBubbleDataset | null = null;
   @state() private loading = true;
   @state() private error = '';
-  @state() private selectedSessionId = '';
   @state() private mode: VisualizationMode = 'bubble';
   @state() private primaryMetric: CognitiveMetricKey = 'durationTotalMs';
   @state() private secondaryMetric: CognitiveMetricKey = 'engagement';
@@ -276,20 +273,10 @@ export class ScreenCognition extends LitElement {
     void this.initialize();
   }
 
-  private getPreferredSessionId(sessions: SessionSummary[]): string {
-    const sorted = [...sessions].sort((a, b) => {
-      if (b.postCount !== a.postCount) return b.postCount - a.postCount;
-      return b.capturedAt - a.capturedAt;
-    });
-    return sorted.find(session => session.postCount > 0)?.id ?? sessions[0]?.id ?? '';
-  }
-
   private async initialize() {
     this.loading = true;
     this.error = '';
     try {
-      this.sessions = await getSessions();
-      this.selectedSessionId = this.getPreferredSessionId(this.sessions);
       await this.loadDataset();
     } catch (e: any) {
       this.error = e?.message || 'Erreur de chargement';
@@ -299,22 +286,7 @@ export class ScreenCognition extends LitElement {
   }
 
   private async loadDataset() {
-    this.bubbleData = await loadCognitiveBubbleData({
-      sessionId: this.selectedSessionId || undefined,
-    });
-
-    if ((this.bubbleData.totalPosts === 0 || this.bubbleData.totalThemes === 0) && this.sessions.length > 1) {
-      const fallbackSessionId = this.getPreferredSessionId(
-        this.sessions.filter(session => session.id !== this.selectedSessionId),
-      );
-      if (fallbackSessionId) {
-        const fallbackData = await loadCognitiveBubbleData({ sessionId: fallbackSessionId });
-        if (fallbackData.totalPosts > 0 || fallbackData.totalThemes > 0) {
-          this.selectedSessionId = fallbackSessionId;
-          this.bubbleData = fallbackData;
-        }
-      }
-    }
+    this.bubbleData = await loadCognitiveBubbleData();
 
     const themes = this.bubbleData.themes ?? [];
     if (themes.length === 0) {
@@ -329,19 +301,7 @@ export class ScreenCognition extends LitElement {
   }
 
   private onControlsChange = async (event: CustomEvent<CognitionControlsChangeDetail>) => {
-    const { sessionId, mode, primaryMetric, secondaryMetric, chromaPower } = event.detail;
-
-    if (sessionId !== undefined && sessionId !== this.selectedSessionId) {
-      this.selectedSessionId = sessionId;
-      this.loading = true;
-      try {
-        await this.loadDataset();
-      } catch (e: any) {
-        this.error = e?.message || 'Erreur de chargement';
-      } finally {
-        this.loading = false;
-      }
-    }
+    const { mode, primaryMetric, secondaryMetric, chromaPower } = event.detail;
 
     if (mode !== undefined) this.mode = mode;
     if (primaryMetric !== undefined) this.primaryMetric = primaryMetric;
@@ -383,7 +343,7 @@ export class ScreenCognition extends LitElement {
         <div class="placeholder">
           <div>
             <strong>Aucune thématique disponible</strong>
-            <p>Essayez une autre session ou capturez davantage de posts pour peupler cette vue.</p>
+            <p>Capturez davantage de posts pour peupler cette vue globale.</p>
           </div>
         </div>
       `;
@@ -412,10 +372,8 @@ export class ScreenCognition extends LitElement {
   }
 
   render() {
-    const session = this.bubbleData?.session ?? null;
     const themeCount = this.bubbleData?.totalThemes ?? 0;
     const totalPosts = this.bubbleData?.totalPosts ?? 0;
-    const availablePosts = this.bubbleData?.totalAvailablePosts ?? 0;
     const primaryLabel = COGNITIVE_METRICS.find(metric => metric.key === this.primaryMetric)?.label ?? this.primaryMetric;
     const secondaryLabel = COGNITIVE_METRICS.find(metric => metric.key === this.secondaryMetric)?.label ?? this.secondaryMetric;
 
@@ -429,12 +387,12 @@ export class ScreenCognition extends LitElement {
           <button class="back-btn" @click=${this.goHome}>Retour accueil</button>
         </div>
         <div class="lead">
-          Shell de navigation pour explorer les thèmes capturés à travers plusieurs projections: bulles, barres et radar.
+          Vue globale sur toutes les données capturées, à travers plusieurs projections: bulles, barres et radar.
         </div>
         <div class="meta-row">
-          <span class="badge">${session ? html`<span><span class="badge-label">Session</span> ${new Date(session.capturedAt).toLocaleDateString('fr-FR')}</span>` : 'Session auto'}</span>
+          <span class="badge"><span><span class="badge-label">Périmètre</span> Toutes les données</span></span>
           <span class="badge"><span><span class="badge-label">Thèmes</span> ${themeCount}</span></span>
-          <span class="badge"><span><span class="badge-label">Posts</span> ${totalPosts}${this.bubbleData?.isPartial ? ` / ${availablePosts}` : ''}</span></span>
+          <span class="badge"><span><span class="badge-label">Posts</span> ${totalPosts}</span></span>
           <span class="badge"><span><span class="badge-label">Mode</span> ${this.mode}</span></span>
         </div>
       </div>
@@ -442,8 +400,8 @@ export class ScreenCognition extends LitElement {
       ${this.error ? html`<div class="error">${this.error}</div>` : nothing}
 
       <cognition-controls
-        .sessions=${this.sessions}
-        .selectedSessionId=${this.selectedSessionId}
+        .sessions=${[]}
+        .selectedSessionId=${''}
         .mode=${this.mode}
         .primaryMetric=${this.primaryMetric}
         .secondaryMetric=${this.secondaryMetric}
@@ -483,7 +441,7 @@ export class ScreenCognition extends LitElement {
               : html`
                   <cognition-radar-view
                     .themes=${this.bubbleData?.themes ?? []}
-                    .subtitle=${`Profil global de la session ${session ? new Date(session.capturedAt).toLocaleDateString('fr-FR') : 'sélectionnée'}`}
+                    .subtitle=${'Profil global sur l’ensemble des données capturées'}
                   ></cognition-radar-view>
                 `}
           </section>

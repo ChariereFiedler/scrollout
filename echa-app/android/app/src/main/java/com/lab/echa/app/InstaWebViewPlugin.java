@@ -567,6 +567,22 @@ public class InstaWebViewPlugin extends Plugin {
     }
 
     @PluginMethod()
+    public void queryCognitiveThemes(PluginCall call) {
+        String sessionId = call.getString("sessionId", "");
+        db.runAsync(() -> {
+            try {
+                JSONObject cognitiveThemes = db.getCognitiveThemesBySession(sessionId);
+                JSObject ret = new JSObject();
+                ret.put("themes", cognitiveThemes.getJSONArray("themes").toString());
+                ret.put("totalPosts", cognitiveThemes.getInt("totalPosts"));
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("queryCognitiveThemes error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
     public void queryExportSession(PluginCall call) {
         String sessionId = call.getString("sessionId", "");
         db.runAsync(() -> {
