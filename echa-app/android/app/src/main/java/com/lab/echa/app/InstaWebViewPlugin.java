@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Log;
+import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -54,12 +55,16 @@ public class InstaWebViewPlugin extends Plugin {
     private WebView instaWebView;
     private String trackerScript = "";
     private final List<String> collectedData = new ArrayList<>();
+    private boolean instagramVisible = false;
 
     // ML Kit
     private ImageLabeler labeler;
     private TextRecognizer textRecognizer;
     private final Set<String> analyzedUrls = new HashSet<>();
     private final ExecutorService mlExecutor = Executors.newSingleThreadExecutor();
+
+    // Tab bar height in dp
+    private static final int TAB_BAR_HEIGHT_DP = 52;
 
     @Override
     public void load() {
@@ -88,10 +93,32 @@ public class InstaWebViewPlugin extends Plugin {
         Log.i(TAG_ML, "ML Kit initialized");
     }
 
+    private int dpToPx(int dp) {
+        float density = getContext().getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
+    }
+
+    private int getStatusBarHeight() {
+        int resourceId = getContext().getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            return getContext().getResources().getDimensionPixelSize(resourceId);
+        }
+        return dpToPx(24); // fallback
+    }
+
     @PluginMethod()
     public void openInstagram(PluginCall call) {
         Activity activity = getActivity();
         activity.runOnUiThread(() -> {
+            if (instaWebView != null) {
+                // Already opened — just show it
+                showInstaWebView();
+                JSObject ret = new JSObject();
+                ret.put("status", "shown");
+                call.resolve(ret);
+                return;
+            }
+
             // Create WebView
             instaWebView = new WebView(activity);
             WebSettings settings = instaWebView.getSettings();
@@ -184,20 +211,66 @@ public class InstaWebViewPlugin extends Plugin {
 
             instaWebView.setWebChromeClient(new WebChromeClient());
 
+            // Add WebView with top margin for status bar + bottom margin for tab bar
             FrameLayout rootView = activity.findViewById(android.R.id.content);
             FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             );
+            params.topMargin = getStatusBarHeight();
+            params.bottomMargin = dpToPx(TAB_BAR_HEIGHT_DP);
             rootView.addView(instaWebView, params);
 
+            instagramVisible = true;
             instaWebView.loadUrl("https://www.instagram.com/accounts/login/");
-            Log.i(TAG, "Instagram WebView opened");
+            Log.i(TAG, "Instagram WebView opened with tab bar margin");
 
             JSObject ret = new JSObject();
             ret.put("status", "opened");
             call.resolve(ret);
         });
+    }
+
+    @PluginMethod()
+    public void showInstagram(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            showInstaWebView();
+            JSObject ret = new JSObject();
+            ret.put("status", instaWebView != null ? "shown" : "not_opened");
+            call.resolve(ret);
+        });
+    }
+
+    @PluginMethod()
+    public void hideInstagram(PluginCall call) {
+        getActivity().runOnUiThread(() -> {
+            hideInstaWebView();
+            JSObject ret = new JSObject();
+            ret.put("status", "hidden");
+            call.resolve(ret);
+        });
+    }
+
+    @PluginMethod()
+    public void isInstagramOpen(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("open", instaWebView != null);
+        ret.put("visible", instagramVisible);
+        call.resolve(ret);
+    }
+
+    private void showInstaWebView() {
+        if (instaWebView != null) {
+            instaWebView.setVisibility(View.VISIBLE);
+            instagramVisible = true;
+        }
+    }
+
+    private void hideInstaWebView() {
+        if (instaWebView != null) {
+            instaWebView.setVisibility(View.GONE);
+            instagramVisible = false;
+        }
     }
 
     @PluginMethod()
@@ -209,6 +282,7 @@ public class InstaWebViewPlugin extends Plugin {
                 rootView.removeView(instaWebView);
                 instaWebView.destroy();
                 instaWebView = null;
+                instagramVisible = false;
             }
             JSObject ret = new JSObject();
             ret.put("status", "closed");
@@ -270,7 +344,7 @@ public class InstaWebViewPlugin extends Plugin {
     }
 
     public boolean handleBack() {
-        if (instaWebView != null && instaWebView.canGoBack()) {
+        if (instaWebView != null && instagramVisible && instaWebView.canGoBack()) {
             instaWebView.goBack();
             return true;
         }
@@ -307,7 +381,6 @@ public class InstaWebViewPlugin extends Plugin {
                 int w = fullBitmap.getWidth();
                 int h = fullBitmap.getHeight();
                 Bitmap bitmap = fullBitmap;
-                // Instagram images are usually square, but just in case
                 if (w > 0 && h > 0 && Math.abs(w - h) > 50) {
                     int size = Math.min(w, h);
                     int x = (w - size) / 2;
@@ -421,7 +494,6 @@ public class InstaWebViewPlugin extends Plugin {
                     JSONArray imageUrls = data.optJSONArray("imageUrls");
 
                     if (imageUrls != null && imageUrls.length() > 0) {
-                        // Analyze only the first (main) image of the post
                         String firstUrl = imageUrls.getString(0);
                         analyzeImageFromUrl(firstUrl, postId, username);
                     }
