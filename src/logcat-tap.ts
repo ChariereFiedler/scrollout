@@ -18,6 +18,7 @@ export interface VisiblePost {
   carouselCount?: number;
   isSponsored: boolean;
   isSuggested: boolean;
+  videoUrl?: string;
 }
 
 export interface EchaEvent {
@@ -371,6 +372,7 @@ export class LogcatTap extends EventEmitter {
               mediaType: (p.data.mediaType as string) || 'photo',
               isSponsored: (p.data.isSponsored as boolean) || false,
               isSuggested: (p.data.isSuggested as boolean) || false,
+              videoUrl: (p.data.videoUrl as string) || '',
             } : undefined,
           })),
         };

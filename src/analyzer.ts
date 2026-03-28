@@ -71,6 +71,7 @@ interface ExtractedPost {
   ocrText: string; // texte détecté par MLKit (overlay/sous-titres brûlés)
   mlkitLabels: Array<{ text: string; confidence: number }>; // labels MLKit
   subtitles: string; // sous-titres Instagram auto-générés (reels plein écran)
+  videoUrl: string; // URL CDN vidéo (depuis WebView tracker)
 }
 
 interface PostWithAttention extends ExtractedPost {
@@ -145,6 +146,7 @@ function parsePostNodes(nodes: RawNode[]): ExtractedPost {
     ocrText: '',
     mlkitLabels: [],
     subtitles: '',
+    videoUrl: '',
   };
 
   let afterLikeButton = false;

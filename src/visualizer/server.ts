@@ -625,6 +625,21 @@ async function ensureMobileSession(sessionId: string): Promise<void> {
   } catch { /* race condition — ignore */ }
 }
 
+async function handleDashboardMessage(ws: WebSocket, raw: string): Promise<void> {
+  let msg: { type: string; postId?: string };
+  try { msg = JSON.parse(raw); } catch { return; }
+
+  if (msg.type === 'request-post-detail' && msg.postId) {
+    const post = await prisma.post.findUnique({
+      where: { id: msg.postId },
+      include: { enrichment: true },
+    });
+    if (post) {
+      ws.send(JSON.stringify({ type: 'post-detail', postId: msg.postId, data: post }));
+    }
+  }
+}
+
 wss.on('connection', (ws, req) => {
   const isMobile = req.headers['x-echa-source'] === 'mobile';
 
@@ -649,6 +664,9 @@ wss.on('connection', (ws, req) => {
       handleMobileMessage(raw).catch(e => {
         console.error('[visualizer] Mobile message error:', e);
       });
+    } else {
+      // Dashboard client messages
+      handleDashboardMessage(ws, raw).catch(() => {});
     }
   });
 

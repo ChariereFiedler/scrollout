@@ -193,6 +193,7 @@ export function normalizePostText(input: {
   ocrText?: string;
   subtitles?: string;
   audioTranscription?: string;
+  mlkitLabelsText?: string;
 }): {
   normalizedText: string;
   language: string;
@@ -214,6 +215,9 @@ export function normalizePostText(input: {
   }
   if (input.audioTranscription?.trim()) {
     segments.push(`[AUDIO_TRANSCRIPT] ${normalizeWhitespace(input.audioTranscription)}`);
+  }
+  if (input.mlkitLabelsText?.trim()) {
+    segments.push(input.mlkitLabelsText);
   }
 
   // 2. Dédupliquer et fusionner

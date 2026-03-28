@@ -191,7 +191,7 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
         where,
         take: limit,
         orderBy: { polarizationScore: 'desc' },
-        include: { post: { select: { username: true, caption: true, mediaType: true, attentionLevel: true, dwellTimeMs: true, isSponsored: true, ocrText: true, mlkitLabels: true, subtitles: true, hashtags: true, imageDesc: true } } },
+        include: { post: true },
       });
 
       json(res, posts);
@@ -374,9 +374,11 @@ export async function handleApi(req: IncomingMessage, res: ServerResponse): Prom
     }
   }
 
+  const pathname = url.split('?')[0];
+
   for (const route of routes) {
     if (route.method !== method) continue;
-    const match = url.match(route.pattern);
+    const match = pathname.match(route.pattern);
     if (match) {
       const params: Record<string, string> = {};
       if (match[1]) params.id = decodeURIComponent(match[1]);

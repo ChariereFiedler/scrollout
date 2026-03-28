@@ -80,6 +80,7 @@ model Post {
   mentioned      String   @default("[]") // JSON array
   allText        String   @default("") // blob complet pour full-text search
   ocrText        String   @default("") // texte détecté par MLKit (overlay/sous-titres brûlés)
+  mlkitLabels    String   @default("[]") // JSON [{text, confidence}] — labels MLKit vision
   subtitles      String   @default("") // sous-titres Instagram auto-générés
   videoUrl       String   @default("") // URL CDN vidéo (depuis WebView tracker)
   dwellTimeMs    Int      @default(0)

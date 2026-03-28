@@ -10,6 +10,10 @@ import type { LLMProvider } from './llm/provider';
 import { ENRICHMENT_SYSTEM_PROMPT, buildEnrichmentPrompt } from './llm/prompts';
 import type { TranscriptionProvider } from '../media/transcribe';
 import { processVideoMedia } from '../media/pipeline';
+import { shouldUseVision, callVisionLLM } from './vision';
+import type { EnrichmentPromptInput } from './llm/prompts';
+import { formatMLKitLabelsAsText } from './dictionaries/mlkit-labels';
+import type { MLKitLabel } from './dictionaries/mlkit-labels';
 
 export interface EnrichmentOptions {
   llmProvider: LLMProvider;
@@ -19,6 +23,8 @@ export interface EnrichmentOptions {
   dryRun?: boolean; // ne pas persister, juste afficher
   postIds?: string[]; // enrichir seulement ces posts
   transcriptionProvider?: TranscriptionProvider; // active la transcription audio pour vidéos
+  enableVision?: boolean; // active l'analyse vision GPT-4o pour posts à signal faible
+  visionDetail?: 'low' | 'high'; // détail vision (low = 85 tokens, high = 2000+)
 }
 
 interface LLMPreciseSubjectResult {
@@ -296,7 +302,7 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
   failed: number;
   skipped: number;
 }> {
-  const { llmProvider, batchSize = 20, delayMs = 500, rulesOnly = false, dryRun = false, postIds, transcriptionProvider } = options;
+  const { llmProvider, batchSize = 20, delayMs = 500, rulesOnly = false, dryRun = false, postIds, transcriptionProvider, enableVision = false, visionDetail = 'low' } = options;
   const stats = { processed: 0, succeeded: 0, failed: 0, skipped: 0 };
 
   const posts = await loadPostsToEnrich(postIds, batchSize);
@@ -321,7 +327,9 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
       }
     }
 
-    // 1. Normalize (include video sources if available)
+    // 1. Normalize (include video sources + ML Kit labels if available)
+    const mlkitLabels: MLKitLabel[] = (() => { try { return JSON.parse(post.mlkitLabels); } catch { return []; } })();
+    const mlkitLabelsText = formatMLKitLabelsAsText(mlkitLabels);
     const { normalizedText, language, keywordTerms } = normalizePostText({
       caption: post.caption,
       imageDesc: post.imageDesc,
@@ -330,6 +338,7 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
       ocrText: post.ocrText || undefined,
       subtitles: post.subtitles || undefined,
       audioTranscription,
+      mlkitLabelsText: mlkitLabelsText || undefined,
     });
 
     // Skip si texte trop court ou username manquant (données capture insuffisantes)
@@ -343,10 +352,42 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
     // 2. Rules
     const rulesResult = applyRules({ normalizedText, hashtags, username: post.username });
 
-    // 3. LLM (optionnel)
+    // 2.5. Vision (si activée et post à signal faible avec images)
+    const imageUrls: string[] = (() => { try { return JSON.parse(post.imageUrls); } catch { return []; } })();
+    const useVision = enableVision && !rulesOnly && shouldUseVision(normalizedText, rulesResult.confidenceScore, imageUrls);
+
+    // 3. LLM (optionnel) — texte ou vision
     let llmResult: LLMEnrichmentResult | null = null;
     if (!rulesOnly) {
-      llmResult = await callLLM(llmProvider, normalizedText, post.username, hashtags, post.mediaType, rulesResult);
+      if (useVision && imageUrls.length > 0) {
+        // Vision mode : envoie l'image au LLM
+        const visionInput: EnrichmentPromptInput = {
+          normalizedText,
+          username: post.username,
+          hashtags,
+          mediaType: post.mediaType,
+          rulesHints: {
+            mainTopics: rulesResult.mainTopics,
+            subjects: rulesResult.subjects,
+            politicalScore: rulesResult.politicalExplicitnessScore,
+            polarizationScore: rulesResult.polarizationScore,
+            detectedActors: rulesResult.politicalActors,
+          },
+          candidatePreciseSubjects: rulesResult.candidatePreciseSubjectIds
+            .map(id => { const f = getPreciseSubjectById(id); return f ? { id: f.ps.id, statement: f.ps.statement } : null; })
+            .filter((ps): ps is { id: string; statement: string } => ps !== null),
+        };
+        const visionResult = await callVisionLLM(llmProvider, imageUrls[0], visionInput, { detail: visionDetail });
+        if (visionResult) {
+          llmResult = visionResult as unknown as LLMEnrichmentResult;
+          console.log(`[enrich] #${stats.processed} @${post.username} — 🔍 vision used`);
+        } else {
+          // Fallback to text-only LLM
+          llmResult = await callLLM(llmProvider, normalizedText, post.username, hashtags, post.mediaType, rulesResult);
+        }
+      } else {
+        llmResult = await callLLM(llmProvider, normalizedText, post.username, hashtags, post.mediaType, rulesResult);
+      }
       if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
     }
 

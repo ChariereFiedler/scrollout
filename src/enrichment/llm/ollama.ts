@@ -1,8 +1,10 @@
 /**
  * Provider Ollama — modèles locaux (gratuit, offline).
  * Ollama expose une API compatible OpenAI sur localhost:11434.
+ * Ne supporte pas la vision — les images sont ignorées, seul le texte est envoyé.
  */
-import type { LLMProvider, LLMMessage, LLMResponse } from './provider';
+import type { LLMProvider, LLMMessage, LLMResponse, LLMCallOptions } from './provider';
+import { extractTextContent } from './provider';
 
 export function createOllamaProvider(options?: {
   baseUrl?: string;
@@ -13,13 +15,20 @@ export function createOllamaProvider(options?: {
 
   return {
     name: 'ollama',
-    async call(messages: LLMMessage[], opts): Promise<LLMResponse> {
+    supportsVision: false,
+    async call(messages: LLMMessage[], opts?: LLMCallOptions): Promise<LLMResponse> {
+      // Strip image parts — Ollama text-only
+      const textMessages = messages.map(m => ({
+        role: m.role,
+        content: extractTextContent(m.content),
+      }));
+
       const response = await fetch(`${baseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
-          messages,
+          messages: textMessages,
           stream: false,
           options: {
             temperature: opts?.temperature ?? 0.2,

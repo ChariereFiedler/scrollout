@@ -38,6 +38,8 @@ interface AnalysisPost {
   allTextContent: string;
   ocrText: string;
   mlkitLabels: Array<{ text: string; confidence: number }>;
+  imageUrls?: string[];
+  videoUrl?: string;
   subtitles: string;
   firstSeenAt: number;
   lastSeenAt: number;
@@ -100,7 +102,7 @@ export async function ingestAnalysis(analysisPath: string): Promise<{ sessionId:
         caption: p.caption || '',
         hashtags: JSON.stringify(p.hashtags || []),
         imageDesc: p.imageDescription || '',
-        imageUrls: '[]',
+        imageUrls: JSON.stringify(p.imageUrls || []),
         mediaType: p.mediaType || 'photo',
         likeCount: p.likeNum || 0,
         commentCount: p.commentNum || 0,
@@ -113,6 +115,8 @@ export async function ingestAnalysis(analysisPath: string): Promise<{ sessionId:
         mentioned: JSON.stringify(p.mentionedAccounts || []),
         allText: p.allTextContent || '',
         ocrText: p.ocrText || '',
+        mlkitLabels: JSON.stringify(p.mlkitLabels || []),
+        videoUrl: p.videoUrl || '',
         subtitles: p.subtitles || '',
         dwellTimeMs: p.dwellTimeMs || 0,
         attentionLevel: p.attentionLevel || 'skipped',

@@ -10,6 +10,8 @@
  *   npx tsx src/enrich.ts --post-id "xxx"    # Enrichit un post spécifique
  *   npx tsx src/enrich.ts --with-audio       # Active la transcription audio vidéos (Whisper)
  *   npx tsx src/enrich.ts --whisper-api      # Utilise Whisper API au lieu de Whisper local
+ *   npx tsx src/enrich.ts --vision           # Active GPT-4o vision pour posts à signal faible
+ *   npx tsx src/enrich.ts --vision-high      # Vision en détail high (plus précis, plus cher)
  */
 import 'dotenv/config';
 import { enrichBatch } from './enrichment/pipeline';
@@ -25,6 +27,8 @@ async function main() {
   const dryRun = args.includes('--dry-run');
   const withAudio = args.includes('--with-audio');
   const useWhisperAPI = args.includes('--whisper-api');
+  const enableVision = args.includes('--vision') || args.includes('--vision-high');
+  const visionDetail = args.includes('--vision-high') ? 'high' as const : 'low' as const;
 
   const batchIdx = args.indexOf('--batch');
   const batchSize = batchIdx !== -1 ? parseInt(args[batchIdx + 1], 10) : 20;
@@ -66,7 +70,10 @@ async function main() {
     }
   }
 
-  console.log(`[enrich] Batch: ${batchSize}, dryRun: ${dryRun}, audio: ${withAudio}`);
+  if (enableVision && !useOpenAI) {
+    console.log('[enrich] ⚠️ --vision nécessite --openai (Ollama ne supporte pas la vision)');
+  }
+  console.log(`[enrich] Batch: ${batchSize}, dryRun: ${dryRun}, audio: ${withAudio}, vision: ${enableVision}${enableVision ? ` (${visionDetail})` : ''}`);
 
   const result = await enrichBatch({
     llmProvider,
@@ -74,8 +81,10 @@ async function main() {
     rulesOnly,
     dryRun,
     postIds,
-    delayMs: useOpenAI ? 200 : 100, // Ollama local = pas de rate limit strict
+    delayMs: useOpenAI ? 200 : 100,
     transcriptionProvider,
+    enableVision,
+    visionDetail,
   });
 
   console.log(`[enrich] Résultat final:`, result);
