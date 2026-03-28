@@ -1,4 +1,5 @@
 import { getPosts, getSessions, safeParse, type PostEntry, type SessionSummary } from './db-bridge.js';
+import { normalizeSeries, type NormalizationStrategy } from './normalization.js';
 
 export type VisualizationMode =
   | 'bubble'
@@ -74,6 +75,11 @@ export interface CognitiveBubbleLoadOptions {
   limit?: number;
 }
 
+export interface CognitiveNormalizationOptions {
+  strategies?: Partial<Record<CognitiveMetricKey, NormalizationStrategy>>;
+  clipPercentiles?: readonly [number, number];
+}
+
 export const COGNITIVE_METRICS: CognitiveMetricDefinition[] = [
   {
     key: 'frequency',
@@ -130,6 +136,17 @@ const ATTENTION_SCORES: Record<string, number> = {
   glanced: 33,
   viewed: 66,
   engaged: 100,
+};
+
+const DEFAULT_NORMALIZATION_STRATEGIES: Record<CognitiveMetricKey, NormalizationStrategy> = {
+  frequency: 'clipped-min-max',
+  durationTotalMs: 'log-min-max',
+  durationAverageMs: 'clipped-min-max',
+  engagement: 'min-max',
+  engagedShare: 'min-max',
+  politicalScore: 'min-max',
+  polarization: 'min-max',
+  confidence: 'min-max',
 };
 
 function asNumber(value: unknown, fallback = 0): number {
@@ -330,22 +347,26 @@ export function aggregateCognitiveThemes(posts: PostEntry[]): CognitiveThemeAggr
 
 export function normalizeCognitiveThemes(
   themes: CognitiveThemeAggregate[],
+  options: CognitiveNormalizationOptions = {},
 ): { themes: CognitiveThemeAggregate[]; metricRanges: CognitiveMetricRanges } {
-  const ranges = COGNITIVE_METRICS.reduce((acc, metric) => {
+  const clipPercentiles: readonly [number, number] = options.clipPercentiles ?? [0.05, 0.95];
+  const metricResults = COGNITIVE_METRICS.reduce((acc, metric) => {
     const values = themes.map(theme => metricValue(theme, metric.key));
-    const min = values.length > 0 ? Math.min(...values) : 0;
-    const max = values.length > 0 ? Math.max(...values) : 0;
-    acc[metric.key] = { min, max };
+    const strategy = options.strategies?.[metric.key] ?? DEFAULT_NORMALIZATION_STRATEGIES[metric.key];
+    acc[metric.key] = normalizeSeries(values, { strategy, clipPercentiles });
+    return acc;
+  }, {} as Record<CognitiveMetricKey, ReturnType<typeof normalizeSeries>>);
+
+  const metricRanges = COGNITIVE_METRICS.reduce((acc, metric) => {
+    const result = metricResults[metric.key];
+    acc[metric.key] = result ? result.rawRange : { min: 0, max: 0 };
     return acc;
   }, {} as CognitiveMetricRanges);
 
-  const normalizedThemes = themes.map(theme => {
+  const normalizedThemes = themes.map((theme, index) => {
     const normalizedMetrics = COGNITIVE_METRICS.reduce((acc, metric) => {
-      const value = metricValue(theme, metric.key);
-      const { min, max } = ranges[metric.key];
-      acc[metric.key] = max === min
-        ? (max === 0 ? 0 : 50)
-        : ((value - min) / (max - min)) * 100;
+      const result = metricResults[metric.key];
+      acc[metric.key] = result?.values[index] ?? 0;
       return acc;
     }, {} as Partial<Record<CognitiveMetricKey, number>>);
 
@@ -355,7 +376,7 @@ export function normalizeCognitiveThemes(
     };
   });
 
-  return { themes: normalizedThemes, metricRanges: ranges };
+  return { themes: normalizedThemes, metricRanges };
 }
 
 export async function loadCognitiveBubbleData(options: CognitiveBubbleLoadOptions = {}): Promise<CognitiveBubbleDataset> {
