@@ -1,6 +1,6 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, scrolloutDots, scrolloutIconSvg } from '../styles/theme.js';
+import { theme, scrolloutIconSvg } from '../styles/theme.js';
 import {
   getCognitiveThemes,
   getPosts,
@@ -82,8 +82,7 @@ export class ScreenScrollout extends LitElement {
 
       .hero-top,
       .section-head,
-      .topic-row,
-      .wrap-card {
+      .topic-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -116,8 +115,7 @@ export class ScreenScrollout extends LitElement {
       }
 
       .title,
-      .section-title,
-      .wrap-title {
+      .section-title {
         font-family: var(--font-heading);
         font-weight: 900;
       }
@@ -127,17 +125,18 @@ export class ScreenScrollout extends LitElement {
         line-height: 1;
       }
 
+      .subtitle {
+        font-family: var(--font-heading);
+        font-size: 18px;
+        font-weight: 900;
+        margin-top: 4px;
+      }
+
       .section-title {
         font-size: 18px;
       }
 
-      .wrap-title {
-        font-size: 20px;
-        margin-bottom: 4px;
-      }
-
       .sub,
-      .wrap-note,
       .topic-metric,
       .empty {
         color: var(--text-dim);
@@ -210,20 +209,6 @@ export class ScreenScrollout extends LitElement {
         background: var(--surface2);
       }
 
-      .wrap-card {
-        align-items: center;
-      }
-
-      .dot-row {
-        margin-top: 12px;
-      }
-
-      .dot-row span {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-      }
-
       .metric-btn.active {
         color: var(--accent);
         background: rgba(107, 107, 255, 0.12);
@@ -270,7 +255,6 @@ export class ScreenScrollout extends LitElement {
       @media (max-width: 680px) {
         .hero-top,
         .section-head,
-        .wrap-card,
         .topic-row {
           align-items: flex-start;
           flex-direction: column;
@@ -452,17 +436,17 @@ export class ScreenScrollout extends LitElement {
             <div class="brand">
               <div class="brand-mark" .innerHTML=${scrolloutIconSvg(30)}></div>
               <div>
-                <div class="eyebrow">Scrollout</div>
-                <div class="title">Piloter mon flux</div>
+                <div class="title">Scrollout</div>
+                <div class="subtitle">Comprendre ma bulle</div>
               </div>
             </div>
             <button class="ghost-btn" @click=${() => this.dispatch('go-instagram')}>Retour Instagram</button>
           </div>
           <div class="sub">
-            Choisissez un sujet, lancez un flux cible, ou ouvrez votre Wrapped pour comprendre la bulle actuelle.
+            Acces direct a la lecture de votre bulle cognitive et de ses themes dominants.
           </div>
           <div class="hero-actions">
-            <button class="pill-btn primary-btn" @click=${() => this.dispatch('open-wrapped')}>Voir mon Wrapped</button>
+            <button class="pill-btn primary-btn" @click=${() => this.dispatch('open-wrapped')}>Voir ma bulle</button>
           </div>
           <div class="stats-row">
             <div class="stat">
@@ -478,18 +462,6 @@ export class ScreenScrollout extends LitElement {
               <div class="stat-value">${this.topics.length}</div>
             </div>
           </div>
-        </section>
-
-        <section class="section-card wrap-card">
-          <div>
-            <div class="section-meta">Wrapped</div>
-            <div class="wrap-title">Comprendre ma bulle</div>
-            <div class="wrap-note">Acces direct a la lecture de votre bulle cognitive et de ses themes dominants.</div>
-            <div class="dot-row">
-              ${scrolloutDots.slice(0, 5).map(color => html`<span style="background:${color}"></span>`)}
-            </div>
-          </div>
-          <button class="pill-btn primary-btn" @click=${() => this.dispatch('open-wrapped')}>Ouvrir</button>
         </section>
 
         <section class="section-card">
