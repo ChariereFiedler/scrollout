@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, scrolloutDots } from './styles/theme.js';
+import { theme, scrolloutDots, scrolloutIconSvg } from './styles/theme.js';
 import {
   openInstagram,
   showInstagram,
@@ -29,25 +29,23 @@ export class AppShell extends LitElement {
       /* ── FAB menu ── */
       .fab {
         position: fixed;
-        top: calc(env(safe-area-inset-top, 0px) + 10px);
-        right: 128px;
+        top: calc(env(safe-area-inset-top, 0px) + 8px);
+        left: 12px;
         width: 36px; height: 36px;
-        border-radius: 50%;
-        background: transparent;
-        border: none;
-        box-shadow: none;
+        border-radius: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
         display: flex; align-items: center; justify-content: center;
         cursor: pointer; z-index: 9998; padding: 0;
         -webkit-tap-highlight-color: transparent;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.2s ease, transform 0.15s ease;
       }
-      .fab:active { opacity: 0.5; }
+      .fab:active { transform: scale(0.92); }
       .fab.open {
         opacity: 0;
         pointer-events: none;
       }
-      .fab .dots { display: grid; grid-template-columns: repeat(3,4px); gap: 1.5px; }
-      .fab .dots span { width: 4px; height: 4px; border-radius: 50%; }
+      .fab svg { width: 28px; height: 28px; }
 
       /* ── Sidebar ── */
       .backdrop {
@@ -76,8 +74,7 @@ export class AppShell extends LitElement {
         padding: 20px 18px 16px;
         border-bottom: 1px solid var(--border);
       }
-      .drawer-logo { display: flex; gap: 3px; }
-      .drawer-logo span { width: 6px; height: 6px; border-radius: 50%; }
+      .drawer-logo svg { width: 28px; height: 28px; }
       .drawer-brand {
         font-family: var(--font-heading);
         font-size: 18px; font-weight: 900;
@@ -136,7 +133,7 @@ export class AppShell extends LitElement {
       .screen {
         flex: 1; overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding-top: env(safe-area-inset-top, 0px);
+        padding-top: calc(env(safe-area-inset-top, 0px) + 48px);
       }
 
       /* ── Wrapped overlay ── */
@@ -307,9 +304,7 @@ export class AppShell extends LitElement {
 
       <div class="drawer ${this.drawer ? 'open' : ''}">
         <div class="drawer-head">
-          <div class="drawer-logo">
-            ${scrolloutDots.slice(0, 5).map(c => html`<span style="background:${c}"></span>`)}
-          </div>
+          <div class="drawer-logo" .innerHTML=${scrolloutIconSvg(28)}></div>
           <span class="drawer-brand">Scrollout</span>
         </div>
         <div class="drawer-nav">
@@ -322,9 +317,11 @@ export class AppShell extends LitElement {
         <div class="drawer-foot">scrollout v0.9</div>
       </div>
 
-      <button class="fab ${this.drawer ? 'open' : ''}" @click=${() => { this.drawer = !this.drawer; }}>
-        <span class="dots">${scrolloutDots.map(c => html`<span style="background:${c}"></span>`)}</span>
-      </button>
+      ${this.tab !== 'instagram' ? html`
+        <button class="fab ${this.drawer ? 'open' : ''}" @click=${() => { this.drawer = !this.drawer; }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      ` : ''}
 
       <div class="screen">
         ${this.tab === 'home' ? html`

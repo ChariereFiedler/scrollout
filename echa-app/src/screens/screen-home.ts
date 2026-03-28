@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, polColors, scrolloutDots, domainColors, attentionColors } from '../styles/theme.js';
+import { theme, polColors, scrolloutDots, domainColors, attentionColors, scrolloutIconSvg } from '../styles/theme.js';
 import { openInstagram } from '../services/native-bridge.js';
 import { getStats, type DbStats } from '../services/db-bridge.js';
 
@@ -114,23 +114,19 @@ export class ScreenHome extends LitElement {
         text-align: center;
         margin-bottom: 28px;
       }
+      .logo-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+      .logo-row svg { width: 36px; height: 36px; }
       .logo {
         font-family: var(--font-heading);
         font-size: 28px;
         font-weight: 900;
         letter-spacing: -0.5px;
-      }
-      .logo .o { color: var(--bleu-indigo); }
-      .dots {
-        display: flex;
-        justify-content: center;
-        gap: 5px;
-        margin: 10px 0 6px;
-      }
-      .dots span {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
       }
       .subtitle {
         font-family: var(--font-mono);
@@ -754,8 +750,10 @@ export class ScreenHome extends LitElement {
 
     return html`
       <div class="header">
-        <div class="logo">Scr<span class="o">o</span>llout</div>
-        <div class="dots">${scrolloutDots.map(c => html`<span style="background:${c}"></span>`)}</div>
+        <div class="logo-row">
+          <span .innerHTML=${scrolloutIconSvg(36)}></span>
+          <span class="logo">Scrollout</span>
+        </div>
         <div class="subtitle">ton feed, decrypte</div>
       </div>
 
