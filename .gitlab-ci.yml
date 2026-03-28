@@ -136,7 +136,7 @@ build:apk:
     - cd echa-app/android
     - chmod +x gradlew
     - ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee ${CI_PROJECT_DIR}/ci-logs/gradle-build.log
-    - cp app/build/outputs/apk/release/app-release*.apk ${CI_PROJECT_DIR}/${APK_NAME}
+    - cp app/build/outputs/apk/release/app-*-release*.apk ${CI_PROJECT_DIR}/${APK_NAME} || cp app/build/outputs/apk/release/app-release*.apk ${CI_PROJECT_DIR}/${APK_NAME}
   artifacts:
     paths:
       - "${APK_NAME}"
