@@ -31,16 +31,18 @@ export class AppShell extends LitElement {
         position: fixed;
         top: calc(env(safe-area-inset-top, 0px) + 8px);
         left: 12px;
-        width: 36px; height: 36px;
-        border-radius: 8px;
-        background: var(--surface);
+        width: 38px; height: 38px;
+        border-radius: 10px;
+        background: var(--surface2);
         border: 1px solid var(--border);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         display: flex; align-items: center; justify-content: center;
         cursor: pointer; z-index: 9998; padding: 0;
+        color: var(--text);
         -webkit-tap-highlight-color: transparent;
         transition: opacity 0.2s ease, transform 0.15s ease;
       }
-      .fab:active { transform: scale(0.92); }
+      .fab:active { transform: scale(0.92); background: var(--surface3); }
       .fab.open {
         opacity: 0;
         pointer-events: none;
