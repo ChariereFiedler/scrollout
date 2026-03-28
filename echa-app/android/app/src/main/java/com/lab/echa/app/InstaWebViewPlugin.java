@@ -139,6 +139,14 @@ public class InstaWebViewPlugin extends Plugin {
         return dpToPx(24); // fallback
     }
 
+    private int getNavigationBarHeight() {
+        int resourceId = getContext().getResources().getIdentifier("navigation_bar_height", "dimen", "android");
+        if (resourceId > 0) {
+            return getContext().getResources().getDimensionPixelSize(resourceId);
+        }
+        return 0;
+    }
+
     private void ensureCognitionButton(Activity activity) {
         if (cognitionButton != null) return;
 
@@ -332,14 +340,15 @@ public class InstaWebViewPlugin extends Plugin {
                 FrameLayout.LayoutParams.MATCH_PARENT
             );
             params.topMargin = getStatusBarHeight();
-            params.bottomMargin = dpToPx(TAB_BAR_HEIGHT_DP);
+            // Reserve space for Scrollout tab bar + system navigation bar
+            params.bottomMargin = dpToPx(TAB_BAR_HEIGHT_DP) + getNavigationBarHeight();
             rootView.addView(instaWebView, params);
             ensureCognitionButton(activity);
 
             instagramVisible = true;
             updateCognitionButtonVisibility();
             instaWebView.loadUrl("https://www.instagram.com/accounts/login/");
-            Log.i(TAG, "Instagram WebView opened with tab bar margin");
+            Log.i(TAG, "Instagram WebView opened with bottom margin: " + params.bottomMargin + "px (tab=" + dpToPx(TAB_BAR_HEIGHT_DP) + " + nav=" + getNavigationBarHeight() + ")");
 
             JSObject ret = new JSObject();
             ret.put("status", "opened");
@@ -526,7 +535,9 @@ public class InstaWebViewPlugin extends Plugin {
 
         db.runAsync(() -> {
             try {
-                JSONArray posts = db.getPostsBySession(sessionId, offset, limit);
+                JSONArray posts = (sessionId == null || sessionId.isEmpty())
+                        ? db.getAllPosts(offset, limit)
+                        : db.getPostsBySession(sessionId, offset, limit);
                 JSObject ret = new JSObject();
                 ret.put("posts", posts.toString());
                 call.resolve(ret);

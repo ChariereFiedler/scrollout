@@ -110,6 +110,17 @@ export class ScreenPosts extends LitElement {
         font-weight: 700;
         color: #fff;
       }
+      .pc-account-topics {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        margin-top: 2px;
+      }
+      .account-topic {
+        font-size: 9px;
+        color: var(--text-muted);
+        font-style: italic;
+      }
 
       .pc-caption {
         font-size: 13px;
@@ -384,6 +395,7 @@ export class ScreenPosts extends LitElement {
   @state() private loading = true;
   @state() private error = '';
   @state() private selectedPost: PostEntry | null = null;
+  @state() private accountTopics = new Map<string, string[]>();
 
   connectedCallback() {
     super.connectedCallback();
@@ -409,12 +421,33 @@ export class ScreenPosts extends LitElement {
     this.loading = true;
     this.error = '';
     try {
-      this.posts = await getPosts(this.selectedSession, 0, 100);
+      const limit = this.selectedSession === '' ? 500 : 100;
+      this.posts = await getPosts(this.selectedSession, 0, limit);
+      this.buildAccountTopics();
     } catch (e: any) {
       this.error = e.message || 'Erreur DB';
     } finally {
       this.loading = false;
     }
+  }
+
+  /** Aggregate top topics per account across all loaded posts */
+  private buildAccountTopics() {
+    const map = new Map<string, Map<string, number>>();
+    for (const p of this.posts) {
+      if (!p.username || !p.enrichment) continue;
+      if (!map.has(p.username)) map.set(p.username, new Map());
+      const topicCounts = map.get(p.username)!;
+      for (const t of safeParse(p.enrichment.mainTopics)) {
+        topicCounts.set(t, (topicCounts.get(t) || 0) + 1);
+      }
+    }
+    const result = new Map<string, string[]>();
+    for (const [user, topicCounts] of map) {
+      const sorted = [...topicCounts.entries()].sort((a, b) => b[1] - a[1]);
+      result.set(user, sorted.slice(0, 3).map(([t]) => t));
+    }
+    this.accountTopics = result;
   }
 
   private openDetail(p: PostEntry) {
@@ -617,6 +650,7 @@ export class ScreenPosts extends LitElement {
       ${this.sessions.length > 0 ? html`
         <select class="session-selector"
           @change=${(e: Event) => { this.selectedSession = (e.target as HTMLSelectElement).value; this.loadPosts(); }}>
+          <option value="" ?selected=${this.selectedSession === ''}>Toutes les sessions (${this.sessions.reduce((s, x) => s + x.postCount, 0)} posts)</option>
           ${this.sessions.map(s => {
             const date = new Date(s.capturedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
             return html`<option value=${s.id} ?selected=${s.id === this.selectedSession}>${date} — ${s.postCount} posts</option>`;
@@ -638,15 +672,24 @@ export class ScreenPosts extends LitElement {
               const initial = (p.username || '?')[0].toUpperCase();
               const attColor = attentionColors[p.attentionLevel] || 'var(--text-muted)';
 
+              const acctTopics = this.accountTopics.get(p.username || '') || [];
+
               return html`
                 <div class="post-card" @click=${() => this.openDetail(p)}>
                   <div class="pc-top">
                     <div class="pc-user">
                       <div class="pc-avatar">${initial}</div>
-                      <span class="pc-username">@${p.username || '?'}</span>
+                      <div>
+                        <span class="pc-username">@${p.username || '?'}</span>
+                        ${acctTopics.length > 0 ? html`
+                          <div class="pc-account-topics">
+                            ${acctTopics.map(t => html`<span class="account-topic">${t}</span>`)}
+                          </div>
+                        ` : ''}
+                      </div>
                     </div>
                     ${e ? html`
-                      <span class="pc-pol-badge" style="background:${polColors[polScore]}">${polScore}</span>
+                      <span class="pc-pol-badge" style="background:${polColors[polScore]}">${polLabels[polScore]}</span>
                     ` : ''}
                   </div>
 

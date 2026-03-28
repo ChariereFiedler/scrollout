@@ -345,6 +345,27 @@ public class EchaDatabase extends SQLiteOpenHelper {
         return result;
     }
 
+    public JSONArray getAllPosts(int offset, int limit) throws JSONException {
+        JSONArray result = new JSONArray();
+        Cursor c = getReadableDatabase().rawQuery(
+                "SELECT p.*, e.politicalExplicitnessScore, e.polarizationScore, " +
+                "e.mainTopics as enrichTopics, e.secondaryTopics as enrichSecondaryTopics, " +
+                "e.confidenceScore, e.axisEconomic, " +
+                "e.axisSocietal, e.axisAuthority, e.axisSystem, e.dominantAxis, " +
+                "e.mediaCategory, e.mediaQuality, e.tone as enrichTone, " +
+                "e.semanticSummary, e.primaryEmotion, e.narrativeFrame, " +
+                "e.politicalActors as enrichActors, e.activismSignal as enrichActivism, " +
+                "e.conflictSignal as enrichConflict " +
+                "FROM posts p LEFT JOIN post_enriched e ON e.postId = p.id " +
+                "ORDER BY p.dwellTimeMs DESC LIMIT ? OFFSET ?",
+                new String[]{String.valueOf(limit), String.valueOf(offset)});
+        while (c.moveToNext()) {
+            result.put(cursorToPostJson(c));
+        }
+        c.close();
+        return result;
+    }
+
     public JSONObject getStats() throws JSONException {
         JSONObject stats = new JSONObject();
         SQLiteDatabase db = getReadableDatabase();
