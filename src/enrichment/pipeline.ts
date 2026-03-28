@@ -15,6 +15,9 @@ import type { EnrichmentPromptInput } from './llm/prompts';
 import { formatMLKitLabelsAsText } from './dictionaries/mlkit-labels';
 import type { MLKitLabel } from './dictionaries/mlkit-labels';
 import { applyTopicCorrections } from './topic-corrections';
+import { getEnrichmentVersion } from './version';
+import { graphIngest } from './graph-ingest';
+import type { MergedEnrichment } from './graph-ingest';
 
 export interface EnrichmentOptions {
   llmProvider: LLMProvider;
@@ -192,6 +195,7 @@ function mergeResults(
     return {
       provider: 'rules',
       model: 'rules-v1',
+      version: getEnrichmentVersion(),
       normalizedText,
       semanticSummary: '',
       keywordTerms: JSON.stringify(keywordTerms),
@@ -279,6 +283,7 @@ function mergeResults(
   return {
     provider: providerName,
     model: modelName,
+    version: getEnrichmentVersion(),
     normalizedText,
     semanticSummary: llm.semantic_summary,
     keywordTerms: JSON.stringify(keywordTerms),
@@ -483,6 +488,18 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
           ...merged,
         },
       });
+
+      // 6. Graph ingest — populate knowledge graph from enrichment
+      try {
+        const graphResult = await graphIngest(post.id, merged as MergedEnrichment);
+        if (graphResult.entitiesCreated > 0) {
+          console.log(`[enrich] #${stats.processed} graph: ${graphResult.observationCount} obs, ${graphResult.entitiesCreated} new entities`);
+        }
+      } catch (graphErr) {
+        // Non-blocking — le PostEnriched est déjà persisté
+        console.error(`[enrich] graph-ingest error for ${post.id}:`, graphErr instanceof Error ? graphErr.message : graphErr);
+      }
+
       stats.succeeded++;
     } catch (err) {
       console.error(`[enrich] persist error for ${post.id}:`, err instanceof Error ? err.message : err);

@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, scrolloutDots } from '../styles/theme.js';
+import { theme, scrolloutDots, scrolloutIconSvg } from '../styles/theme.js';
 import {
   startDaemon,
   stopDaemon,
@@ -9,7 +9,7 @@ import {
   triggerNow,
   type DaemonStatus,
 } from '../services/enrichment-daemon.js';
-import { getStats, type DbStats } from '../services/db-bridge.js';
+import { getStats, resetAllEnrichments, type DbStats } from '../services/db-bridge.js';
 
 @customElement('screen-settings')
 export class ScreenSettings extends LitElement {
@@ -228,24 +228,18 @@ export class ScreenSettings extends LitElement {
         text-align: center;
         padding: 24px 16px;
       }
+      .about-logo-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .about-logo-row svg { width: 30px; height: 30px; }
       .about-logo {
         font-family: var(--font-heading);
         font-size: 24px;
         font-weight: 900;
-        margin-bottom: 8px;
-      }
-      .about-logo .o { color: var(--bleu-indigo); }
-      .about-dots {
-        display: flex;
-        justify-content: center;
-        gap: 4px;
-        margin-bottom: 10px;
-      }
-      .about-dots span {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        opacity: 0.7;
       }
       .about-tagline {
         font-family: var(--font-mono);
@@ -300,21 +294,28 @@ export class ScreenSettings extends LitElement {
   @state() private daemonInterval = parseInt(localStorage.getItem('scrollout-daemon-interval') || '120');
   @state() private daemonStatus: DaemonStatus = getDaemonStatus();
   @state() private rulesOnly = localStorage.getItem('scrollout-rules-only') === 'true';
-  @state() private enableTranscription = localStorage.getItem('scrollout-enable-transcription') === 'true';
-  @state() private enableVision = localStorage.getItem('scrollout-enable-vision') === 'true';
+  @state() private enableTranscription = localStorage.getItem('scrollout-enable-transcription') !== 'false';
+  @state() private enableVision = localStorage.getItem('scrollout-enable-vision') !== 'false';
   @state() private stats: DbStats | null = null;
+  @state() private enrichMsg = '';
 
   private unsubDaemon?: () => void;
+  private statsInterval?: ReturnType<typeof setInterval>;
 
   connectedCallback() {
     super.connectedCallback();
     this.unsubDaemon = onStatusChange(s => { this.daemonStatus = s; });
     this.loadStats();
+    // Auto-refresh stats every 5s when daemon is running
+    this.statsInterval = setInterval(() => {
+      if (this.daemonStatus.running) this.loadStats();
+    }, 5000);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.unsubDaemon?.();
+    if (this.statsInterval) clearInterval(this.statsInterval);
   }
 
   private async loadStats() {
@@ -367,6 +368,55 @@ export class ScreenSettings extends LitElement {
       return;
     }
     await triggerNow();
+  }
+
+  private async resetEnrichments() {
+    this.enrichMsg = 'Suppression en cours...';
+    try {
+      // Delete ALL enrichments (loop until none left)
+      let totalDeleted = 0;
+      let batch: number;
+      do {
+        batch = await resetAllEnrichments();
+        totalDeleted += batch;
+        this.enrichMsg = `Suppression: ${totalDeleted} supprimes...`;
+      } while (batch > 0);
+
+      this.enrichMsg = `${totalDeleted} enrichissements supprimes. Relance...`;
+      try { this.stats = await getStats(); } catch { /* */ }
+
+      // Stop existing daemon, restart in bulk mode
+      if (this.daemonStatus.running) stopDaemon();
+      const hasKey = !!this.openaiKey;
+      startDaemon({
+        intervalSec: 3,
+        batchSize: 1000,
+        threshold: 1,
+        apiKey: this.openaiKey,
+        rulesOnly: !hasKey,
+        enableTranscription: this.enableTranscription,
+        enableVision: this.enableVision,
+      });
+
+      this.enrichMsg = `${totalDeleted} posts a re-classifier. Daemon lance.`;
+
+      // Poll stats every 5s to update UI progress
+      const poll = setInterval(async () => {
+        try {
+          this.stats = await getStats();
+          const total = this.stats?.totalPosts || 0;
+          const enriched = this.stats?.totalEnriched || 0;
+          const pct = total > 0 ? Math.round(enriched / total * 100) : 0;
+          this.enrichMsg = `Re-classification: ${enriched}/${total} (${pct}%)`;
+          if (enriched >= total * 0.95) {
+            clearInterval(poll);
+            this.enrichMsg = `Re-classification terminee: ${enriched}/${total}`;
+          }
+        } catch { /* */ }
+      }, 5000);
+    } catch (e: any) {
+      this.enrichMsg = `Erreur: ${e.message}`;
+    }
   }
 
   private async testAndSave() {
@@ -443,7 +493,32 @@ export class ScreenSettings extends LitElement {
           <button class="btn btn-secondary" @click=${this.manualEnrich}>
             Enrichir maintenant
           </button>
+          <button class="btn btn-danger" @click=${this.resetEnrichments}>
+            Re-classifier tout
+          </button>
         </div>
+        ${ds.running && ds.pendingPosts > 0 ? (() => {
+          const total = ds.totalProcessed + ds.pendingPosts;
+          const pct = total > 0 ? Math.round(ds.totalProcessed / total * 100) : 0;
+          return html`
+            <div style="margin-top:10px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:4px;">
+                <span>${ds.totalProcessed}/${total} posts traites</span>
+                <span>${pct}%</span>
+              </div>
+              <div style="height:6px;background:var(--surface);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:var(--vert-menthe);border-radius:3px;transition:width 0.5s;"></div>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+                ${ds.totalSucceeded} enrichis, ${ds.totalSkipped} ignores, ${ds.totalFailed} erreurs
+              </div>
+            </div>`;
+        })() : ''}
+        ${this.enrichMsg ? html`
+          <div class="status-bar ok" style="margin-top:8px;">
+            ${this.enrichMsg}
+          </div>
+        ` : ''}
       </div>
 
       <!-- LLM config -->
@@ -546,9 +621,9 @@ export class ScreenSettings extends LitElement {
 
       <!-- About -->
       <div class="about">
-        <div class="about-logo">Scr<span class="o">o</span>llout</div>
-        <div class="about-dots">
-          ${scrolloutDots.map(c => html`<span style="background:${c}"></span>`)}
+        <div class="about-logo-row">
+          <span .innerHTML=${scrolloutIconSvg(30)}></span>
+          <span class="about-logo">Scrollout</span>
         </div>
         <div class="about-tagline">Reprends le controle sur ton feed</div>
         <div class="about-version">v0.1.0-alpha</div>

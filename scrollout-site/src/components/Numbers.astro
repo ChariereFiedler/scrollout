@@ -1,20 +1,21 @@
 ---
 const stats = [
-  { value: '51', label: 'dimensions sémantiques', color: 'var(--color-bleu-indigo)' },
-  { value: '24', label: 'thèmes détectés', color: 'var(--color-jaune)' },
-  { value: '15', label: 'types de narratifs', color: 'var(--color-rose)' },
-  { value: '4', label: 'axes politiques', color: 'var(--color-orange)' },
-  { value: '9', label: 'émotions détectées', color: 'var(--color-violet)' },
-  { value: '8', label: 'profils utilisateur', color: 'var(--color-vert-menthe)' },
+  { value: 51, label: 'dimensions sémantiques', color: 'var(--color-bleu-indigo)', glow: 'rgba(107, 107, 255, 0.1)' },
+  { value: 24, label: 'thèmes détectés', color: 'var(--color-jaune)', glow: 'rgba(255, 233, 74, 0.1)' },
+  { value: 15, label: 'types de narratifs', color: 'var(--color-rose)', glow: 'rgba(232, 139, 232, 0.1)' },
+  { value: 4, label: 'axes politiques', color: 'var(--color-orange)', glow: 'rgba(255, 123, 51, 0.1)' },
+  { value: 9, label: 'émotions détectées', color: 'var(--color-violet)', glow: 'rgba(139, 68, 232, 0.1)' },
+  { value: 8, label: 'profils utilisateur', color: 'var(--color-vert-menthe)', glow: 'rgba(107, 232, 139, 0.1)' },
 ];
 ---
 
 <div class="numbers-band">
-  <div class="numbers-row">
+  <div class="numbers-row" data-stagger>
     {stats.map((s) => (
       <div class="number-item">
-        <div class="number-dot" style={`background: ${s.color}`}></div>
-        <h3>{s.value}</h3>
+        <div class="number-ring" style={`background: ${s.glow}; border-color: ${s.color}`}>
+          <h3 data-count={s.value} style={`color: ${s.color}`}>0</h3>
+        </div>
         <p class="mono">{s.label}</p>
       </div>
     ))}
@@ -24,7 +25,29 @@ const stats = [
 <style>
   .numbers-band {
     background: var(--bg-grey-light);
-    padding: 80px 24px;
+    padding: 100px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .numbers-band::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #DDD, transparent);
+  }
+
+  .numbers-band::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #DDD, transparent);
   }
 
   .numbers-row {
@@ -40,33 +63,55 @@ const stats = [
   .number-item {
     flex: 1;
     min-width: 140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
-  .number-dot {
-    width: 16px;
-    height: 16px;
+  .number-ring {
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
-    margin: 0 auto 12px;
+    border: 2px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    transition: transform 0.4s var(--ease-out-back), box-shadow 0.4s ease;
+  }
+
+  .number-item:hover .number-ring {
+    transform: scale(1.1);
+    box-shadow: 0 0 40px var(--card-glow, rgba(0,0,0,0.05));
   }
 
   .number-item h3 {
-    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-size: clamp(2rem, 5vw, 3.5rem);
     line-height: 1;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
   }
 
   .number-item p {
-    margin-top: 8px;
+    margin-top: 0;
     color: var(--text-grey);
+    font-size: 0.7rem;
   }
 
   @media (max-width: 640px) {
-    .numbers-band { padding: 48px 16px; }
+    .numbers-band { padding: 60px 16px; }
     .numbers-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 24px;
+      gap: 32px;
     }
     .number-item { min-width: auto; }
-    .number-dot { width: 12px; height: 12px; margin-bottom: 8px; }
+    .number-ring {
+      width: 80px;
+      height: 80px;
+    }
+    .number-item h3 {
+      font-size: 2rem;
+    }
   }
 </style>

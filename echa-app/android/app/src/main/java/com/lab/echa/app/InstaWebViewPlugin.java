@@ -72,8 +72,6 @@ public class InstaWebViewPlugin extends Plugin {
     private EchaDatabase db;
     private String currentSessionId = null;
 
-    // Tab bar height in dp
-    private static final int TAB_BAR_HEIGHT_DP = 52;
 
     @Override
     public void load() {
@@ -126,6 +124,22 @@ public class InstaWebViewPlugin extends Plugin {
         }
 
         // Init Database
+        // Load scrollout-ui.js from assets
+        try {
+            InputStream is3 = getContext().getAssets().open("public/scrollout-ui.js");
+            BufferedReader reader3 = new BufferedReader(new InputStreamReader(is3));
+            StringBuilder sb3 = new StringBuilder();
+            String line3;
+            while ((line3 = reader3.readLine()) != null) {
+                sb3.append(line3).append("\n");
+            }
+            scrolloutUiScript = sb3.toString();
+            reader3.close();
+            Log.i(TAG, "Scrollout UI script loaded: " + scrolloutUiScript.length() + " chars");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to load scrollout-ui.js: " + e.getMessage());
+        }
+
         db = EchaDatabase.getInstance(getContext());
         Log.i(TAG, "Database initialized");
 
@@ -201,13 +215,13 @@ public class InstaWebViewPlugin extends Plugin {
                 "  function nuke() {" +
                 "    document.querySelectorAll('[role=\"dialog\"], [class*=\"RnEpo\"], [class*=\"Bottom\"]').forEach(function(el) {" +
                 "      var t = el.textContent || '';" +
-                "      if (t.match(/open.*(app|instagram)|ouvrir|t.l.charger|get the app|not now|pas maintenant/i)) {" +
+                "      if (t.match(/open.*(app|instagram)|ouvrir|t.l.charger|get the app|not now|pas maintenant|utiliser l.application|use the app|use app/i)) {" +
                 "        el.style.display = 'none';" +
                 "      }" +
                 "    });" +
                 "    document.querySelectorAll('div[style*=\"fixed\"], div[style*=\"sticky\"]').forEach(function(el) {" +
                 "      var t = el.textContent || '';" +
-                "      if (t.match(/open.*(app|instagram)|ouvrir|t.l.charger|get the app/i)) {" +
+                "      if (t.match(/open.*(app|instagram)|ouvrir|t.l.charger|get the app|utiliser l.application|use the app|use app/i)) {" +
                 "        el.style.display = 'none';" +
                 "      }" +
                 "    });" +
@@ -243,6 +257,7 @@ public class InstaWebViewPlugin extends Plugin {
                                 }
                                 view.evaluateJavascript(trackerScript, null);
                                 Log.i(TAG, "Tracker injected into: " + url);
+                                // Inject Scrollout UI overlay (button + hide IG chrome)
                                 if (!scrolloutUiScript.isEmpty()) {
                                     view.evaluateJavascript(scrolloutUiScript, null);
                                     Log.i(TAG, "Scrollout UI injected into: " + url);
@@ -280,13 +295,12 @@ public class InstaWebViewPlugin extends Plugin {
                 FrameLayout.LayoutParams.MATCH_PARENT
             );
             params.topMargin = getStatusBarHeight();
-            // Reserve space for Scrollout tab bar + system navigation bar
-            params.bottomMargin = dpToPx(TAB_BAR_HEIGHT_DP) + getNavigationBarHeight();
+            params.bottomMargin = getNavigationBarHeight();
             rootView.addView(instaWebView, params);
 
             instagramVisible = true;
             instaWebView.loadUrl("https://www.instagram.com/accounts/login/");
-            Log.i(TAG, "Instagram WebView opened with bottom margin: " + params.bottomMargin + "px (tab=" + dpToPx(TAB_BAR_HEIGHT_DP) + " + nav=" + getNavigationBarHeight() + ")");
+            Log.i(TAG, "Instagram WebView opened (full screen)");
 
             JSObject ret = new JSObject();
             ret.put("status", "opened");
@@ -647,6 +661,85 @@ public class InstaWebViewPlugin extends Plugin {
         });
     }
 
+    @PluginMethod()
+    public void resetAllEnrichments(PluginCall call) {
+        db.runAsync(() -> {
+            try {
+                int deleted = db.resetAllEnrichments();
+                JSObject ret = new JSObject();
+                ret.put("deleted", deleted);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("resetAllEnrichments error: " + e.getMessage());
+            }
+        });
+    }
+
+    // ─── Knowledge Graph Methods (Capacitor @PluginMethod) ────
+
+    @PluginMethod()
+    public void saveGraphObservations(PluginCall call) {
+        String postId = call.getString("postId", "");
+        String observationsJson = call.getString("observations", "[]");
+        if (postId.isEmpty()) { call.reject("Missing postId"); return; }
+
+        db.runAsync(() -> {
+            try {
+                JSONArray observations = new JSONArray(observationsJson);
+                db.saveObservations(postId, observations);
+                JSObject ret = new JSObject();
+                ret.put("count", observations.length());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("saveGraphObservations error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void queryGraphStats(PluginCall call) {
+        db.runAsync(() -> {
+            try {
+                JSONObject stats = db.getGraphStats();
+                JSObject ret = new JSObject();
+                ret.put("stats", stats.toString());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("queryGraphStats error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void hasGraphObservations(PluginCall call) {
+        String postId = call.getString("postId", "");
+        db.runAsync(() -> {
+            try {
+                boolean has = db.hasObservations(postId);
+                JSObject ret = new JSObject();
+                ret.put("has", has);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("hasGraphObservations error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void queryEnrichedWithoutGraph(PluginCall call) {
+        int limit = call.getInt("limit", 50);
+        db.runAsync(() -> {
+            try {
+                JSONArray posts = db.getEnrichedPostsWithoutGraph(limit);
+                JSObject ret = new JSObject();
+                ret.put("posts", posts.toString());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("queryEnrichedWithoutGraph error: " + e.getMessage());
+            }
+        });
+    }
+
     // ─── ML Kit: download image and analyze ─────────────────
 
     private void analyzeImageFromUrl(String imageUrl, String postId, String username) {
@@ -784,8 +877,24 @@ public class InstaWebViewPlugin extends Plugin {
                 JSObject obj = new JSObject(jsonData);
                 notifyListeners("trackerData", obj);
 
-                // Trigger ML Kit analysis on new posts
                 String type = obj.getString("type");
+
+                // Handle sidebar request from injected Scrollout button
+                if ("open_sidebar".equals(type)) {
+                    // Hide IG so Capacitor sidebar is visible, IG restored on sidebar close
+                    getActivity().runOnUiThread(() -> hideInstaWebView());
+                    notifyListeners("openSidebar", new JSObject());
+                    return;
+                }
+
+                // Handle wrapped request from charged Scrollout FAB
+                if ("open_wrapped".equals(type)) {
+                    getActivity().runOnUiThread(() -> hideInstaWebView());
+                    notifyListeners("openWrapped", new JSObject());
+                    return;
+                }
+
+                // Trigger ML Kit analysis on new posts
                 if ("new_post".equals(type)) {
                     JSONObject post = new JSONObject(jsonData).getJSONObject("post");
                     JSONObject data = post.getJSONObject("data");

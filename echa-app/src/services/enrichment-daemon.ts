@@ -11,12 +11,15 @@
 
 import {
   callOpenAI,
+  callOpenAIBatch,
   buildEnrichmentPrompt,
   SYSTEM_PROMPT,
   type LLMConfig,
   type LLMMessage,
+  type BatchPost,
 } from './llm-mobile';
 import { applyRulesShared, inferFallbackTopic, type RulesInput } from './rules-engine-shared';
+import { graphIngestMobile, type MobileEnrichment } from './graph-ingest-mobile';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -334,17 +337,61 @@ async function enrichPost(
   post: UnenrichedPost,
   llmConfig: LLMConfig | null,
 ): Promise<'success' | 'skipped' | 'failed'> {
-  // ━━ Phase 1 — Rules (toujours, gratuit) ━━
-  const rulesResult = applyRulesFromShared(post);
+  // ━━ Phase 1 — Agrégation texte (cascade de fallbacks) ━━
+  // Injecter mlkitLabels et ocrText dans le post AVANT le rules engine
+  // pour que le normalizedText soit le plus riche possible
+  const enrichedPost = { ...post };
+  const extraSignals: string[] = [];
+
+  // mlkitLabels → texte lisible
+  if (post.mlkitLabels) {
+    try {
+      const labels = JSON.parse(post.mlkitLabels);
+      if (Array.isArray(labels) && labels.length > 0) {
+        extraSignals.push(labels.join(', '));
+      }
+    } catch { /* */ }
+  }
+
+  // ocrText déjà dans post, mais on s'assure qu'il est dans allText
+  if (post.ocrText?.trim() && !post.allText?.includes(post.ocrText)) {
+    extraSignals.push(post.ocrText.trim());
+  }
+
+  // imageAlts — parfois riche (alt text ML des images)
+  if (post.imageAlts) {
+    try {
+      const alts = JSON.parse(post.imageAlts);
+      if (Array.isArray(alts)) {
+        const altText = alts.filter(Boolean).join(' ');
+        if (altText.length > 10 && !post.allText?.includes(altText)) {
+          extraSignals.push(altText);
+        }
+      }
+    } catch { /* */ }
+  }
+
+  // Ajouter les signaux au allText pour que le rules engine en bénéficie
+  if (extraSignals.length > 0) {
+    enrichedPost.allText = (post.allText || '') + ' ' + extraSignals.join(' ');
+  }
+
+  // ━━ Phase 1b — Rules engine ━━
+  const rulesResult = applyRulesFromShared(enrichedPost);
   if (!rulesResult) {
     log(`skip @${post.username} — rules engine error`);
     return 'skipped';
   }
 
   let normalizedText = rulesResult.normalizedText || '';
+
+  // Dernier fallback : username seul (pour les comptes connus)
+  if (normalizedText.length < 10 && post.username) {
+    normalizedText = (normalizedText + ' ' + post.username).trim();
+  }
+
   const words = normalizedText.split(/\s+/).filter((w: string) => w.length > 2);
-  if (normalizedText.length < 10 || words.length < 3) {
-    log(`skip @${post.username} — texte insuffisant`);
+  if (words.length < 1) {
     return 'skipped';
   }
 
@@ -428,6 +475,18 @@ async function enrichPost(
   // ━━ Persist ━━
   try {
     await saveEnrichment(post.id, enrichment);
+
+    // ━━ Graph ingest ━━
+    try {
+      const graphResult = await graphIngestMobile(post.id, enrichment as MobileEnrichment);
+      if (graphResult.observationCount > 0) {
+        log(`graph @${post.username}: ${graphResult.observationCount} obs`);
+      }
+    } catch (graphErr) {
+      // Non-blocking — enrichment already persisted
+      log(`graph error @${post.username}: ${graphErr instanceof Error ? graphErr.message : graphErr}`);
+    }
+
     return 'success';
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -451,33 +510,127 @@ async function tick() {
       return;
     }
 
-    log(`${pending} posts en attente — batch de ${Math.min(pending, config.batchSize)}`);
-
-    const posts = await fetchUnenriched(config.batchSize);
-
     const llmConfig: LLMConfig | null = config.rulesOnly
       ? null
       : { apiKey: config.apiKey, model: config.model };
 
+    // ━━ Phase rapide : rules-only bulk ━━
+    // Premier passage : enrichir TOUT avec les rules (instantané)
+    const bulkSize = Math.min(pending, config.batchSize || 1000);
+    log(`[tick] ${pending} posts en attente — rules bulk (${bulkSize})${llmConfig ? ' + LLM' : ' (rules-only)'}`);
+    const posts = await fetchUnenriched(bulkSize);
+    log(`[tick] fetchUnenriched returned ${posts.length} posts`);
+
     for (const post of posts) {
-      const result = await enrichPost(post, llmConfig);
+      const result = await enrichPost(post, null); // rules-only, pas de LLM
       stats.totalProcessed++;
       if (result === 'success') stats.totalSucceeded++;
       else if (result === 'failed') stats.totalFailed++;
-      else stats.totalSkipped++;
-
-      // Rate limiting entre appels (seulement si LLM actif)
-      if (llmConfig) await sleep(300);
+      else {
+        stats.totalSkipped++;
+        try {
+          await saveEnrichment(post.id, {
+            provider: 'skipped', model: 'none', version: '1',
+            mainTopics: '[]', domains: '[]', tone: 'neutre', confidenceScore: 0,
+          });
+        } catch { /* */ }
+      }
+      // Notify UI every 20 posts
+      if (stats.totalProcessed % 20 === 0) notify();
     }
 
     stats.lastEnrichAt = new Date().toISOString();
-    log(`Batch terminé: ${stats.totalSucceeded} enrichis`);
+    log(`Rules bulk terminé: ${stats.totalSucceeded} enrichis, ${stats.totalSkipped} skippés`);
     notify();
+
+    // ━━ Phase LLM batch : raffiner par groupes de 5 en un seul appel ━━
+    if (llmConfig) {
+      const BATCH_SIZE = 5;
+      // Préparer les posts pour le batch LLM
+      const batchPosts: { post: UnenrichedPost; rulesResult: ReturnType<typeof applyRulesShared>; normalizedText: string }[] = [];
+      for (const post of posts) {
+        const enrichedPost = { ...post };
+        const extra: string[] = [];
+        if (post.mlkitLabels) { try { const l = JSON.parse(post.mlkitLabels); if (Array.isArray(l) && l.length) extra.push(l.join(', ')); } catch {} }
+        if (post.ocrText?.trim() && !post.allText?.includes(post.ocrText)) extra.push(post.ocrText.trim());
+        if (post.imageAlts) { try { const a = JSON.parse(post.imageAlts); if (Array.isArray(a)) { const t = a.filter(Boolean).join(' '); if (t.length > 10) extra.push(t); } } catch {} }
+        if (extra.length) enrichedPost.allText = (post.allText || '') + ' ' + extra.join(' ');
+        const rr = applyRulesFromShared(enrichedPost);
+        if (!rr) continue;
+        const nt = rr.normalizedText || '';
+        if (nt.split(/\s+/).filter((w: string) => w.length > 2).length < 2) continue;
+        batchPosts.push({ post, rulesResult: rr, normalizedText: nt });
+      }
+
+      log(`LLM batch: ${batchPosts.length} posts, groupes de ${BATCH_SIZE}`);
+      let llmDone = 0;
+
+      for (let i = 0; i < batchPosts.length; i += BATCH_SIZE) {
+        const chunk = batchPosts.slice(i, i + BATCH_SIZE);
+        try {
+          const batchInput: BatchPost[] = chunk.map((c, idx) => ({
+            index: idx,
+            username: c.post.username,
+            normalizedText: c.normalizedText,
+            hashtags: safeParseArray(c.post.hashtags),
+            mediaType: c.post.mediaType,
+            rulesHints: {
+              mainTopics: c.rulesResult.mainTopics,
+              politicalScore: c.rulesResult.politicalExplicitnessScore,
+              polarizationScore: c.rulesResult.polarizationScore,
+              detectedActors: c.rulesResult.politicalActors,
+            },
+          }));
+
+          const results = await callOpenAIBatch(batchInput, llmConfig);
+
+          // Merge et save chaque résultat
+          for (const r of results) {
+            const idx = r.index;
+            if (idx < 0 || idx >= chunk.length) continue;
+            const c = chunk[idx];
+            try {
+              let enrichment = buildRulesEnrichment(c.rulesResult, c.normalizedText, c.post);
+              enrichment = mergeLLMResult(enrichment, {
+                semantic_summary: r.result.semantic_summary || '',
+                main_topics: r.result.main_topics || [],
+                secondary_topics: r.result.secondary_topics || [],
+                tone: r.result.tone || '',
+                primary_emotion: r.result.primary_emotion || '',
+                emotion_intensity: r.result.emotion_intensity || 0,
+                political_explicitness_score: r.result.political_explicitness_score || 0,
+                polarization_score: r.result.polarization_score || 0,
+                narrative_frame: r.result.narrative_frame || '',
+                confidence_score: r.result.confidence_score || 0.5,
+              }, c.rulesResult, c.post, 'gpt-4o-mini-batch');
+              await saveEnrichment(c.post.id, enrichment);
+              // Graph ingest after LLM refinement
+              try { await graphIngestMobile(c.post.id, enrichment as MobileEnrichment); } catch { /* non-blocking */ }
+              llmDone++;
+            } catch { /* skip individual merge errors */ }
+          }
+
+          if (i % 20 === 0 || i + BATCH_SIZE >= batchPosts.length) {
+            log(`LLM batch: ${llmDone}/${batchPosts.length}`);
+            notify();
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log(`[LLM] batch error chunk ${i}/${batchPosts.length}: ${msg}`);
+          // Don't break on individual chunk errors, continue with next
+        }
+      }
+
+      log(`LLM batch terminé: ${llmDone} posts raffinés`);
+      notify();
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    log(`Erreur tick: ${msg}`);
+    const stack = err instanceof Error ? err.stack?.split('\n').slice(0, 3).join(' | ') : '';
+    log(`[tick] ERREUR: ${msg} ${stack}`);
   } finally {
     processing = false;
+    log(`[tick] fin — processed=${stats.totalProcessed} ok=${stats.totalSucceeded} fail=${stats.totalFailed} skip=${stats.totalSkipped}`);
   }
 }
 

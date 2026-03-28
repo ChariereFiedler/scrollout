@@ -1,7 +1,8 @@
 /**
  * Scrollout UI overlay — injected into Instagram WebView.
- * - Adds Scrollout logo button (top-left) to open the sidebar
- * - Hides Instagram bottom navigation bar
+ * - Adds Scrollout FAB with progress ring (charges as user scrolls)
+ * - Shake animation when ring > 30%
+ * - Firework burst at 100% to invite tap → opens Wrapped
  * - Hides "Utiliser l'application" / "Use the app" banners
  */
 export {};
@@ -13,6 +14,11 @@ const SCROLLOUT_COLORS = [
 ];
 
 const BTN_ID = 'echa-scrollout-btn';
+const FIREWORK_ID = 'echa-scrollout-firework';
+const STYLE_ID = 'echa-scrollout-styles';
+
+/** Number of posts needed to fully charge and trigger wrapped. */
+const CHARGE_THRESHOLD = 15;
 
 declare global {
   interface Window {
@@ -21,37 +27,25 @@ declare global {
       [key: string]: unknown;
     };
     __SCROLLOUT_UI_LOADED?: boolean;
+    __echaPostCount?: number;
   }
 }
+
+// ─── State ─────────────────────────────────────────────────
+
+let currentProgress = 0; // 0→1
+let isCharged = false;
+let lastKnownPostCount = 0;
+
+// Blob deformation state
+let scrollVelocity = 0;       // current velocity (px/frame)
+let lastScrollY = 0;
+let blobIntensity = 0;        // 0→1, smoothed deformation amount
+let blobPhase = 0;            // rotation phase for organic movement
+let blobRafId: number | null = null;
+let scrollHeat = 0;           // 0→1, cumulative heat from scrolling (slow decay)
 
 // ─── Kill Instagram chrome ──────────────────────────────────
-
-function killBottomBar(): void {
-  // Strategy 1: fixed/sticky at bottom
-  const all = document.querySelectorAll<HTMLElement>('div, nav, section, footer');
-  for (const el of all) {
-    const style = getComputedStyle(el);
-    if (style.position !== 'fixed' && style.position !== 'sticky') continue;
-    const rect = el.getBoundingClientRect();
-    if (rect.bottom >= window.innerHeight - 5 && rect.height > 35 && rect.height < 85) {
-      el.style.setProperty('display', 'none', 'important');
-    }
-  }
-
-  // Strategy 2: IG bottom nav has SVG icons (home, search, reels, shop, profile)
-  // Find containers at the bottom with multiple SVG or anchor children
-  for (const el of all) {
-    const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight - 100) continue; // not near bottom
-    if (rect.height < 30 || rect.height > 85) continue;
-    if (rect.width < window.innerWidth * 0.8) continue; // not full width
-    const svgs = el.querySelectorAll('svg');
-    const links = el.querySelectorAll('a');
-    if (svgs.length >= 4 || links.length >= 4) {
-      el.style.setProperty('display', 'none', 'important');
-    }
-  }
-}
 
 function killAppBanner(): void {
   const bannerPatterns = /^(utiliser l.application|use the app|open app|ouvrir|get the app|t[ée]l[ée]charger)$/i;
@@ -60,7 +54,6 @@ function killAppBanner(): void {
     const text = (el.textContent || '').trim();
     if (!bannerPatterns.test(text)) return;
 
-    // Walk up the DOM to find the banner container
     let container: HTMLElement = el;
     for (let i = 0; i < 6; i++) {
       const parent = container.parentElement;
@@ -78,11 +71,40 @@ function killAppBanner(): void {
 }
 
 function nukeIGChrome(): void {
-  // Don't kill bottom bar — FAB is positioned above the profile icon
   killAppBanner();
 }
 
-// ─── Scrollout logo button ──────────────────────────────────
+// ─── Inject CSS animations ─────────────────────────────────
+
+function injectStyles(): void {
+  if (document.getElementById(STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = STYLE_ID;
+  style.textContent = `
+    @keyframes echa-pulse-glow {
+      0%, 100% { box-shadow: 0 0 10px 3px rgba(107,107,255,0.4), 0 2px 8px rgba(0,0,0,0.5); }
+      50% { box-shadow: 0 0 22px 8px rgba(139,68,232,0.6), 0 2px 8px rgba(0,0,0,0.5); }
+    }
+
+    #${BTN_ID} {
+      transition: border-radius 0.15s ease-out;
+    }
+
+    #${BTN_ID}.echa-charged {
+      animation: echa-pulse-glow 1.8s ease-in-out infinite;
+    }
+
+    .echa-particle {
+      position: absolute;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// ─── Scrollout logo SVG ─────────────────────────────────────
 
 function createLogoSVG(): string {
   return `<svg width="28" height="28" viewBox="0 0 540 540" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -93,16 +115,113 @@ function createLogoSVG(): string {
 </svg>`;
 }
 
+// ─── Progress Ring SVG ──────────────────────────────────────
+
+// Ring removed — incandescent color replaces the progress indicator
+
+// ─── Firework particles ─────────────────────────────────────
+
+function spawnFirework(btn: HTMLElement): void {
+  const existing = document.getElementById(FIREWORK_ID);
+  if (existing) existing.remove();
+
+  const container = document.createElement('div');
+  container.id = FIREWORK_ID;
+  Object.assign(container.style, {
+    position: 'absolute',
+    top: '0', left: '0', right: '0', bottom: '0',
+    pointerEvents: 'none',
+    overflow: 'visible',
+    zIndex: '99998',
+  });
+
+  // ── Wave 1: big burst (24 particles, wide spread) ──
+  spawnBurst(container, { count: 24, minDist: 40, maxDist: 90, minSize: 5, maxSize: 10, duration: 1000, delay: 0 });
+
+  // ── Wave 2: secondary burst (16 particles, medium) ──
+  spawnBurst(container, { count: 16, minDist: 20, maxDist: 55, minSize: 3, maxSize: 7, duration: 800, delay: 150 });
+
+  // ── Wave 3: sparkle trail (12 tiny particles, close) ──
+  spawnBurst(container, { count: 12, minDist: 10, maxDist: 35, minSize: 2, maxSize: 5, duration: 600, delay: 300 });
+
+  // ── Central flash ──
+  const flash = document.createElement('span');
+  Object.assign(flash.style, {
+    position: 'absolute',
+    top: '50%', left: '50%',
+    width: '0', height: '0',
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,0.9)',
+    transform: 'translate(-50%,-50%)',
+    pointerEvents: 'none',
+  });
+  container.appendChild(flash);
+  requestAnimationFrame(() => {
+    flash.animate([
+      { width: '0px', height: '0px', opacity: '1', background: 'rgba(255,255,255,0.95)' },
+      { width: '70px', height: '70px', opacity: '0.6', background: 'rgba(139,68,232,0.4)', offset: 0.3 },
+      { width: '100px', height: '100px', opacity: '0', background: 'rgba(107,107,255,0)' },
+    ], { duration: 600, easing: 'cubic-bezier(0, 0.6, 0.3, 1)', fill: 'forwards' });
+  });
+
+  btn.appendChild(container);
+  setTimeout(() => container.remove(), 1800);
+}
+
+function spawnBurst(
+  container: HTMLElement,
+  opts: { count: number; minDist: number; maxDist: number; minSize: number; maxSize: number; duration: number; delay: number },
+): void {
+  for (let i = 0; i < opts.count; i++) {
+    const particle = document.createElement('span');
+    particle.className = 'echa-particle';
+    const angle = (360 / opts.count) * i + (Math.random() - 0.5) * 20;
+    const distance = opts.minDist + Math.random() * (opts.maxDist - opts.minDist);
+    const rad = (angle * Math.PI) / 180;
+    const tx = Math.cos(rad) * distance;
+    const ty = Math.sin(rad) * distance;
+    const color = SCROLLOUT_COLORS[i % SCROLLOUT_COLORS.length];
+    const size = opts.minSize + Math.random() * (opts.maxSize - opts.minSize);
+    const delay = opts.delay + Math.random() * 100;
+
+    Object.assign(particle.style, {
+      width: `${size}px`, height: `${size}px`,
+      background: color,
+      top: '50%', left: '50%',
+      marginTop: `${-size / 2}px`, marginLeft: `${-size / 2}px`,
+      boxShadow: `0 0 ${size}px ${color}`,
+    });
+
+    requestAnimationFrame(() => {
+      particle.animate([
+        { transform: 'translate(0, 0) scale(1.2)', opacity: '1' },
+        { transform: `translate(${tx * 0.6}px, ${ty * 0.6}px) scale(1)`, opacity: '0.9', offset: 0.3 },
+        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: '0' },
+      ], {
+        duration: opts.duration + Math.random() * 400,
+        delay,
+        easing: 'cubic-bezier(0, 0.7, 0.3, 1)',
+        fill: 'forwards',
+      });
+    });
+
+    container.appendChild(particle);
+  }
+}
+
+// ─── FAB creation ───────────────────────────────────────────
+
 function createButton(): HTMLElement {
   const btn = document.createElement('div');
   btn.id = BTN_ID;
   btn.setAttribute('role', 'button');
   btn.setAttribute('aria-label', 'Menu Scrollout');
   Object.assign(btn.style, {
-    width: '26px',
-    height: '26px',
+    position: 'relative',
+    width: '46px',
+    height: '46px',
     borderRadius: '50%',
-    background: 'transparent',
+    background: '#262626',
     border: 'none',
     display: 'flex',
     alignItems: 'center',
@@ -111,118 +230,256 @@ function createButton(): HTMLElement {
     flexShrink: '0',
     padding: '0',
     WebkitTapHighlightColor: 'transparent',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
   });
-  btn.innerHTML = createLogoSVG();
+
+  // Logo container (centered above ring)
+  const logoWrap = document.createElement('div');
+  Object.assign(logoWrap.style, {
+    width: '28px', height: '28px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    position: 'relative', zIndex: '2',
+  });
+  logoWrap.innerHTML = createLogoSVG();
+  btn.appendChild(logoWrap);
+
   btn.addEventListener('click', (e: Event) => {
     e.stopPropagation();
     e.preventDefault();
     try {
-      window.EchaBridge?.onData(JSON.stringify({ type: 'open_sidebar' }));
+      if (isCharged) {
+        // Charged → open wrapped
+        window.EchaBridge?.onData(JSON.stringify({ type: 'open_wrapped' }));
+        // Reset charge state
+        resetCharge();
+      } else {
+        // Normal → open sidebar
+        window.EchaBridge?.onData(JSON.stringify({ type: 'open_sidebar' }));
+      }
     } catch { /* */ }
   });
+
   return btn;
 }
 
+// ─── Update ring progress ───────────────────────────────────
+
+function updateProgress(progress: number): void {
+  const btn = document.getElementById(BTN_ID);
+  if (!btn) return;
+
+  const clamped = Math.min(1, Math.max(0, progress));
+  currentProgress = clamped;
+
+  // Charged state
+  if (clamped >= 1 && !isCharged) {
+    isCharged = true;
+    btn.classList.add('echa-charged');
+    btn.setAttribute('aria-label', 'Voir votre Wrapped Scrollout');
+    spawnFirework(btn);
+    logDebug(`Charged! ${CHARGE_THRESHOLD} posts reached`);
+  }
+}
+
+// ─── Incandescent color ramp ────────────────────────────────
+
 /**
- * Find Instagram's top header bar and insert the Scrollout button
- * next to the "+" (create) icon.
- * The IG header is typically the first fixed/sticky element at the top
- * containing SVG icons (logo, +, heart, messenger).
+ * Maps progress (0→1) to a heat color: black → dark red → red → orange → yellow → white.
+ * Like metal heating up.
  */
-function findIGHeader(): HTMLElement | null {
-  // Strategy 1: semantic elements at the top
-  const candidates = document.querySelectorAll<HTMLElement>('header, nav, div[role="banner"]');
-  for (const el of candidates) {
-    const rect = el.getBoundingClientRect();
-    if (rect.top <= 5 && rect.height > 30 && rect.height < 80) {
-      return el;
+function incandescent(progress: number): string {
+  const p = Math.min(1, Math.max(0, progress));
+
+  // Color stops: [progress, r, g, b]
+  // Shorter ramp — stays dark longer, heats up in the last stretch
+  const stops: [number, number, number, number][] = [
+    [0.00, 38,  38,  38 ],  // #262626 dark
+    [0.40, 55,  35,  30 ],  // barely warm (stays dark a long time)
+    [0.60, 100, 35,  15 ],  // dark ember
+    [0.75, 170, 55,  10 ],  // red glow
+    [0.85, 220, 130, 20 ],  // orange
+    [0.95, 250, 220, 120],  // yellow
+    [1.00, 255, 250, 230],  // white-hot
+  ];
+
+  // Find the two stops to interpolate between
+  let lo = stops[0], hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (p >= stops[i][0] && p <= stops[i + 1][0]) {
+      lo = stops[i];
+      hi = stops[i + 1];
+      break;
     }
   }
 
-  // Strategy 2: fixed/sticky top bar
-  const all = document.querySelectorAll<HTMLElement>('div, section, nav');
-  for (const el of all) {
-    const style = getComputedStyle(el);
-    if (style.position !== 'fixed' && style.position !== 'sticky') continue;
-    const rect = el.getBoundingClientRect();
-    if (rect.top <= 5 && rect.height > 30 && rect.height < 80 && rect.width > window.innerWidth * 0.8) {
-      return el;
+  const range = hi[0] - lo[0] || 1;
+  const t = (p - lo[0]) / range;
+  const r = Math.round(lo[1] + (hi[1] - lo[1]) * t);
+  const g = Math.round(lo[2] + (hi[2] - lo[2]) * t);
+  const b = Math.round(lo[3] + (hi[3] - lo[3]) * t);
+
+  return `rgb(${r},${g},${b})`;
+}
+
+// ─── Blob deformation engine ────────────────────────────────
+
+/**
+ * Generate organic blob border-radius from intensity (0→1) and phase angle.
+ * At 0: perfect circle. At 1: maximum organic distortion.
+ */
+function blobRadius(intensity: number, phase: number): string {
+  if (intensity < 0.01) return '50%';
+
+  const i = Math.min(1, intensity);
+  // 8 control points — amplitude up to ±35% from center (very visible deformation)
+  const offsets = [
+    Math.sin(phase) * 35,
+    Math.cos(phase * 1.3 + 1) * 30,
+    Math.sin(phase * 0.9 + 2) * 38,
+    Math.cos(phase * 1.1 + 3) * 32,
+    Math.sin(phase * 1.2 + 0.5) * 33,
+    Math.cos(phase * 0.8 + 1.5) * 36,
+    Math.sin(phase * 1.4 + 2.5) * 28,
+    Math.cos(phase * 1.1 + 3.5) * 34,
+  ];
+
+  const vals = offsets.map(o => Math.round(50 + o * i));
+  return `${vals[0]}% ${vals[1]}% ${vals[2]}% ${vals[3]}% / ${vals[4]}% ${vals[5]}% ${vals[6]}% ${vals[7]}%`;
+}
+
+function startBlobLoop(): void {
+  if (blobRafId !== null) return;
+
+  lastScrollY = window.scrollY || window.pageYOffset || 0;
+
+  function tick() {
+    const btn = document.getElementById(BTN_ID);
+    if (!btn || btn.dataset.hidden === '1') {
+      blobRafId = requestAnimationFrame(tick);
+      return;
     }
+
+    // Measure scroll velocity
+    const currentY = window.scrollY || window.pageYOffset || 0;
+    const delta = Math.abs(currentY - lastScrollY);
+    lastScrollY = currentY;
+    scrollVelocity = delta;
+
+    // Target intensity: map velocity to 0→1 (25px+=max deformation — very responsive)
+    const targetIntensity = Math.min(1, delta / 25);
+
+    // Smooth: ramp up FAST (0.5), decay slow (0.05) — feels springy
+    if (targetIntensity > blobIntensity) {
+      blobIntensity += (targetIntensity - blobIntensity) * 0.5;
+    } else {
+      blobIntensity += (targetIntensity - blobIntensity) * 0.05;
+    }
+
+    // Always deform when scrolling — no gate on progress
+    // Phase advances faster when scrolling fast
+    blobPhase += 0.06 + blobIntensity * 0.25;
+
+    const radius = blobRadius(blobIntensity, blobPhase);
+    btn.style.borderRadius = radius;
+
+    // Scale bump: up to +18% when scrolling hard
+    const scale = 1 + blobIntensity * 0.18;
+    if (!isCharged) {
+      btn.style.transform = `scale(${scale.toFixed(3)})`;
+    }
+
+    // Accumulate scroll heat: scrolling adds heat, decays slowly
+    // Builds up over ~20-30s of sustained scrolling
+    scrollHeat = Math.min(1, scrollHeat + delta * 0.0003);
+    // Very slow decay when idle (~15s to cool down noticeably)
+    if (delta < 2) {
+      scrollHeat = Math.max(0, scrollHeat - 0.001);
+    }
+
+    // Incandescent: use the MAX of scroll heat and post-based progress
+    const heatLevel = Math.max(scrollHeat, currentProgress);
+    btn.style.background = incandescent(heatLevel);
+
+    // Firework only triggers via post count (updateProgress), not scroll heat
+
+    blobRafId = requestAnimationFrame(tick);
   }
 
-  // Strategy 3: any element at the very top that contains SVGs (IG icons)
-  for (const el of all) {
-    const rect = el.getBoundingClientRect();
-    if (rect.top > 10 || rect.height < 30 || rect.height > 80) continue;
-    if (rect.width < window.innerWidth * 0.8) continue;
-    const svgs = el.querySelectorAll('svg');
-    if (svgs.length >= 1) return el;
-  }
-
-  return null;
+  blobRafId = requestAnimationFrame(tick);
 }
 
-function findRightmostIcon(header: HTMLElement): HTMLElement | null {
-  // Find IG icons in the header — they're typically SVG-containing clickable elements
-  const iconCandidates: { el: HTMLElement; left: number }[] = [];
+function resetCharge(): void {
+  isCharged = false;
+  currentProgress = 0;
+  lastKnownPostCount = 0;
 
-  // Check links with SVGs, or SVGs with aria-labels
-  const clickables = header.querySelectorAll<HTMLElement>('a, button, div[role="button"]');
-  for (const el of clickables) {
-    if (!el.querySelector('svg')) continue;
-    const text = (el.textContent || '').trim();
-    // Icon elements have no or very short text
-    if (text.length > 3) continue;
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 60 || rect.width < 10) continue;
-    iconCandidates.push({ el, left: rect.left });
+  const btn = document.getElementById(BTN_ID);
+  if (btn) {
+    btn.classList.remove('echa-charged');
+    btn.setAttribute('aria-label', 'Menu Scrollout');
   }
-
-  // Also check standalone SVGs
-  const svgs = header.querySelectorAll<SVGElement>('svg');
-  for (const svg of svgs) {
-    const parent = svg.closest('a, div, span, button') as HTMLElement;
-    if (!parent) continue;
-    const rect = parent.getBoundingClientRect();
-    if (rect.width > 60 || rect.width < 10) continue;
-    // Avoid logo (leftmost, usually wider)
-    if (rect.left < window.innerWidth * 0.3) continue;
-    iconCandidates.push({ el: parent, left: rect.left });
-  }
-
-  if (iconCandidates.length === 0) return null;
-
-  // Sort by left position — we want to insert just before the first right-side icon
-  iconCandidates.sort((a, b) => a.left - b.left);
-
-  // Return the leftmost icon that's in the right half of the header
-  for (const c of iconCandidates) {
-    if (c.left > window.innerWidth * 0.4) return c.el;
-  }
-  return iconCandidates[iconCandidates.length - 1].el;
+  updateProgress(0);
 }
+
+// ─── Poll tracker post count ────────────────────────────────
+
+function pollPostCount(): void {
+  const count = window.__echaPostCount || 0;
+  if (count <= lastKnownPostCount) return;
+
+  lastKnownPostCount = count;
+  const progress = count / CHARGE_THRESHOLD;
+  updateProgress(progress);
+
+  // Firework loop when charged (re-burst every 8s to keep inviting)
+  if (progress >= 1 && isCharged) {
+    scheduleFireworkLoop();
+  }
+}
+
+let fireworkLoopId: ReturnType<typeof setInterval> | null = null;
+
+function scheduleFireworkLoop(): void {
+  if (fireworkLoopId) return;
+  fireworkLoopId = setInterval(() => {
+    if (!isCharged) {
+      if (fireworkLoopId) clearInterval(fireworkLoopId);
+      fireworkLoopId = null;
+      return;
+    }
+    const btn = document.getElementById(BTN_ID);
+    if (btn && btn.dataset.hidden !== '1') {
+      spawnFirework(btn);
+    }
+  }, 8000);
+}
+
+// ─── Injection ──────────────────────────────────────────────
 
 function injectScrolloutButton(): void {
   const existing = document.getElementById(BTN_ID);
   if (existing && document.body.contains(existing)) return;
   if (existing) existing.remove();
 
+  injectStyles();
   const btn = createButton();
 
-  // FAB above the profile icon (bottom-right of IG nav bar)
   Object.assign(btn.style, {
     position: 'fixed',
-    bottom: '58px',
+    bottom: 'calc(env(safe-area-inset-bottom, 0px) + 58px)',
     right: '6px',
-    width: '46px',
-    height: '46px',
     zIndex: '99999',
-    borderRadius: '50%',
-    background: '#262626',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
   });
   document.body.appendChild(btn);
-  logDebug('FAB injected above profile icon');
+
+  // Restore progress if tracker already counted posts
+  const count = window.__echaPostCount || 0;
+  if (count > 0) {
+    lastKnownPostCount = count;
+    updateProgress(count / CHARGE_THRESHOLD);
+  }
+
+  logDebug('FAB injected with progress ring');
 }
 
 // ─── Main ───────────────────────────────────────────────────
@@ -261,6 +518,12 @@ function init(): void {
     }
   }, 6000);
 
+  // Poll post count every second to update ring
+  setInterval(pollPostCount, 1000);
+
+  // Start blob deformation loop (runs on rAF)
+  startBlobLoop();
+
   // Periodic check: re-kill IG chrome + ensure button is visible
   setInterval(() => {
     nukeIGChrome();
@@ -278,7 +541,6 @@ function init(): void {
       if (isFullscreen && !isHidden) {
         btn.dataset.hidden = '1';
         btn.style.pointerEvents = 'none';
-        // Bounce up first, then shrink down and fade
         btn.style.transition = 'transform 0.15s cubic-bezier(0, 0, 0.2, 1.6), opacity 0.15s ease';
         btn.style.transform = 'scale(1.2) translateY(-12px)';
         setTimeout(() => {
@@ -306,5 +568,18 @@ function init(): void {
     nukeIGChrome();
   }).observe(document.body, { childList: true, subtree: true });
 }
+
+// ─── Exports for testing ────────────────────────────────────
+
+export const __test__ = {
+  CHARGE_THRESHOLD,
+  resetCharge,
+  pollPostCount,
+  incandescent,
+  blobRadius,
+  get currentProgress() { return currentProgress; },
+  get isCharged() { return isCharged; },
+  get blobIntensity() { return blobIntensity; },
+};
 
 init();

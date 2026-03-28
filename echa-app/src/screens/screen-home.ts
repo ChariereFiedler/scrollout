@@ -3,7 +3,7 @@ import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { customElement, state } from 'lit/decorators.js';
 import { theme, polColors, scrolloutDots, domainColors, attentionColors, scrolloutIconSvg } from '../styles/theme.js';
 import { openInstagram } from '../services/native-bridge.js';
-import { getStats, type DbStats } from '../services/db-bridge.js';
+import { getStats, type DbStats, type SubjectInsight } from '../services/db-bridge.js';
 
 /** Inline Lucide-style SVG icon helper */
 const ico = (path: string, size = 18, color = 'currentColor') => html`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex-shrink:0;">${unsafeSVG(path)}</svg>`;
@@ -534,7 +534,275 @@ export class ScreenHome extends LitElement {
         border-radius: 50%;
       }
 
-      /* ── Subject tags ── */
+      /* ── Subject Insights (rich cards) ── */
+      .si-list { display: flex; flex-direction: column; gap: 12px; }
+
+      .si-card {
+        background: var(--surface3);
+        border-radius: var(--radius);
+        padding: 16px;
+        border-left: 3px solid var(--border);
+        position: relative;
+      }
+      .si-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .si-subject-name {
+        font-family: var(--font-heading);
+        font-size: 15px;
+        font-weight: 700;
+        text-transform: capitalize;
+        line-height: 1.3;
+        flex: 1;
+      }
+      .si-domain-badge {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 3px 8px;
+        border-radius: var(--radius-pill);
+        background: var(--surface2);
+        color: var(--text-muted);
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .si-metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .si-metric {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .si-metric-val {
+        font-family: var(--font-heading);
+        font-size: 18px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+      .si-metric-label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--text-dim);
+      }
+
+      /* Attention micro-bar */
+      .si-att-bar {
+        display: flex;
+        height: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+        gap: 1px;
+        margin-bottom: 8px;
+      }
+      .si-att-seg {
+        height: 100%;
+        min-width: 2px;
+        transition: flex 0.3s;
+      }
+      .si-att-legend {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+      }
+      .si-att-item {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 9px;
+        font-family: var(--font-mono);
+        color: var(--text-dim);
+      }
+      .si-att-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+      }
+
+      /* Accounts row */
+      .si-accounts {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .si-account {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 3px 8px;
+        background: var(--surface2);
+        border-radius: var(--radius-pill);
+        font-size: 10px;
+      }
+      .si-account .at {
+        color: var(--violet);
+        font-weight: 600;
+      }
+      .si-account .acc-cnt {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-muted);
+      }
+
+      /* Emotion + tone tags */
+      .si-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .si-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--border);
+        font-size: 10px;
+      }
+      .si-tag-icon {
+        font-family: var(--font-mono);
+        font-weight: 700;
+        font-size: 11px;
+      }
+
+      /* Caption excerpt */
+      .si-caption {
+        font-size: 11px;
+        color: var(--text-dim);
+        line-height: 1.5;
+        font-style: italic;
+        padding: 8px 10px;
+        background: var(--surface2);
+        border-radius: var(--radius-sm);
+        border-left: 2px solid var(--border);
+      }
+      .si-caption::before {
+        content: '"';
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-muted);
+        margin-right: 2px;
+      }
+
+      /* Political indicator */
+      .si-pol-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .si-pol-bar-wrap {
+        flex: 1;
+        height: 4px;
+        background: var(--surface2);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .si-pol-bar {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.4s;
+      }
+      .si-pol-label {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        color: var(--text-muted);
+        min-width: 32px;
+        text-align: right;
+      }
+
+      /* Section divider between subjects & precise */
+      .si-divider {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 20px 0 12px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-dim);
+      }
+      .si-divider::before, .si-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* Precise subject cards (compact) */
+      .psi-card {
+        background: var(--surface3);
+        border-radius: var(--radius-sm);
+        padding: 12px 14px;
+        border-left: 3px solid var(--border);
+      }
+      .psi-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .psi-name {
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
+        text-transform: capitalize;
+        flex: 1;
+      }
+      .psi-stats {
+        display: flex;
+        gap: 10px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+      .psi-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+      }
+      .psi-summary {
+        font-size: 11px;
+        color: var(--text-dim);
+        line-height: 1.5;
+        padding: 6px 10px;
+        background: var(--surface2);
+        border-radius: var(--radius-sm);
+        margin-top: 4px;
+      }
+
+      /* Auto insight sentence */
+      .si-insight {
+        font-size: 12px;
+        color: var(--text-dim);
+        line-height: 1.6;
+        padding: 12px 14px;
+        background: var(--surface3);
+        border-radius: var(--radius-sm);
+        border-left: 3px solid var(--bleu-indigo);
+        margin-top: 12px;
+      }
+      .si-insight strong { color: var(--text); }
+
+      /* Legacy subject cloud (fallback) */
       .subject-cloud {
         display: flex;
         flex-wrap: wrap;
@@ -1218,48 +1486,286 @@ export class ScreenHome extends LitElement {
     `;
   }
 
-  // ── 8. Precise subjects (tag cloud) ─────────────────────────
+  // ── 8. Subject Insights (rich detail cards) ─────────────────
 
   private renderSubjects(s: DbStats) {
-    const subjects = s.topSubjects;
+    const insights = s.subjectInsights;
+    const preciseInsights = s.preciseSubjectInsights;
+    // Fallback to legacy tag clouds if no insights available
+    // topSubjects is often empty; fall back to topTopics (mainTopics)
+    const subjects = (s.topSubjects?.length ? s.topSubjects : s.topTopics) || [];
     const precise = s.topPreciseSubjects;
-    if (!subjects?.length && !precise?.length) return nothing;
 
-    const tags = (subjects || []).slice(0, 12);
-    const preciseTags = (precise || []).slice(0, 8);
+    const hasInsights = insights && insights.length > 0;
+    const hasPreciseInsights = preciseInsights && preciseInsights.length > 0;
+    const hasLegacy = subjects.length > 0 || (precise?.length || 0) > 0;
+
+    if (!hasInsights && !hasPreciseInsights && !hasLegacy) return nothing;
 
     return html`
-      ${tags.length > 0 ? html`
+      ${hasInsights ? html`
+        <div class="section">
+          <div class="section-label">${ico('<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>', 12)} Ce qui capte ton attention</div>
+          <div class="si-list">
+            ${insights!.slice(0, 8).map((si, i) => this.renderSubjectCard(si, i))}
+          </div>
+          ${this.renderSubjectAutoInsight(insights!)}
+        </div>
+      ` : (subjects?.length || 0) > 0 ? html`
         <div class="section">
           <div class="section-label">Les sujets de ton feed</div>
           <div class="subject-cloud">
-            ${tags.map((t, i) => html`
+            ${subjects!.slice(0, 12).map((t, i) => html`
               <span class="subject-tag" style="border-color:${scrolloutDots[i % scrolloutDots.length]}40">
-                ${t.topic}
-                <span class="cnt">${t.count}</span>
+                ${t.topic} <span class="cnt">${t.count}</span>
               </span>
             `)}
           </div>
         </div>
       ` : ''}
 
-      ${preciseTags.length > 0 ? html`
+      ${hasPreciseInsights ? html`
+        <div class="section">
+          <div class="section-label">${ico('<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>', 12)} Jusqu'ou l'algorithme va</div>
+          <div class="si-list">
+            ${preciseInsights!.slice(0, 6).map((psi, i) => this.renderPreciseSubjectCard(psi, i))}
+          </div>
+          <div class="si-insight">
+            L'algorithme affine en permanence sa comprehension de tes centres d'interet.
+            Ces sujets precis sont ceux ou il a detecte que tu <strong>ralentis, lis, t'engages</strong>.
+            Plus tu scrolles, plus le ciblage se resserre.
+          </div>
+        </div>
+      ` : (precise?.length || 0) > 0 ? html`
         <div class="section">
           <div class="section-label">Jusqu'ou l'algorithme va</div>
           <div class="subject-cloud">
-            ${preciseTags.map((t, i) => html`
+            ${precise!.slice(0, 8).map((t, i) => html`
               <span class="subject-tag" style="border-color:${scrolloutDots[(i + 3) % scrolloutDots.length]}40">
-                ${t.topic}
-                <span class="cnt">${t.count}</span>
+                ${t.topic} <span class="cnt">${t.count}</span>
               </span>
             `)}
           </div>
-          <div class="insight">
-            Ce sont les sujets precis que l'algorithme a identifies comme captant ton attention.
-            Plus tu scrolles, plus il affine.
-          </div>
         </div>
       ` : ''}
+    `;
+  }
+
+  // ── Subject card (rich) ──────────────────────────────────────
+
+  private renderSubjectCard(si: SubjectInsight, idx: number) {
+    const color = scrolloutDots[idx % scrolloutDots.length];
+    const dwellSec = Math.round(si.totalDwellMs / 1000);
+    const dwellLabel = dwellSec >= 60
+      ? `${Math.floor(dwellSec / 60)}m${String(dwellSec % 60).padStart(2, '0')}s`
+      : `${dwellSec}s`;
+    const avgSec = Math.round(si.avgDwellMs / 1000);
+    const attTotal = Object.values(si.attention || {}).reduce((a, b) => a + b, 0);
+    const engagedPct = attTotal > 0 ? Math.round(((si.attention?.['engaged'] || 0) / attTotal) * 100) : 0;
+    const emotionInfo = si.dominantEmotion ? getEmotionMeta(si.dominantEmotion) : null;
+    const toneInfo = si.dominantTone ? (toneMeta[si.dominantTone.toLowerCase()] || { color: 'var(--text-muted)' }) : null;
+    const domainColor = si.domains?.[0] ? (domainColors[si.domains[0]] || color) : color;
+    const polScore = si.avgPoliticalScore ?? 0;
+    const polColor = polColors[Math.min(Math.round(polScore), 4)];
+
+    return html`
+      <div class="si-card" style="border-left-color:${domainColor}">
+        <div class="si-card-header">
+          <div class="si-subject-name" style="color:${color}">${si.subject}</div>
+          ${si.domains?.[0] ? html`
+            <span class="si-domain-badge" style="color:${domainColor};border:1px solid ${domainColor}40">${si.domains[0]}</span>
+          ` : ''}
+        </div>
+
+        <!-- Metrics row -->
+        <div class="si-metrics">
+          <div class="si-metric">
+            <div class="si-metric-val" style="color:${color}">${si.count}</div>
+            <div class="si-metric-label">posts</div>
+          </div>
+          <div class="si-metric">
+            <div class="si-metric-val" style="color:var(--bleu-ciel)">${dwellLabel}</div>
+            <div class="si-metric-label">temps total</div>
+          </div>
+          <div class="si-metric">
+            <div class="si-metric-val" style="color:var(--vert-menthe)">${avgSec}s</div>
+            <div class="si-metric-label">moy/post</div>
+          </div>
+          <div class="si-metric">
+            <div class="si-metric-val" style="color:${attentionColors.engaged}">${engagedPct}%</div>
+            <div class="si-metric-label">engage</div>
+          </div>
+        </div>
+
+        <!-- Attention micro-bar -->
+        ${attTotal > 0 ? html`
+          <div class="si-att-bar">
+            ${(['engaged', 'viewed', 'glanced', 'skipped'] as const).map(level => {
+              const cnt = si.attention?.[level] || 0;
+              const pct = (cnt / attTotal) * 100;
+              return pct > 0 ? html`
+                <div class="si-att-seg" style="flex:${pct};background:${attentionColors[level]}"></div>
+              ` : '';
+            })}
+          </div>
+          <div class="si-att-legend">
+            ${(['engaged', 'viewed', 'glanced', 'skipped'] as const).map(level => {
+              const cnt = si.attention?.[level] || 0;
+              if (cnt === 0) return '';
+              return html`
+                <span class="si-att-item">
+                  <span class="si-att-dot" style="background:${attentionColors[level]}"></span>
+                  ${level} ${cnt}
+                </span>
+              `;
+            })}
+          </div>
+        ` : ''}
+
+        <!-- Political indicator (only if score > 0) -->
+        ${polScore > 0.5 ? html`
+          <div class="si-pol-row">
+            <span class="si-att-item" style="min-width:50px">
+              ${ico('<path d="M3 21h18M9 8h6M12 2v6M9 12H4l5 9M15 12h5l-5 9"/>', 12, polColor)}
+              Pol.
+            </span>
+            <div class="si-pol-bar-wrap">
+              <div class="si-pol-bar" style="width:${(polScore / 4) * 100}%;background:${polColor}"></div>
+            </div>
+            <span class="si-pol-label">${polScore.toFixed(1)}/4</span>
+          </div>
+        ` : ''}
+
+        <!-- Accounts -->
+        ${si.topAccounts?.length ? html`
+          <div class="si-accounts">
+            ${si.topAccounts.map(a => html`
+              <span class="si-account">
+                <span class="at">@${a.username}</span>
+                <span class="acc-cnt">${a.count}</span>
+              </span>
+            `)}
+          </div>
+        ` : ''}
+
+        <!-- Emotion + tone tags -->
+        <div class="si-tags">
+          ${emotionInfo ? html`
+            <span class="si-tag" style="border-color:${emotionInfo.color}40">
+              <span class="si-tag-icon" style="color:${emotionInfo.color}">${emotionInfo.icon}</span>
+              ${si.dominantEmotion}
+            </span>
+          ` : ''}
+          ${toneInfo && si.dominantTone ? html`
+            <span class="si-tag" style="border-color:${toneInfo.color}40">
+              <span class="si-tag-icon" style="color:${toneInfo.color}">~</span>
+              ${si.dominantTone}
+            </span>
+          ` : ''}
+        </div>
+
+        <!-- Sample caption -->
+        ${si.sampleCaption ? html`
+          <div class="si-caption">${si.sampleCaption}</div>
+        ` : si.sampleSummary ? html`
+          <div class="si-caption">${si.sampleSummary}</div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // ── Precise subject card (compact but detailed) ──────────────
+
+  private renderPreciseSubjectCard(psi: SubjectInsight, idx: number) {
+    const color = scrolloutDots[(idx + 3) % scrolloutDots.length];
+    const dwellSec = Math.round(psi.totalDwellMs / 1000);
+    const dwellLabel = dwellSec >= 60
+      ? `${Math.floor(dwellSec / 60)}m${String(dwellSec % 60).padStart(2, '0')}s`
+      : `${dwellSec}s`;
+    const attTotal = Object.values(psi.attention || {}).reduce((a, b) => a + b, 0);
+    const engagedPct = attTotal > 0 ? Math.round(((psi.attention?.['engaged'] || 0) / attTotal) * 100) : 0;
+    const emotionInfo = psi.dominantEmotion ? getEmotionMeta(psi.dominantEmotion) : null;
+    const domainColor = psi.domains?.[0] ? (domainColors[psi.domains[0]] || color) : color;
+
+    return html`
+      <div class="psi-card" style="border-left-color:${domainColor}">
+        <div class="psi-header">
+          <div class="psi-name" style="color:${color}">${psi.subject}</div>
+          <div class="psi-stats">
+            <span>${psi.count} posts</span>
+            <span>${dwellLabel}</span>
+            ${engagedPct > 0 ? html`<span style="color:${attentionColors.engaged}">${engagedPct}% eng.</span>` : ''}
+          </div>
+        </div>
+
+        <!-- Attention micro-bar -->
+        ${attTotal > 0 ? html`
+          <div class="si-att-bar" style="margin-bottom:6px">
+            ${(['engaged', 'viewed', 'glanced', 'skipped'] as const).map(level => {
+              const cnt = psi.attention?.[level] || 0;
+              const pct = (cnt / attTotal) * 100;
+              return pct > 0 ? html`
+                <div class="si-att-seg" style="flex:${pct};background:${attentionColors[level]}"></div>
+              ` : '';
+            })}
+          </div>
+        ` : ''}
+
+        <div class="psi-row">
+          ${psi.topAccounts?.length ? psi.topAccounts.slice(0, 2).map(a => html`
+            <span class="si-account">
+              <span class="at">@${a.username}</span>
+            </span>
+          `) : ''}
+          ${emotionInfo ? html`
+            <span class="si-tag" style="border-color:${emotionInfo.color}40">
+              <span class="si-tag-icon" style="color:${emotionInfo.color}">${emotionInfo.icon}</span>
+              ${psi.dominantEmotion}
+            </span>
+          ` : ''}
+          ${psi.domains?.[0] ? html`
+            <span class="si-domain-badge" style="color:${domainColor};border:1px solid ${domainColor}40">${psi.domains[0]}</span>
+          ` : ''}
+        </div>
+
+        ${psi.sampleSummary ? html`
+          <div class="psi-summary">${psi.sampleSummary}</div>
+        ` : psi.sampleCaption ? html`
+          <div class="si-caption">${psi.sampleCaption}</div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // ── Auto-generated insight sentence ──────────────────────────
+
+  private renderSubjectAutoInsight(insights: SubjectInsight[]) {
+    if (insights.length < 2) return nothing;
+
+    const top = insights[0];
+    const topDwell = Math.round(top.totalDwellMs / 1000);
+    const second = insights[1];
+    const secondDwell = Math.round(second.totalDwellMs / 1000);
+    const ratio = secondDwell > 0 ? (topDwell / secondDwell).toFixed(1) : '?';
+    const topEngaged = Object.values(top.attention || {}).reduce((a, b) => a + b, 0) > 0
+      ? Math.round(((top.attention?.['engaged'] || 0) / Object.values(top.attention || {}).reduce((a, b) => a + b, 0)) * 100)
+      : 0;
+
+    // Find most polarizing subject
+    const mostPolarizing = [...insights].sort((a, b) => (b.avgPolarization || 0) - (a.avgPolarization || 0))[0];
+    const hasPolarizing = (mostPolarizing.avgPolarization || 0) > 0.3 && mostPolarizing.subject !== top.subject;
+
+    return html`
+      <div class="si-insight">
+        Tu passes <strong>${ratio}x plus de temps</strong> sur <strong>${top.subject}</strong>
+        que sur ${second.subject}${topEngaged > 50
+          ? html` — et tu t'y engages activement (<strong>${topEngaged}%</strong> du temps en lecture approfondie)`
+          : ''}.
+        ${hasPolarizing ? html`
+          <br>Le sujet <strong>${mostPolarizing.subject}</strong> presente le plus haut niveau
+          de polarisation dans ton feed (${((mostPolarizing.avgPolarization || 0) * 100).toFixed(0)}%).
+        ` : ''}
+      </div>
     `;
   }
 

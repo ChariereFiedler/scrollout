@@ -37,21 +37,25 @@ const screens = [
 ];
 ---
 
-<section>
+<section data-reveal>
   <span class="section-label mono">L'app</span>
   <p class="screens-intro">Tout se passe sur ton téléphone. Zero cloud, zero compte, zero collecte.</p>
   <div class="screenshots-scroll">
-    {screens.map((s) => (
-      <div class="screenshot-item">
+    {screens.map((s, i) => (
+      <div class="screenshot-item" style={`animation-delay: ${i * 120}ms`}>
         <div class="phone-frame">
           <div class="phone-notch"></div>
           <div class="phone-screen">
-            {/* Accueil — persona + stats + DNA */}
             {s.home && (
               <div class="mock-home">
-                <div class="mock-title">Scrollout</div>
+                <div class="mock-app-bar">
+                  <svg class="mock-logo" width="16" height="16" viewBox="0 0 540 540"><circle cx="270" cy="270" r="240" fill="none" stroke="currentColor" stroke-width="28"/><circle cx="370" cy="180" r="18" fill="#8B44E8"/><circle cx="200" cy="260" r="14" fill="#FF7B33"/></svg>
+                  <span class="mock-title-sm">Scrollout</span>
+                </div>
                 <div class="mock-persona">
-                  <div class="mock-persona-icon">!?</div>
+                  <div class="mock-persona-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </div>
                   <div class="mock-persona-label">Le Vigilant</div>
                 </div>
                 <div class="mock-stats">
@@ -79,7 +83,6 @@ const screens = [
                 <div class="mock-btn">Ouvrir Instagram</div>
               </div>
             )}
-            {/* Posts */}
             {s.posts && (
               <div class="mock-posts">
                 <div class="mock-section-title">Posts capturés</div>
@@ -99,7 +102,6 @@ const screens = [
                 ))}
               </div>
             )}
-            {/* Enrichissement */}
             {s.axes && (
               <div class="mock-enrich">
                 <div class="mock-section-title">Enrichissement</div>
@@ -117,7 +119,6 @@ const screens = [
                 </div>
               </div>
             )}
-            {/* Cognition — bulles thématiques */}
             {s.cognition && (
               <div class="mock-cognition">
                 <div class="mock-section-title">Carte cognitive</div>
@@ -135,7 +136,6 @@ const screens = [
                 </div>
               </div>
             )}
-            {/* Détail */}
             {s.detail && (
               <div class="mock-detail">
                 <div class="mock-drag-handle"></div>
@@ -154,11 +154,12 @@ const screens = [
                 </div>
               </div>
             )}
-            {/* Wrapped — carousel slide */}
             {s.wrapped && (
               <div class="mock-wrapped">
                 <div class="mock-wrapped-slide">
-                  <div class="mock-wrapped-icon">!?</div>
+                  <div class="mock-wrapped-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </div>
                   <div class="mock-wrapped-persona">Le Vigilant</div>
                   <div class="mock-wrapped-desc">Tu scrolles avec un oeil critique. L'algo te sert du politique, et tu le consommes sans ciller.</div>
                   <div class="mock-wrapped-metrics">
@@ -204,17 +205,29 @@ const screens = [
   .screenshot-item {
     flex: 0 0 280px;
     scroll-snap-align: center;
+    animation: float-in 0.6s var(--ease-out-expo) both;
+  }
+
+  @keyframes float-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .phone-frame {
     width: 280px;
     height: 560px;
     background: #FAFAFA;
-    border: 8px solid #1a1a1a;
-    border-radius: 36px;
+    border: 6px solid #1a1a1a;
+    border-radius: 40px;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0,0,0,0.04);
+    transition: transform 0.5s var(--ease-out-expo), box-shadow 0.5s ease;
+  }
+
+  .screenshot-item:hover .phone-frame {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 32px 80px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0,0,0,0.04);
   }
 
   .phone-notch {
@@ -244,20 +257,31 @@ const screens = [
   .screen-caption span { font-size: 0.8rem; color: var(--text-grey); }
 
   /* --- Mock UI --- */
+  .mock-app-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding-top: 8px;
+  }
+
+  .mock-logo { color: #333; }
+  .mock-title-sm { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 0.85rem; }
+
   .mock-title { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 1.4rem; text-align: center; margin: 24px 0 20px; }
   .mock-section-title { font-weight: 700; font-size: 0.8rem; margin-bottom: 12px; letter-spacing: 0.02em; }
 
   .mock-stats { display: flex; gap: 8px; }
-  .mock-stat { flex: 1; background: white; border-radius: 10px; padding: 10px 6px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .mock-stat { flex: 1; background: white; border-radius: 12px; padding: 10px 6px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
   .mock-stat-val { font-weight: 800; font-size: 1.2rem; }
   .mock-stat-label { font-size: 0.45rem; text-transform: uppercase; color: var(--text-grey); letter-spacing: 0.05em; margin-top: 2px; }
 
-  .mock-btn { background: var(--color-bleu-indigo); color: white; text-align: center; padding: 10px; border-radius: 10px; font-weight: 600; font-size: 0.7rem; margin-top: 20px; }
+  .mock-btn { background: var(--color-bleu-indigo); color: white; text-align: center; padding: 10px; border-radius: 12px; font-weight: 600; font-size: 0.7rem; margin-top: 20px; }
 
-  .mock-post-card { background: white; border-radius: 10px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .mock-post-card { background: white; border-radius: 12px; padding: 10px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   .mock-post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
   .mock-user { font-weight: 700; color: var(--color-bleu-indigo); font-size: 0.65rem; }
-  .mock-pol { width: 18px; height: 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 800; }
+  .mock-pol { width: 18px; height: 18px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 800; }
   .mock-post-meta { display: flex; justify-content: space-between; align-items: center; }
   .mock-cat { font-size: 0.55rem; color: var(--text-grey); }
   .mock-polar-mini { width: 40px; height: 4px; background: #EEE; border-radius: 2px; overflow: hidden; }
@@ -277,40 +301,47 @@ const screens = [
   .mock-detail-user { font-weight: 700; color: var(--color-bleu-indigo); margin-bottom: 8px; }
   .mock-detail-caption { font-size: 0.65rem; color: var(--text-grey); margin-bottom: 16px; line-height: 1.5; }
   .mock-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-  .mock-detail-grid > div { background: white; border-radius: 8px; padding: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .mock-detail-grid > div { background: white; border-radius: 10px; padding: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   .mock-label { display: block; font-size: 0.45rem; text-transform: uppercase; color: var(--text-grey); margin-bottom: 2px; }
   .mock-val { display: block; font-weight: 800; font-size: 0.75rem; }
   .mock-tags { display: flex; gap: 4px; flex-wrap: wrap; }
   .mock-tags span { padding: 3px 8px; border-radius: 6px; font-size: 0.5rem; font-weight: 600; }
 
-  /* --- Mock Persona (home) --- */
-  .mock-persona { display: flex; align-items: center; gap: 8px; margin: 16px 0 12px; }
-  .mock-persona-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--color-bleu-indigo); color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.55rem; font-family: 'JetBrains Mono', monospace; }
+  .mock-persona { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; }
+  .mock-persona-icon { width: 32px; height: 32px; border-radius: 10px; background: var(--color-bleu-indigo); color: white; display: flex; align-items: center; justify-content: center; }
   .mock-persona-label { font-weight: 700; font-size: 0.75rem; }
 
   .mock-dna { margin-top: 12px; }
   .mock-dna-label { font-size: 0.5rem; text-transform: uppercase; color: var(--text-grey); letter-spacing: 0.04em; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
   .mock-dna-tags { display: flex; gap: 4px; flex-wrap: wrap; }
-  .mock-dna-tags span { padding: 2px 7px; border-radius: 5px; font-size: 0.48rem; font-weight: 600; }
+  .mock-dna-tags span { padding: 2px 7px; border-radius: 6px; font-size: 0.48rem; font-weight: 600; }
 
-  /* --- Mock Cognition --- */
   .mock-cognition { padding-top: 4px; }
   .mock-bubbles { position: relative; height: 220px; margin: 12px 0; }
-  .mock-bubble { position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.4rem; font-weight: 700; text-align: center; line-height: 1.1; }
+  .mock-bubble { position: absolute; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.4rem; font-weight: 700; text-align: center; line-height: 1.1; animation: bubble-float 3s ease-in-out infinite; }
+  .mock-bubble:nth-child(2) { animation-delay: -0.5s; }
+  .mock-bubble:nth-child(3) { animation-delay: -1s; }
+  .mock-bubble:nth-child(4) { animation-delay: -1.5s; }
+  .mock-bubble:nth-child(5) { animation-delay: -2s; }
+
+  @keyframes bubble-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
   .mock-modes { display: flex; gap: 4px; justify-content: center; }
   .mock-mode { font-size: 0.5rem; padding: 3px 8px; border-radius: 8px; background: #EEE; color: var(--text-grey); }
   .mock-mode.active { background: var(--color-bleu-indigo); color: white; }
 
-  /* --- Mock Wrapped --- */
   .mock-wrapped { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 12px 0; }
-  .mock-wrapped-slide { text-align: center; background: linear-gradient(135deg, #1a1a1a 0%, #2a2040 100%); border-radius: 14px; padding: 24px 16px; width: 100%; }
-  .mock-wrapped-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--color-bleu-indigo); color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; margin: 0 auto 8px; }
+  .mock-wrapped-slide { text-align: center; background: linear-gradient(135deg, #1a1a1a 0%, #2a2040 50%, #1a1030 100%); border-radius: 16px; padding: 24px 16px; width: 100%; }
+  .mock-wrapped-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--color-bleu-indigo); color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
   .mock-wrapped-persona { font-weight: 800; font-size: 0.9rem; color: white; margin-bottom: 6px; }
-  .mock-wrapped-desc { font-size: 0.55rem; color: #AAA; line-height: 1.5; margin-bottom: 14px; }
+  .mock-wrapped-desc { font-size: 0.55rem; color: #888; line-height: 1.5; margin-bottom: 14px; }
   .mock-wrapped-metrics { display: flex; justify-content: center; gap: 14px; }
   .mock-wrapped-metrics > div { text-align: center; }
   .mock-wm-val { display: block; font-weight: 800; font-size: 0.8rem; color: white; font-family: 'JetBrains Mono', monospace; }
-  .mock-wm-label { display: block; font-size: 0.4rem; color: #888; text-transform: uppercase; margin-top: 2px; }
+  .mock-wm-label { display: block; font-size: 0.4rem; color: #666; text-transform: uppercase; margin-top: 2px; }
   .mock-wrapped-dots { display: flex; gap: 4px; justify-content: center; margin-top: 12px; }
   .wd { width: 6px; height: 6px; border-radius: 50%; background: #DDD; }
   .wd.active { background: var(--color-bleu-indigo); }
@@ -323,8 +354,8 @@ const screens = [
     .phone-frame {
       width: 220px;
       height: 440px;
-      border-width: 6px;
-      border-radius: 28px;
+      border-width: 5px;
+      border-radius: 32px;
     }
 
     .phone-notch {

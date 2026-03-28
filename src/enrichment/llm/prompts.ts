@@ -84,8 +84,15 @@ LISTE DES 24 THÈMES (utilise UNIQUEMENT ces identifiants) :
 - culture : cinéma, musique, séries, littérature, art, patrimoine
 - humour : memes, satire, parodie, blagues
 - divertissement : gaming, jeux de société, people, anime, téléréalité, contenus viraux
-- lifestyle : food, cuisine, voyage, déco, animaux, quotidien
-- beaute : skincare, maquillage, coiffure, mode, fashion
+- lifestyle : mode, fashion, routine, organisation, productivité
+- beaute : skincare, maquillage, coiffure
+- food : recettes, restaurants, gastronomie, boissons, alimentation saine
+- voyage : destinations, backpacking, transport, hébergement
+- maison_jardin : déco intérieur, bricolage, rénovation, jardinage, plantes
+- animaux : chiens, chats, animaux de compagnie, protection animale
+- parentalite : grossesse, naissance, éducation des enfants, vie de famille
+- automobile : voitures, motos, véhicules électriques, tuning
+- shopping : hauls, unboxing, reviews produits, bons plans, promos
 - sport : football, fitness, MMA, JO, compétitions sportives (PAS jeux de société)
 - business : entrepreneuriat, crypto, coaching, investissement, hustle
 - developpement_personnel : méditation, motivation, coaching bien-être, astrologie
@@ -98,7 +105,7 @@ LISTE DES 24 THÈMES (utilise UNIQUEMENT ces identifiants) :
 Produis un JSON avec EXACTEMENT ces champs :
 
 {
-  "semantic_summary": "résumé en 1-2 phrases du contenu du post",
+  "semantic_summary": "Phrase percutante (15 mots max) qui résume le SUJET PRÉCIS abordé, pas le format. Commence par le sujet, pas par 'Le post'. Exemples : 'Recette de ramen maison au bouillon fermenté 12h', 'Macron critiqué sur la réforme des retraites par les syndicats', 'Tuto contouring pour peau mate avec produits drugstore'. Sois SPÉCIFIQUE sur le contenu, pas descriptif sur le contenant.",
   "main_topics": ["1-3 thèmes principaux parmi la liste ci-dessus. JAMAIS vide."],
   "secondary_topics": ["0-3 thèmes secondaires. Un post food peut aussi être lifestyle. Un post politique peut aussi être humour. Ne laisse [] que si vraiment mono-thème."],
   "subjects": ["IDs des sujets détectés (niveau 3 de la taxonomie), issus des indices pré-calculés ou identifiés par toi"],
@@ -127,7 +134,7 @@ Produis un JSON avec EXACTEMENT ces champs :
   "narrative_frame": "un parmi: declin | urgence | injustice | revelation | mobilisation | denonciation | empowerment | ordre | menace | aspiration | inspiration | derision | victimisation | heroisation | aucun",
   "call_to_action_type": "un parmi: aucun | commenter | partager | sindigner | sinformer | voter | soutenir | boycotter | manifester | acheter | suivre_le_compte",
   "problem_solution_pattern": "description du pattern problème-solution si présent, sinon vide",
-  "media_message": "message principal véhiculé par le média (1-2 phrases, en croisant caption + texte overlay + sous-titres + audio si disponibles). Vide si le post est une simple photo sans message clair.",
+  "media_message": "Le message ou l'idée que ce contenu plante dans la tête du spectateur, en 1 phrase directe. Pas de description du format. Ex: 'Les prix de l'immobilier rendent l'achat impossible pour les jeunes', 'Ce restaurant japonais vaut le détour pour ses gyoza'. Vide si aucun message clair.",
   "media_intent": "un parmi: informer | divertir | vendre | convaincre | emouvoir | eduquer | provoquer | aucun",
   "confidence_score": 0.0 à 1.0
 }

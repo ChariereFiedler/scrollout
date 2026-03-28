@@ -9,12 +9,12 @@ import {
 import { classifyTopicsEnriched } from '../dictionaries/topics-keywords';
 
 describe('taxonomy structure', () => {
-  it('has 7 domains', () => {
-    expect(DOMAINS).toHaveLength(7);
+  it('has 8 domains', () => {
+    expect(DOMAINS).toHaveLength(8);
   });
 
-  it('has 24 themes', () => {
-    expect(THEMES).toHaveLength(24);
+  it('has 31 themes', () => {
+    expect(THEMES).toHaveLength(31);
   });
 
   it('every theme has a valid domainId', () => {
@@ -181,6 +181,38 @@ describe('classifyTopicsEnriched', () => {
       expect(t).toHaveProperty('id');
       expect(t).toHaveProperty('label');
       expect(t).toHaveProperty('matchCount');
+    }
+  });
+
+  it('does NOT classify generic French text as sport (false positive regression)', () => {
+    const falsePositiveCases = [
+      'Le but de cette vidéo est de vous montrer comment bien investir',
+      'Mon goal cette année : lancer mon business en ligne',
+      'Ce match parfait entre couleurs et textures pour ta déco',
+      'Je suis en train de running une campagne publicitaire',
+      'Le record de vues sur cette vidéo est incroyable',
+      'La sélection des meilleurs produits beauté de la semaine',
+      'Les bleus à l\'âme quand tu réalises que tout change',
+      'Formation coaching : développe ton mindset entrepreneurial',
+    ];
+    for (const text of falsePositiveCases) {
+      const result = classifyTopicsEnriched(text);
+      const themeIds = result.themes.map(t => t.id);
+      expect(themeIds, `"${text}" should NOT be classified as sport`).not.toContain('sport');
+    }
+  });
+
+  it('still classifies actual sport content correctly', () => {
+    const sportCases = [
+      'Le PSG remporte la Champions League après un match incroyable',
+      'Séance de musculation et fitness au programme ce matin',
+      'Les Jeux Olympiques 2024 à Paris : athlète français en finale',
+      'Combat UFC ce soir : le champion du monde de MMA',
+    ];
+    for (const text of sportCases) {
+      const result = classifyTopicsEnriched(text);
+      const themeIds = result.themes.map(t => t.id);
+      expect(themeIds, `"${text}" SHOULD be classified as sport`).toContain('sport');
     }
   });
 });

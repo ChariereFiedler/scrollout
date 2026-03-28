@@ -106,7 +106,7 @@ ${post.normalizedText.substring(0, 1500)}
 ${rulesContext}
 --- FIN POST ---
 
-LISTE DES 24 THÈMES (utilise UNIQUEMENT ces identifiants) :
+LISTE DES 31 THÈMES (utilise UNIQUEMENT ces identifiants) :
 - actualite : info, breaking news, faits divers
 - politique : élections, partis, lois, institutions FR
 - geopolitique : conflits internationaux, diplomatie
@@ -118,11 +118,18 @@ LISTE DES 24 THÈMES (utilise UNIQUEMENT ces identifiants) :
 - sante : médecine, bien-être physique
 - religion : islam, christianisme, laïcité, spiritualité
 - education : école, université, formation
-- culture : cinéma, musique, séries, littérature, art
+- culture : cinéma, musique, séries, littérature, art, BD
 - humour : memes, satire, parodie
-- divertissement : gaming, jeux de société, people, anime, contenus viraux
-- lifestyle : food, voyage, déco, animaux
-- beaute : skincare, maquillage, coiffure, mode
+- divertissement : jeux de société, jeux de plateau, gaming, people, anime, contenus viraux
+- lifestyle : mode, fashion, routine, organisation, productivité
+- beaute : skincare, maquillage, coiffure
+- food : recettes, restaurants, gastronomie, boissons, alimentation saine
+- voyage : destinations, backpacking, transport, hébergement
+- maison_jardin : déco intérieur, bricolage, rénovation, jardinage, plantes
+- animaux : chiens, chats, animaux de compagnie, protection animale
+- parentalite : grossesse, naissance, éducation des enfants, vie de famille
+- automobile : voitures, motos, véhicules électriques, tuning
+- shopping : hauls, unboxing, reviews produits, bons plans, promos
 - sport : football, fitness, MMA, JO (PAS jeux de société)
 - business : entrepreneuriat, crypto, coaching, investissement
 - developpement_personnel : méditation, motivation, astrologie
@@ -159,6 +166,106 @@ Réponds UNIQUEMENT avec le JSON.`;
 }
 
 export { SYSTEM_PROMPT };
+
+// ── Batch LLM — plusieurs posts en un seul appel ───────────
+
+export interface BatchPost {
+  index: number;
+  username: string;
+  normalizedText: string;
+  hashtags: string[];
+  mediaType?: string;
+  rulesHints?: {
+    mainTopics: string[];
+    politicalScore: number;
+    polarizationScore: number;
+    detectedActors: string[];
+  };
+}
+
+/**
+ * Envoie jusqu'à 5 posts dans un seul appel OpenAI.
+ * Retourne un tableau de résultats JSON indexés.
+ */
+export async function callOpenAIBatch(
+  posts: BatchPost[],
+  config: LLMConfig,
+): Promise<{ index: number; result: any }[]> {
+  const model = config.model || DEFAULT_MODEL;
+
+  const postsBlock = posts.map(p => {
+    const hints = p.rulesHints?.mainTopics.length
+      ? `\nIndices règles: topics=[${p.rulesHints.mainTopics.join(',')}], pol=${p.rulesHints.politicalScore}`
+      : '';
+    return `[POST ${p.index}]
+Auteur: @${p.username} | Type: ${p.mediaType || 'photo'}
+Hashtags: ${p.hashtags.join(', ') || '(aucun)'}
+Texte: ${p.normalizedText.substring(0, 600)}${hints}
+[/POST ${p.index}]`;
+  }).join('\n\n');
+
+  const prompt = `Analyse ces ${posts.length} posts Instagram et produis un JSON avec un tableau "posts".
+
+${postsBlock}
+
+THÈMES (IDs uniquement) : actualite, politique, geopolitique, economie, ecologie, immigration, securite, justice, sante, religion, education, culture, humour, divertissement, lifestyle, beaute, sport, business, developpement_personnel, technologie, feminisme, masculinite, identite, societe, food, voyage, maison_jardin, animaux, parentalite, automobile, shopping
+
+Réponds avec ce JSON :
+{
+  "posts": [
+    {
+      "index": 0,
+      "semantic_summary": "...",
+      "main_topics": ["1-3 thèmes. JAMAIS vide."],
+      "secondary_topics": ["0-2"],
+      "tone": "informatif|émotionnel|sarcastique|militant|neutre|inspirant|alarmiste",
+      "primary_emotion": "neutre|joie|colère|...",
+      "emotion_intensity": 0.0-1.0,
+      "political_explicitness_score": 0-4,
+      "polarization_score": 0.0-1.0,
+      "narrative_frame": "aucun|declin|urgence|...",
+      "media_intent": "informer|divertir|vendre|...",
+      "confidence_score": 0.0-1.0
+    }
+  ]
+}
+
+ÉCHELLE POLITIQUE : 0=apolitique, 1=social sans enjeu, 2=enjeu public, 3=politique explicite, 4=militant
+JSON uniquement.`;
+
+  const messages: LLMMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: prompt },
+  ];
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: Math.min(posts.length * 400, 4000),
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI Batch ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || '{}';
+  const parsed = JSON.parse(content);
+  return (parsed.posts || []).map((p: any) => ({
+    index: p.index ?? 0,
+    result: p,
+  }));
+}
 
 // ── Whisper API — transcription audio pour vidéos ───────────
 

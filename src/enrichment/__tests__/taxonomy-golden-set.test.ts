@@ -123,8 +123,8 @@ describe('vrais positifs — divertissement & culture', () => {
 describe('vrais positifs — lifestyle & beauté', () => {
   it('recette food', () => {
     const text = 'Ma recette de brunch du dimanche : pancakes vegan, restaurant gastronomie à Paris';
-    expect(themes(text)).toContain('lifestyle');
-    expect(subjects(text)).toContain('food');
+    expect(themes(text)).toContain('food');
+    expect(subjects(text)).toContain('recettes');
   });
 
   it('skincare routine', () => {

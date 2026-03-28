@@ -78,3 +78,11 @@ export async function onSidebarRequest(callback: () => void): Promise<NativeList
     }
   });
 }
+
+export async function onWrappedRequest(callback: () => void): Promise<NativeListenerHandle> {
+  return onTrackerData((data: TrackerEvent) => {
+    if (data?.type === 'open_wrapped') {
+      callback();
+    }
+  });
+}

@@ -1,5 +1,4 @@
 ---
-// Un exemple concret : un feed fictif mais réaliste, avec l'analyse Scrollout
 const posts = [
   {
     user: '@bfrancetv',
@@ -16,7 +15,7 @@ const posts = [
   },
   {
     user: '@topchefm6',
-    text: 'La recette du risotto parfait en 3 étapes 🍚',
+    text: 'La recette du risotto parfait en 3 étapes',
     type: 'Vidéo',
     time: '45s',
     attention: 'Engagé',
@@ -73,15 +72,14 @@ const posts = [
 
 <section id="exemple">
   <span class="section-label mono">Exemple concret</span>
-  <h2 class="example-title">Voilà ce que Scrollout te montre<br/><span class="accent">sur 5 posts de ton feed.</span></h2>
+  <h2 class="example-title" data-reveal>Voilà ce que Scrollout te montre<br/><span class="accent">sur 5 posts de ton feed.</span></h2>
 
   <div class="feed-analysis">
-    <!-- Le feed brut à gauche -->
-    <div class="feed-side">
+    <div class="feed-side" data-reveal="left">
       <div class="feed-label mono">Ton feed Instagram</div>
       <div class="feed-cards">
         {posts.map((p, i) => (
-          <div class={`feed-card ${p.flagged ? 'flagged' : ''} ${p.sponsored ? 'sponsored' : ''}`} data-index={i}>
+          <div class={`feed-card ${p.flagged ? 'flagged' : ''} ${p.sponsored ? 'sponsored' : ''}`} style={`animation-delay: ${i * 100}ms`}>
             <div class="fc-header">
               <span class="fc-user">{p.user}</span>
               <span class="fc-type">{p.type}</span>
@@ -96,8 +94,7 @@ const posts = [
       </div>
     </div>
 
-    <!-- L'analyse Scrollout à droite -->
-    <div class="analysis-side">
+    <div class="analysis-side" data-reveal="right">
       <div class="feed-label mono">Ce que Scrollout révèle</div>
 
       <div class="analysis-summary">
@@ -128,10 +125,15 @@ const posts = [
         </div>
 
         <div class="summary-card alert">
-          <div class="sc-label">Alerte</div>
-          <div class="sc-alert-text">
-            1 contenu à <strong>polarisation extrême</strong> (0.91) détecté.
-            Vocabulaire de type "révélation" + désignation d'ennemi.
+          <div class="sc-alert-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <div class="sc-label">Alerte</div>
+            <div class="sc-alert-text">
+              1 contenu à <strong>polarisation extrême</strong> (0.91) détecté.
+              Vocabulaire de type "révélation" + désignation d'ennemi.
+            </div>
           </div>
         </div>
       </div>
@@ -183,20 +185,20 @@ const posts = [
     border-bottom: 1px solid #EEE;
   }
 
-  /* --- Feed côté gauche --- */
-  .feed-cards { display: flex; flex-direction: column; gap: 12px; }
+  /* --- Feed --- */
+  .feed-cards { display: flex; flex-direction: column; gap: 10px; }
 
   .feed-card {
     background: white;
-    border-radius: 14px;
+    border-radius: 16px;
     padding: 16px 20px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    transition: transform 0.2s;
+    border: 1px solid #F0F0F0;
+    transition: all 0.3s var(--ease-out-expo);
   }
 
-  .feed-card:hover { transform: translateX(4px); }
-  .feed-card.flagged { border-left: 3px solid var(--color-rouge); }
-  .feed-card.sponsored { opacity: 0.7; }
+  .feed-card:hover { transform: translateX(6px); box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+  .feed-card.flagged { border-left: 3px solid var(--color-rouge); background: #FFFBFB; }
+  .feed-card.sponsored { opacity: 0.6; }
 
   .fc-header {
     display: flex;
@@ -206,7 +208,7 @@ const posts = [
   }
 
   .fc-user { font-weight: 700; font-size: 0.85rem; color: var(--color-bleu-indigo); }
-  .fc-type { font-size: 0.65rem; color: var(--text-grey); background: var(--bg-grey-light); padding: 2px 8px; border-radius: 4px; }
+  .fc-type { font-size: 0.65rem; color: var(--text-grey); background: var(--bg-grey-light); padding: 3px 10px; border-radius: 6px; font-weight: 500; }
   .fc-text { font-size: 0.9rem; line-height: 1.5; margin-bottom: 8px; color: #333; }
 
   .fc-time {
@@ -219,7 +221,7 @@ const posts = [
 
   .fc-dot { width: 8px; height: 8px; border-radius: 50%; }
 
-  /* --- Analyse côté droit --- */
+  /* --- Analysis --- */
   .analysis-summary {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -229,15 +231,29 @@ const posts = [
 
   .summary-card {
     background: white;
-    border-radius: 14px;
-    padding: 16px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    border-radius: 16px;
+    padding: 18px;
+    border: 1px solid #F0F0F0;
+    transition: border-color 0.3s;
+  }
+
+  .summary-card:hover {
+    border-color: #E0E0E0;
   }
 
   .summary-card.alert {
     grid-column: 1 / -1;
-    background: #FFF5F5;
-    border: 1px solid rgba(255,34,34,0.12);
+    background: linear-gradient(135deg, #FFF5F5, #FFF0F6);
+    border: 1px solid rgba(255,34,34,0.1);
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .sc-alert-icon {
+    color: var(--color-rouge);
+    flex-shrink: 0;
+    margin-top: 2px;
   }
 
   .sc-label {
@@ -265,8 +281,9 @@ const posts = [
     border-radius: 50%;
     background: white;
     border: 3px solid var(--color-orange);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     transform: translateX(-50%);
+    transition: left 1s var(--ease-out-expo);
   }
 
   .sc-val { font-size: 0.85rem; font-weight: 600; }
@@ -284,7 +301,7 @@ const posts = [
   .sc-big span { font-size: 0.9rem; font-weight: 400; color: var(--text-grey); }
 
   .sc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .sc-chip { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; }
+  .sc-chip { padding: 5px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 600; }
 
   .sc-alert-text { font-size: 0.85rem; color: var(--color-rouge); line-height: 1.5; }
 
@@ -298,19 +315,20 @@ const posts = [
     padding: 10px 14px;
     background: white;
     border-radius: 10px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    border: 1px solid #F5F5F5;
+    transition: all 0.2s;
   }
 
+  .ap-row:hover { border-color: #E0E0E0; }
   .ap-row.ap-flagged { background: #FFF8F8; border-left: 2px solid var(--color-rouge); }
 
   .ap-user { font-size: 0.8rem; font-weight: 600; color: var(--text-black); min-width: 120px; }
-
   .ap-scores { display: flex; align-items: center; gap: 10px; }
 
   .ap-pol {
     width: 22px;
     height: 22px;
-    border-radius: 5px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -326,7 +344,7 @@ const posts = [
     overflow: hidden;
   }
 
-  .ap-polar-fill { display: block; height: 100%; border-radius: 3px; }
+  .ap-polar-fill { display: block; height: 100%; border-radius: 3px; transition: width 0.8s var(--ease-out-expo); }
 
   .ap-narrative {
     font-size: 0.65rem;
@@ -339,34 +357,12 @@ const posts = [
   @media (max-width: 600px) {
     .analysis-summary { grid-template-columns: 1fr; }
     .ap-narrative { display: none; }
-
-    .feed-card {
-      padding: 12px 14px;
-    }
-
-    .fc-text {
-      font-size: 0.8rem;
-    }
-
-    .ap-user {
-      min-width: 90px;
-      font-size: 0.7rem;
-    }
-
-    .ap-polar-bar {
-      width: 36px;
-    }
-
-    .sc-big {
-      font-size: 1.6rem;
-    }
-
-    .summary-card {
-      padding: 12px;
-    }
-
-    .sc-alert-text {
-      font-size: 0.75rem;
-    }
+    .feed-card { padding: 12px 14px; }
+    .fc-text { font-size: 0.8rem; }
+    .ap-user { min-width: 90px; font-size: 0.7rem; }
+    .ap-polar-bar { width: 36px; }
+    .sc-big { font-size: 1.6rem; }
+    .summary-card { padding: 14px; }
+    .sc-alert-text { font-size: 0.75rem; }
   }
 </style>

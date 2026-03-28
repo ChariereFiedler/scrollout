@@ -91,8 +91,9 @@ model Post {
   seenCount      Int      @default(1)
   createdAt      DateTime @default(now())
 
-  session    Session       @relation(fields: [sessionId], references: [id])
-  enrichment PostEnriched?
+  session      Session       @relation(fields: [sessionId], references: [id])
+  enrichment   PostEnriched?
+  observations Observation[]
 
   @@index([sessionId])
   @@index([username])
@@ -195,4 +196,69 @@ model PostEnriched {
   @@index([narrativeFrame])
   @@index([confidenceScore])
   @@index([reviewFlag])
+}
+
+// ─── Couche ontologique : Graphe de connaissances ───────────────────
+
+model KnowledgeEntity {
+  id            String   @id @default(cuid())
+  canonicalName String   @unique // "emmanuel macron", "immigration", "déclin"
+  type          String   // Person | Organization | Institution | Theme | Subject | PreciseSubject | Narrative | Emotion | Country | Location
+  aliases       String   @default("[]") // JSON array: ["macron", "e.macron", "président"]
+  metadata      String   @default("{}") // JSON: propriétés libres
+
+  // Métriques agrégées (dénormalisées pour perf)
+  mentionCount Int      @default(0)
+  lastSeenAt   DateTime?
+  avgSentiment Float    @default(0) // -1 à +1
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  outgoingEdges KnowledgeEdge[] @relation("source")
+  incomingEdges KnowledgeEdge[] @relation("target")
+  observations  Observation[]
+
+  @@index([type])
+  @@index([mentionCount])
+}
+
+model KnowledgeEdge {
+  id       String @id @default(cuid())
+  sourceId String
+  targetId String
+  relation String // belongsTo | affiliatedWith | opposedTo | relatedTo | subTopicOf
+  weight   Float  @default(1) // force de la relation
+  metadata String @default("{}") // JSON
+
+  createdAt DateTime @default(now())
+
+  source KnowledgeEntity @relation("source", fields: [sourceId], references: [id])
+  target KnowledgeEntity @relation("target", fields: [targetId], references: [id])
+
+  @@unique([sourceId, targetId, relation])
+  @@index([relation])
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+model Observation {
+  id         String @id @default(cuid())
+  postId     String
+  entityId   String
+  relation   String // mentions | isAbout | takesPosition | evokes | uses | targets
+  stance     String @default("") // pour | contre | neutre | ambigu
+  intensity  Float  @default(0) // 0-1
+  confidence Float  @default(0) // 0-1
+  evidence   String @default("") // extrait justificatif
+  source     String // rules | llm | manual
+
+  createdAt DateTime @default(now())
+
+  post   Post            @relation(fields: [postId], references: [id])
+  entity KnowledgeEntity @relation(fields: [entityId], references: [id])
+
+  @@index([postId])
+  @@index([entityId])
+  @@index([relation])
 }

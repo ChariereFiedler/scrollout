@@ -83,6 +83,22 @@ export interface PostEntry {
   enrichment?: PostEnrichment;
 }
 
+export interface SubjectInsight {
+  subject: string;
+  count: number;
+  totalDwellMs: number;
+  avgDwellMs: number;
+  attention: Record<string, number>;
+  topAccounts: Array<{ username: string; count: number }>;
+  dominantEmotion: string;
+  dominantTone: string;
+  domains: string[];
+  avgPoliticalScore?: number;
+  avgPolarization?: number;
+  sampleCaption: string;
+  sampleSummary: string;
+}
+
 export interface DbStats {
   totalSessions: number;
   totalPosts: number;
@@ -110,6 +126,8 @@ export interface DbStats {
   polarizingAccounts?: Array<{ username: string; avgPolarization: number; avgPolitical: number; count: number; totalDwellMs: number }>;
   sponsoredStats?: { sponsored?: { count: number; avgDwellMs: number; avgPolitical: number }; organic?: { count: number; avgDwellMs: number; avgPolitical: number } };
   signals?: { activism: number; conflict: number; moralAbsolute: number; enemyDesignation: number; ingroupOutgroup: number; total: number };
+  subjectInsights?: SubjectInsight[];
+  preciseSubjectInsights?: SubjectInsight[];
 }
 
 export interface CognitiveThemeRow {
@@ -199,6 +217,8 @@ export async function getStats(): Promise<DbStats> {
   if (result.polarizingAccounts) stats.polarizingAccounts = parseField(result.polarizingAccounts);
   if (result.sponsoredStats) stats.sponsoredStats = parseField(result.sponsoredStats);
   if (result.signals) stats.signals = parseField(result.signals);
+  if (result.subjectInsights) stats.subjectInsights = parseField(result.subjectInsights);
+  if (result.preciseSubjectInsights) stats.preciseSubjectInsights = parseField(result.preciseSubjectInsights);
   return stats;
 }
 
@@ -232,6 +252,11 @@ export async function saveEnrichmentFromApp(dbPostId: string, enrichment: Record
     dbPostId,
     enrichment: JSON.stringify(enrichment),
   });
+}
+
+export async function resetAllEnrichments(): Promise<number> {
+  const result = await getPlugin().resetAllEnrichments();
+  return result.deleted || 0;
 }
 
 export function safeParse(json: string | null | undefined): string[] {

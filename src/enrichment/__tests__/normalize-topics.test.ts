@@ -27,12 +27,12 @@ describe('normalizeTopicId', () => {
     expect(normalizeTopicId('jeux')).toBe('divertissement');
     expect(normalizeTopicId('gaming')).toBe('divertissement');
     expect(normalizeTopicId('jeux vidéo')).toBe('divertissement');
-    expect(normalizeTopicId('mode')).toBe('beaute');
-    expect(normalizeTopicId('fashion')).toBe('beaute');
+    expect(normalizeTopicId('mode')).toBe('lifestyle');
+    expect(normalizeTopicId('fashion')).toBe('lifestyle');
     expect(normalizeTopicId('musique')).toBe('culture');
     expect(normalizeTopicId('cinéma')).toBe('culture');
-    expect(normalizeTopicId('food')).toBe('lifestyle');
-    expect(normalizeTopicId('cuisine')).toBe('lifestyle');
+    expect(normalizeTopicId('food')).toBe('food');
+    expect(normalizeTopicId('cuisine')).toBe('food');
     expect(normalizeTopicId('crypto')).toBe('business');
     expect(normalizeTopicId('nature')).toBe('ecologie');
   });
@@ -52,7 +52,7 @@ describe('normalizeTopicId', () => {
 
 describe('normalizeTopics', () => {
   it('should normalize and deduplicate', () => {
-    expect(normalizeTopics(['beaute', 'beauté', 'mode'])).toEqual(['beaute']);
+    expect(normalizeTopics(['beaute', 'beauté', 'mode'])).toEqual(['beaute', 'lifestyle']);
   });
 
   it('should filter out unknown topics', () => {

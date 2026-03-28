@@ -1,5 +1,4 @@
 ---
-// Simulateur avec des vrais posts fictifs par profil
 const profiles = {
   normal: {
     label: 'Feed diversifié',
@@ -34,53 +33,69 @@ const profiles = {
 };
 ---
 
-<section id="demo">
+<section id="demo" data-reveal="scale">
   <div class="simulator">
-    <div class="sim-header">
-      <h2>3 feeds. 3 réalités.</h2>
-      <p>Le même Instagram, 3 utilisateurs différents. Compare ce que l'algorithme fabrique.</p>
+    <div class="sim-bg" aria-hidden="true">
+      <div class="sim-orb sim-orb-1"></div>
+      <div class="sim-orb sim-orb-2"></div>
     </div>
 
-    <div class="sim-controls">
-      <button class="sim-btn active" data-mode="normal">Feed diversifié</button>
-      <button class="sim-btn" data-mode="echo">Chambre d'écho</button>
-      <button class="sim-btn" data-mode="polar">Feed polarisé</button>
-    </div>
-
-    <div class="sim-body">
-      <div class="sim-feed" id="sim-feed">
-        {profiles.normal.posts.map((p) => (
-          <div class="sf-card" data-profile="normal">
-            <div class="sf-top">
-              <span class="sf-user">{p.user}</span>
-              <span class="sf-cat">{p.cat}{p.ad ? ' · Sponsorisé' : ''}</span>
-            </div>
-            <div class="sf-text">{p.text}</div>
-            <div class="sf-score">
-              <span class="sf-pol" style={`background: ${p.pol >= 3 ? 'var(--color-orange)' : p.pol >= 1 ? 'var(--color-jaune)' : '#333'}`}>{p.pol}</span>
-            </div>
-          </div>
-        ))}
+    <div class="sim-inner">
+      <div class="sim-header">
+        <h2>3 feeds. 3 réalités.</h2>
+        <p>Le même Instagram, 3 utilisateurs différents. Compare ce que l'algorithme fabrique.</p>
       </div>
 
-      <div class="sim-analysis">
-        <div class="sa-metric">
-          <div class="sa-label">Polarisation</div>
-          <div class="sa-bar"><div id="bar-polar" class="sa-fill" style="width: 15%; background: var(--color-violet);"></div></div>
-          <div class="sa-val" id="val-polar">Faible</div>
+      <div class="sim-controls">
+        <button class="sim-btn active" data-mode="normal">
+          <span class="sim-btn-dot" style="background: var(--color-vert-eau);"></span>
+          Feed diversifié
+        </button>
+        <button class="sim-btn" data-mode="echo">
+          <span class="sim-btn-dot" style="background: var(--color-orange);"></span>
+          Chambre d'écho
+        </button>
+        <button class="sim-btn" data-mode="polar">
+          <span class="sim-btn-dot" style="background: var(--color-rouge);"></span>
+          Feed polarisé
+        </button>
+      </div>
+
+      <div class="sim-body">
+        <div class="sim-feed" id="sim-feed">
+          {profiles.normal.posts.map((p) => (
+            <div class="sf-card" data-profile="normal">
+              <div class="sf-top">
+                <span class="sf-user">{p.user}</span>
+                <span class="sf-cat">{p.cat}{p.ad ? ' · Sponsorisé' : ''}</span>
+              </div>
+              <div class="sf-text">{p.text}</div>
+              <div class="sf-score">
+                <span class="sf-pol" style={`background: ${p.pol >= 3 ? 'var(--color-orange)' : p.pol >= 1 ? 'var(--color-jaune)' : '#333'}`}>{p.pol}</span>
+              </div>
+            </div>
+          ))}
         </div>
-        <div class="sa-metric">
-          <div class="sa-label">Part politique</div>
-          <div class="sa-bar"><div id="bar-poli" class="sa-fill" style="width: 20%; background: var(--color-orange);"></div></div>
-          <div class="sa-val" id="val-poli">1 post sur 5</div>
-        </div>
-        <div class="sa-metric">
-          <div class="sa-label">Diversité</div>
-          <div class="sa-bar"><div id="bar-div" class="sa-fill" style="width: 90%; background: var(--color-vert-eau);"></div></div>
-          <div class="sa-val" id="val-div">Élevée</div>
-        </div>
-        <div class="sa-verdict" id="sim-verdict">
-          Feed <strong>équilibré</strong>. Sujets variés, politique modérée, aucune alerte.
+
+        <div class="sim-analysis">
+          <div class="sa-metric">
+            <div class="sa-label">Polarisation</div>
+            <div class="sa-bar"><div id="bar-polar" class="sa-fill" style="width: 15%; background: var(--color-violet);"></div></div>
+            <div class="sa-val" id="val-polar">Faible</div>
+          </div>
+          <div class="sa-metric">
+            <div class="sa-label">Part politique</div>
+            <div class="sa-bar"><div id="bar-poli" class="sa-fill" style="width: 20%; background: var(--color-orange);"></div></div>
+            <div class="sa-val" id="val-poli">1 post sur 5</div>
+          </div>
+          <div class="sa-metric">
+            <div class="sa-label">Diversité</div>
+            <div class="sa-bar"><div id="bar-div" class="sa-fill" style="width: 90%; background: var(--color-vert-eau);"></div></div>
+            <div class="sa-val" id="val-div">Élevée</div>
+          </div>
+          <div class="sa-verdict" id="sim-verdict">
+            Feed <strong>équilibré</strong>. Sujets variés, politique modérée, aucune alerte.
+          </div>
         </div>
       </div>
     </div>
@@ -140,7 +155,6 @@ const profiles = {
 
     const d = data[mode];
 
-    // Update bars
     document.getElementById('bar-polar')!.style.width = d.polar + '%';
     document.getElementById('bar-poli')!.style.width = d.poli + '%';
     document.getElementById('bar-div')!.style.width = d.div + '%';
@@ -149,12 +163,12 @@ const profiles = {
     document.getElementById('val-div')!.innerText = d.divLabel;
     document.getElementById('sim-verdict')!.innerHTML = d.verdict;
 
-    // Rebuild feed
     const feed = document.getElementById('sim-feed')!;
     feed.innerHTML = '';
-    for (const p of d.posts) {
+    for (const [i, p] of d.posts.entries()) {
       const card = document.createElement('div');
       card.className = 'sf-card';
+      card.style.animationDelay = `${i * 60}ms`;
       card.innerHTML = `
         <div class="sf-top">
           <span class="sf-user">${p.user}</span>
@@ -176,29 +190,65 @@ const profiles = {
 
 <style>
   .simulator {
-    background: #111;
+    background: #0a0a0a;
     color: white;
-    border-radius: var(--radius-lg);
-    padding: 48px 32px;
+    border-radius: 24px;
+    padding: 56px 36px;
     max-width: var(--container-width);
     margin: 0 auto;
+    position: relative;
+    overflow: hidden;
   }
 
-  .sim-header { text-align: center; margin-bottom: 36px; }
-  .sim-header h2 { color: white; font-size: clamp(1.8rem, 4vw, 2.5rem); margin-bottom: 8px; }
-  .sim-header p { color: #888; font-size: 1rem; }
+  .sim-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .sim-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    opacity: 0.08;
+  }
+
+  .sim-orb-1 {
+    width: 400px;
+    height: 400px;
+    background: var(--color-violet);
+    top: -20%;
+    right: -10%;
+  }
+
+  .sim-orb-2 {
+    width: 300px;
+    height: 300px;
+    background: var(--color-bleu-indigo);
+    bottom: -20%;
+    left: -10%;
+  }
+
+  .sim-inner {
+    position: relative;
+    z-index: 1;
+  }
+
+  .sim-header { text-align: center; margin-bottom: 40px; }
+  .sim-header h2 { color: white; font-size: clamp(1.8rem, 4vw, 2.5rem); margin-bottom: 10px; }
+  .sim-header p { color: #777; font-size: 1rem; }
 
   .sim-controls {
     display: flex;
     justify-content: center;
     gap: 10px;
-    margin-bottom: 36px;
+    margin-bottom: 40px;
     flex-wrap: wrap;
   }
 
   .sim-btn {
-    background: #222;
-    border: 1px solid #333;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
     color: white;
     padding: 12px 24px;
     border-radius: var(--radius-pill);
@@ -206,10 +256,29 @@ const profiles = {
     font-family: 'Inter', sans-serif;
     font-size: 0.85rem;
     font-weight: 500;
-    transition: all 0.2s;
+    transition: all 0.3s var(--ease-out-expo);
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
-  .sim-btn.active { background: var(--color-bleu-indigo); border-color: var(--color-bleu-indigo); }
+  .sim-btn:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  .sim-btn.active {
+    background: var(--color-bleu-indigo);
+    border-color: var(--color-bleu-indigo);
+    box-shadow: 0 4px 24px rgba(107, 107, 255, 0.3);
+  }
+
+  .sim-btn-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
 
   .sim-body {
     display: grid;
@@ -221,30 +290,36 @@ const profiles = {
     .sim-body { grid-template-columns: 1fr 1fr; }
   }
 
-  /* Feed cards */
   .sim-feed { display: flex; flex-direction: column; gap: 8px; }
 </style>
 
 <style is:global>
   .sf-card {
-    background: #1a1a1a;
-    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
     padding: 14px 16px;
-    transition: background 0.2s;
+    transition: all 0.3s var(--ease-out-expo);
+    animation: card-in 0.4s var(--ease-out-expo) both;
   }
 
-  .sf-card:hover { background: #222; }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .sf-card:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); }
 
   .sf-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
   .sf-user { font-weight: 700; font-size: 0.8rem; color: var(--color-bleu-ciel); }
-  .sf-cat { font-size: 0.65rem; color: #666; }
-  .sf-text { font-size: 0.85rem; color: #CCC; line-height: 1.4; margin-bottom: 8px; }
+  .sf-cat { font-size: 0.65rem; color: #555; }
+  .sf-text { font-size: 0.85rem; color: #AAA; line-height: 1.4; margin-bottom: 8px; }
   .sf-score { display: flex; justify-content: flex-end; }
 
   .sf-pol {
     width: 22px;
     height: 22px;
-    border-radius: 5px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -253,28 +328,28 @@ const profiles = {
     color: white;
   }
 
-  /* Analysis side */
   .sim-analysis { display: flex; flex-direction: column; gap: 20px; }
 
   .sa-metric { display: flex; flex-direction: column; gap: 6px; }
-  .sa-label { font-size: 0.8rem; color: #888; }
-  .sa-bar { height: 10px; background: #222; border-radius: 5px; overflow: hidden; }
+  .sa-label { font-size: 0.8rem; color: #666; }
+  .sa-bar { height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden; }
   .sa-fill { height: 100%; border-radius: 5px; transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
-  .sa-val { font-size: 0.75rem; color: #666; }
+  .sa-val { font-size: 0.75rem; color: #555; }
 
   .sa-verdict {
     padding: 20px;
-    background: #1a1a1a;
-    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
     font-size: 1rem;
-    color: #CCC;
+    color: #AAA;
     line-height: 1.5;
   }
 
   @media (max-width: 640px) {
     .simulator {
       padding: 32px 16px;
-      border-radius: 16px;
+      border-radius: 20px;
       margin: 0 -16px;
     }
 

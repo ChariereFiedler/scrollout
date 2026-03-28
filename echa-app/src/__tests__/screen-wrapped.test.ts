@@ -58,7 +58,7 @@ describe('screen-wrapped', () => {
 
     expect(el.shadowRoot).toBeTruthy();
     const slides = el.shadowRoot!.querySelectorAll('.slide');
-    expect(slides.length).toBe(6);
+    expect(slides.length).toBe(7);
   });
 
   it('should navigate between slides via go()', async () => {
@@ -78,7 +78,7 @@ describe('screen-wrapped', () => {
     expect(el.currentSlide).toBe(0);
 
     el.go(10);
-    expect(el.currentSlide).toBe(5);
+    expect(el.currentSlide).toBe(6);
   });
 
   it('should dispatch close-wrapped event', async () => {

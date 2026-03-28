@@ -9,10 +9,11 @@ import {
   hideInstagram,
   isInstagramOpen,
   onSidebarRequest,
+  onWrappedRequest,
 } from './services/native-bridge.js';
 import { startDaemon, getDaemonStatus } from './services/enrichment-daemon.js';
 
-type Tab = 'home' | 'instagram' | 'scrollout' | 'cognition' | 'posts' | 'settings';
+type Tab = 'home' | 'instagram' | 'scrollout' | 'cognition' | 'knowledge' | 'posts' | 'settings';
 
 @customElement('app-shell')
 export class AppShell extends LitElement {
@@ -191,11 +192,13 @@ export class AppShell extends LitElement {
   @state() private drawer = false;
 
   private sidebarHandle: { remove: () => Promise<void> } | null = null;
+  private wrappedHandle: { remove: () => Promise<void> } | null = null;
 
   connectedCallback() {
     super.connectedCallback();
     this.purgeAndRestart();
     this.bindSidebarEvent();
+    this.bindWrappedEvent();
     this.autoLaunchInstagram();
   }
 
@@ -211,11 +214,18 @@ export class AppShell extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.sidebarHandle?.remove();
+    this.wrappedHandle?.remove();
   }
 
   private async bindSidebarEvent() {
     try {
       this.sidebarHandle = await onSidebarRequest(() => { void this.go('scrollout'); });
+    } catch { /* mock */ }
+  }
+
+  private async bindWrappedEvent() {
+    try {
+      this.wrappedHandle = await onWrappedRequest(() => { this.wrapped = true; });
     } catch { /* mock */ }
   }
 
@@ -313,6 +323,7 @@ export class AppShell extends LitElement {
       home:     '<circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>',
       ig:       '<rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/>',
       bubble:   '<circle cx="12" cy="12" r="5" stroke-width="1.5"/><circle cx="12" cy="12" r="10" stroke-dasharray="3 3" stroke-width="1"/><circle cx="12" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.5" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.5" cy="16" r="1.5" fill="currentColor" stroke="none"/><circle cx="5.5" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="5.5" cy="16" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="20" r="1.5" fill="currentColor" stroke="none"/>',
+      graph:    '<circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="12" cy="12" r="3"/><path d="M8.5 8.5l1 1M13.5 13.5l1 1M15.5 8.5l-1 1M8.5 15.5l1-1"/>',
       feed:     '<path d="M4 6h16M4 12h16M4 18h10"/>',
       settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.32 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
     };
@@ -349,6 +360,7 @@ export class AppShell extends LitElement {
           ${this.navItem('home', 'home', 'Profil')}
           ${this.navItem('instagram', 'ig', 'Capture', this.igOpen)}
           ${this.navItem('cognition', 'bubble', 'Bulle cognitive')}
+          ${this.navItem('knowledge', 'graph', 'Ontologie')}
           ${this.navItem('posts', 'feed', 'Feed')}
           ${this.navItem('settings', 'settings', 'Configuration')}
         </div>
@@ -385,6 +397,7 @@ export class AppShell extends LitElement {
           ></screen-scrollout>
         ` : ''}
         ${this.tab === 'cognition' ? html`<screen-cognition @go-home=${() => this.go('home')}></screen-cognition>` : ''}
+        ${this.tab === 'knowledge' ? html`<screen-knowledge></screen-knowledge>` : ''}
         ${this.tab === 'posts' ? html`<screen-posts></screen-posts>` : ''}
         ${this.tab === 'settings' ? html`<screen-settings></screen-settings>` : ''}
       </div>

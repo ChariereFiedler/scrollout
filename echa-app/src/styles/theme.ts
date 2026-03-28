@@ -82,7 +82,7 @@ export const domainColors: Record<string, string> = {
   'business': '#6BE88B',
 };
 
-/** Scrollout color dots (brand identity) */
+/** Scrollout color dots (brand identity) — legacy, kept for loading animations */
 export const scrolloutDots = ['#FFE94A', '#6BE88B', '#6B6BFF', '#FF7B33', '#E88BE8', '#8B44E8', '#FF2222', '#88CCFF', '#88EEBB'];
 
 /** Brand mark rendered as inline SVG string for .innerHTML bindings */

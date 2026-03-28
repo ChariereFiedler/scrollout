@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizePostText, detectLanguage } from '../normalize';
+import { normalizePostText, detectLanguage, isCaptionPureNoise } from '../normalize';
 
 describe('normalizePostText', () => {
   it('fusionne caption et imageDesc sans doublons', () => {
@@ -135,6 +135,81 @@ describe('normalizePostText', () => {
     expect(result.normalizedText).not.toContain('[OCR]');
     expect(result.normalizedText).not.toContain('[SUBTITLES]');
     expect(result.normalizedText).not.toContain('[AUDIO_TRANSCRIPT]');
+  });
+});
+
+describe('isCaptionPureNoise', () => {
+  it('détecte "plus" comme bruit pur', () => {
+    expect(isCaptionPureNoise('plus')).toBe(true);
+    expect(isCaptionPureNoise('plus...')).toBe(true);
+  });
+
+  it('détecte "Voir la traduction" comme bruit pur', () => {
+    expect(isCaptionPureNoise('il y a 7 jours  •  Voir la traduction')).toBe(true);
+  });
+
+  it('détecte une date isolée comme bruit pur', () => {
+    expect(isCaptionPureNoise('15 mars')).toBe(true);
+    expect(isCaptionPureNoise('11 mars  •  Voir la traduction')).toBe(true);
+  });
+
+  it('garde une vraie caption', () => {
+    expect(isCaptionPureNoise('Legendary Dice Pull!! #dnd')).toBe(false);
+    expect(isCaptionPureNoise('Les rehausses support de mangas')).toBe(false);
+  });
+
+  it('détecte caption vide', () => {
+    expect(isCaptionPureNoise('')).toBe(true);
+    expect(isCaptionPureNoise('...')).toBe(true);
+  });
+});
+
+describe('stripInstagramUI - boutons et actions', () => {
+  it('supprime "Réaction rapide" du texte', () => {
+    const result = normalizePostText({
+      caption: '',
+      imageDesc: '',
+      allText: 'Mon contenu Réaction rapide J\'aime Direct',
+      hashtags: [],
+    });
+    expect(result.normalizedText).not.toContain('Réaction rapide');
+    expect(result.normalizedText).not.toContain('Direct');
+    expect(result.normalizedText).toContain('Mon contenu');
+  });
+
+  it('supprime "Activer le son" et "Envoyer"', () => {
+    const result = normalizePostText({
+      caption: '',
+      imageDesc: '',
+      allText: 'Activer le son user123 a publié un(e) video le 28 février Envoyer',
+      hashtags: [],
+    });
+    expect(result.normalizedText).not.toContain('Activer le son');
+    expect(result.normalizedText).not.toContain('Envoyer');
+  });
+
+  it('supprime les usernames dupliqués (pattern Instagram)', () => {
+    const result = normalizePostText({
+      caption: '',
+      imageDesc: '',
+      allText: 'kilian.krdr kilian.krdr Mon super contenu',
+      hashtags: [],
+    });
+    // Should not contain the username twice
+    const matches = result.normalizedText.match(/kilian\.krdr/g);
+    expect(matches?.length ?? 0).toBeLessThanOrEqual(1);
+  });
+
+  it('vide une caption qui est du pur bruit UI', () => {
+    const result = normalizePostText({
+      caption: 'il y a 7 jours  •  Voir la traduction',
+      imageDesc: '',
+      allText: 'Du vrai contenu ici',
+      hashtags: [],
+    });
+    // La caption bruit ne devrait pas apparaitre, mais le allText oui
+    expect(result.normalizedText).not.toContain('Voir la traduction');
+    expect(result.normalizedText).toContain('Du vrai contenu ici');
   });
 });
 

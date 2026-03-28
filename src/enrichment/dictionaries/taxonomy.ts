@@ -77,8 +77,13 @@ export const DOMAINS: Domain[] = [
   },
   {
     id: 'lifestyle_bienetre',
-    label: 'Lifestyle & Bien-\u00eatre',
-    themeIds: ['lifestyle', 'beaute', 'developpement_personnel'],
+    label: 'Lifestyle & Bien-être',
+    themeIds: ['lifestyle', 'beaute', 'developpement_personnel', 'food', 'voyage', 'maison_jardin'],
+  },
+  {
+    id: 'vie_quotidienne',
+    label: 'Vie quotidienne',
+    themeIds: ['animaux', 'parentalite', 'automobile', 'shopping'],
   },
   {
     id: 'ecologie_environnement',
@@ -175,7 +180,24 @@ export const THEMES: Theme[] = [
         id: 'scandale_politique',
         label: 'Scandales politiques',
         keywords: ['affaire', 'scandale', 'corruption', 'mis en examen', 'proc\u00e8s', 'proces', 'fraude', 'conflit d\'int\u00e9r\u00eat', 'conflit dinteret', 'enrichissement'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'elus_impunite',
+            statement: 'Les élus corrompus bénéficient d\'une impunité systémique en France',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['Anticor', 'gauche', 'populistes'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'denonciation'], typicalActors: ['institutionnels', 'juristes'] },
+            ],
+          },
+          {
+            id: 'transparence_patrimoine',
+            statement: 'Le patrimoine des élus devrait être entièrement public',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['mobilisation', 'denonciation'], typicalActors: ['Transparency International', 'Anticor'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'menace'], typicalActors: ['élus', 'juristes vie privée'] },
+            ],
+          },
+        ],
       },
       {
         id: 'reforme_institutions',
@@ -241,7 +263,24 @@ export const THEMES: Theme[] = [
         id: 'relations_internationales',
         label: 'Relations internationales',
         keywords: ['diplomatie', 'trait\u00e9', 'traite', 'sanctions', 'embargo', 'onu', 'g7', 'g20', 'brics', 'sommet', 'alliance', 'multilat\u00e9ral'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'sanctions_efficaces',
+            statement: 'Les sanctions économiques internationales sont un outil efficace',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['ordre', 'mobilisation'], typicalActors: ['atlantistes', 'UE', 'États-Unis'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['souverainistes', 'pays du Sud', 'BRICS'] },
+            ],
+          },
+          {
+            id: 'brics_contre_occident',
+            statement: 'Les BRICS représentent une alternative crédible à l\'ordre occidental',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['pays du Sud', 'anti-impérialistes'] },
+              { label: 'contre', typicalNarratives: ['menace', 'ordre'], typicalActors: ['atlantistes', 'libéraux occidentaux'] },
+            ],
+          },
+        ],
       },
       {
         id: 'union_europeenne',
@@ -299,7 +338,16 @@ export const THEMES: Theme[] = [
         id: 'droit_asile',
         label: 'Droit d\'asile',
         keywords: ['r\u00e9fugi\u00e9', 'refugie', 'asile', 'demandeur', 'ofpra', 'cnda', 'protection internationale', 'dublin'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'droit_asile_trop_genereux',
+            statement: 'Le droit d\'asile en France est trop généreux et détourné',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['declin', 'menace'], typicalActors: ['droite', 'RN', 'Reconquête'] },
+              { label: 'contre', typicalNarratives: ['injustice', 'denonciation'], typicalActors: ['associations', 'UNHCR', 'gauche'] },
+            ],
+          },
+        ],
       },
       {
         id: 'integration',
@@ -342,7 +390,24 @@ export const THEMES: Theme[] = [
         id: 'violences_urbaines',
         label: 'Violences urbaines',
         keywords: ['violence urbaine', '\u00e9meute', 'emeute', 'incendie', 'caillassage', 'banlieue', 'quartier', 'nuit de violences'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'emeutes_consequence_sociale',
+            statement: 'Les émeutes urbaines sont la conséquence de décennies d\'abandon des quartiers',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'denonciation'], typicalActors: ['gauche', 'sociologues', 'associations quartiers'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'menace'], typicalActors: ['droite', 'RN', 'syndicats police'] },
+            ],
+          },
+          {
+            id: 'couvre_feu_emeutes',
+            statement: 'Le couvre-feu est une réponse adaptée aux violences urbaines',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['ordre', 'urgence'], typicalActors: ['droite sécuritaire', 'police'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['associations libertés', 'gauche'] },
+            ],
+          },
+        ],
       },
       {
         id: 'police',
@@ -371,7 +436,24 @@ export const THEMES: Theme[] = [
         id: 'terrorisme',
         label: 'Terrorisme',
         keywords: ['terrorisme', 'terroriste', 'attentat', 'radicalisation', 'djihad', 'jihadisme', 'fiche s', 'dgsi', 'vigipirate'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'fichiers_s_expulsion',
+            statement: 'Toutes les fiches S devraient être expulsées ou internées',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['ordre', 'urgence'], typicalActors: ['droite', 'RN', 'victimes attentats'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'ordre'], typicalActors: ['juristes', 'CNCDH', 'magistrats'] },
+            ],
+          },
+          {
+            id: 'amalgame_islam_terrorisme',
+            statement: 'L\'amalgame entre islam et terrorisme est entretenu par les médias',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['associations musulmanes', 'gauche', 'antiracistes'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'denonciation'], typicalActors: ['laïques stricts', 'droite', 'éditorialistes'] },
+            ],
+          },
+        ],
       },
       {
         id: 'delinquance',
@@ -429,7 +511,24 @@ export const THEMES: Theme[] = [
         id: 'droits_fondamentaux',
         label: 'Droits fondamentaux',
         keywords: ['droit', 'libert\u00e9', 'libertes', 'cedh', 'conseil constitutionnel', 'droits de l\'homme', 'habeas corpus', '\u00e9tat de droit', 'etat de droit'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'cedh_souverainete',
+            statement: 'La CEDH empiète sur la souveraineté nationale',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'declin'], typicalActors: ['souverainistes', 'RN', 'droite conservatrice'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'mobilisation'], typicalActors: ['juristes', 'défenseurs droits humains'] },
+            ],
+          },
+          {
+            id: 'etat_urgence_libertes',
+            statement: 'L\'état d\'urgence permanent menace les libertés fondamentales',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'menace'], typicalActors: ['La Quadrature', 'LDH', 'gauche'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'urgence'], typicalActors: ['gouvernement', 'droite sécuritaire'] },
+            ],
+          },
+        ],
       },
       {
         id: 'violences_sexuelles',
@@ -472,19 +571,62 @@ export const THEMES: Theme[] = [
         id: 'inegalites',
         label: 'In\u00e9galit\u00e9s sociales',
         keywords: ['in\u00e9galit\u00e9', 'inegalite', 'classe', 'bourgeoisie', 'prolétaire', 'oligarchie', 'riches', 'milliardaire', 'fracture sociale', 'ascenseur social'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'taxer_super_riches',
+            statement: 'Il faut taxer massivement les ultra-riches pour réduire les inégalités',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'mobilisation'], typicalActors: ['gauche', 'Oxfam', 'Attac'] },
+              { label: 'contre', typicalNarratives: ['menace', 'aspiration'], typicalActors: ['libéraux', 'patronat', 'droite'] },
+            ],
+          },
+          {
+            id: 'meritocratie_mythe',
+            statement: 'La méritocratie est un mythe qui justifie les inégalités',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['sociologues', 'gauche radicale'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'ordre'], typicalActors: ['libéraux', 'droite', 'entrepreneurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'banlieues',
         label: 'Banlieues & quartiers',
         keywords: ['banlieue', 'quartier', 'cit\u00e9', 'cite', 'zup', 'qpv', 'ghetto', 's\u00e9gr\u00e9gation', 'segregation', 'politique de la ville'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'politique_ville_echec',
+            statement: 'La politique de la ville est un échec depuis 40 ans',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['declin', 'denonciation'], typicalActors: ['habitants QPV', 'sociologues', 'élus locaux'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'ordre'], typicalActors: ['ANRU', 'gouvernement'] },
+            ],
+          },
+          {
+            id: 'mixite_sociale_imposee',
+            statement: 'La mixité sociale doit être imposée par la loi dans tous les quartiers',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['mobilisation', 'injustice'], typicalActors: ['gauche', 'urbanistes', 'associations'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'menace'], typicalActors: ['maires récalcitrants', 'droite'] },
+            ],
+          },
+        ],
       },
       {
         id: 'solidarite',
         label: 'Solidarit\u00e9 & lien social',
         keywords: ['solidarit\u00e9', 'solidarite', 'entraide', 'b\u00e9n\u00e9volat', 'benevolat', 'association', 'don', 'caritatif', 'lien social'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'revenu_universel',
+            statement: 'Un revenu universel inconditionnel est la meilleure réponse à la précarité',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['gauche', 'économistes hétérodoxes', 'Hamon'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'menace'], typicalActors: ['droite', 'patronat', 'libéraux'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -497,19 +639,62 @@ export const THEMES: Theme[] = [
         id: 'harcelement',
         label: 'Harc\u00e8lement',
         keywords: ['harc\u00e8lement', 'harcelement', 'metoo', 'me too', 'balancetonporc', 'agression', 'harc\u00e8lement de rue', 'harcelement de rue', 'cyberharcèlement'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'harcelement_rue_loi',
+            statement: 'Le harcèlement de rue devrait être sanctionné par des peines de prison',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['ordre', 'empowerment'], typicalActors: ['féministes', 'gouvernement', 'victimes'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'derision'], typicalActors: ['juristes', 'libertaires'] },
+            ],
+          },
+          {
+            id: 'cyberharcelement_anonymat',
+            statement: 'L\'anonymat en ligne devrait être supprimé pour lutter contre le cyberharcèlement',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['ordre', 'urgence'], typicalActors: ['victimes', 'politiques', 'parents'] },
+              { label: 'contre', typicalNarratives: ['menace', 'denonciation'], typicalActors: ['défenseurs libertés numériques', 'La Quadrature'] },
+            ],
+          },
+        ],
       },
       {
         id: 'charge_mentale',
         label: 'Charge mentale',
         keywords: ['charge mentale', 'r\u00e9partition des t\u00e2ches', 'in\u00e9galit\u00e9s domestiques', 'congé parental', 'congé paternit\u00e9'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'conge_parental_egal',
+            statement: 'Le congé parental devrait être identique et obligatoire pour les deux parents',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['empowerment', 'mobilisation'], typicalActors: ['féministes', 'gauche', 'pays nordiques'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'menace'], typicalActors: ['conservateurs', 'patronat'] },
+            ],
+          },
+        ],
       },
       {
         id: 'inegalites_salariales',
         label: 'In\u00e9galit\u00e9s salariales',
         keywords: ['in\u00e9galit\u00e9 salariale', 'inegalite salariale', '\u00e9cart de salaire', 'ecart de salaire', 'plafond de verre', 'index \u00e9galit\u00e9'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'quotas_femmes_direction',
+            statement: 'Des quotas de femmes dans les comités de direction sont nécessaires',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['empowerment', 'injustice'], typicalActors: ['féministes', 'gauche', 'certaines patronnes'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'denonciation'], typicalActors: ['libéraux', 'anti-quotas', 'méritocratie'] },
+            ],
+          },
+          {
+            id: 'ecart_salarial_choix',
+            statement: 'L\'écart salarial homme-femme s\'explique principalement par des choix de carrière différents',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['ordre', 'derision'], typicalActors: ['libéraux', 'anti-féministes'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['féministes', 'sociologues', 'syndicats'] },
+            ],
+          },
+        ],
       },
       {
         id: 'ivg',
@@ -530,7 +715,16 @@ export const THEMES: Theme[] = [
         id: 'body_positivity',
         label: 'Body positivity & image',
         keywords: ['body positive', 'body positivity', 'grossophobie', 'normes de beaut\u00e9', 'injonction', 'body shaming'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'body_positivity_sante',
+            statement: 'Le body positivity peut encourager des modes de vie malsains',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'ordre'], typicalActors: ['médecins', 'conservateurs', 'fitness influenceurs'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'denonciation'], typicalActors: ['activistes body positive', 'féministes'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -558,7 +752,16 @@ export const THEMES: Theme[] = [
         id: 'masculinite_positive',
         label: 'Masculinit\u00e9 positive',
         keywords: ['masculinit\u00e9 positive', 'masculinite positive', 'homme moderne', 'paternit\u00e9', 'paternite', 'homme f\u00e9ministe', 'vuln\u00e9rabilit\u00e9', 'sant\u00e9 mentale homme', 'homme d\u00e9construit', 'charge mentale homme', 'cong\u00e9 paternit\u00e9', 'conge paternite', 'p\u00e8re au foyer', 'p\u00e8re c\u00e9libataire', 'parentalit\u00e9', 'male ally', 'soft boy'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'homme_deconstruit_ridicule',
+            statement: 'L\'homme déconstruit est une mode qui ridiculise la masculinité',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['derision', 'declin'], typicalActors: ['manosphère', 'conservateurs', 'red pill'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['féministes', 'psychologues', 'progressistes'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -609,7 +812,24 @@ export const THEMES: Theme[] = [
         id: 'diaspora',
         label: 'Diaspora & origines',
         keywords: ['diaspora', 'racines', 'origine', 'binational', 'double culture', 'repr\u00e9sentation', 'representation', 'visibilit\u00e9', 'visibilite', 'minorit\u00e9', 'minorite', 'communaut\u00e9', 'communaute', 'expat', 'int\u00e9gration', 'integration', 'assimilation', 'identit\u00e9 culturelle', 'm\u00e9tissage', 'metissage', 'cr\u00e9ole', 'creole', 'afro', 'maghr\u00e9bine', 'maghrebine', 'asiatique'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'binationaux_loyaute',
+            statement: 'La double nationalité pose un problème de loyauté',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'ordre'], typicalActors: ['droite', 'souverainistes', 'RN'] },
+              { label: 'contre', typicalNarratives: ['injustice', 'empowerment'], typicalActors: ['associations diaspora', 'gauche', 'binationaux'] },
+            ],
+          },
+          {
+            id: 'representation_medias',
+            statement: 'Les minorités sont sous-représentées dans les médias français',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'denonciation'], typicalActors: ['associations', 'CSA/Arcom', 'gauche'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'derision'], typicalActors: ['universalistes républicains', 'droite'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -701,7 +921,24 @@ export const THEMES: Theme[] = [
         id: 'bourse_finance',
         label: 'Bourse & finance',
         keywords: ['bourse', 'cac', 'cac40', 'march\u00e9s financiers', 'wall street', 'sp\u00e9culation', 'trader', 'dividende', 'actionnaire'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'taxe_transactions_financieres',
+            statement: 'Une taxe sur les transactions financières (type Tobin) est indispensable',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'mobilisation'], typicalActors: ['Attac', 'gauche', 'altermondialistes'] },
+              { label: 'contre', typicalNarratives: ['menace', 'ordre'], typicalActors: ['marchés financiers', 'libéraux', 'banques'] },
+            ],
+          },
+          {
+            id: 'speculation_immoral',
+            statement: 'La spéculation boursière est fondamentalement immorale',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['anticapitalistes', 'gauche radicale'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['traders', 'libéraux', 'investisseurs'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -714,13 +951,47 @@ export const THEMES: Theme[] = [
         id: 'entrepreneuriat',
         label: 'Entrepreneuriat',
         keywords: ['entrepreneur', 'startup', 'entreprise', 'cr\u00e9ation d\'entreprise', 'lev\u00e9e de fonds', 'scale', 'pitch', 'incubateur', 'side hustle', 'solopreneur', 'freelance', 'personal branding', 'business plan', 'ceo', 'founder', 'acquisition', 'saas', 'b2b', 'b2c', 'mvp', 'product market fit'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'startup_nation_echec',
+            statement: 'La "startup nation" est un modèle qui profite aux riches et précarise les travailleurs',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['gauche', 'syndicats', 'anti-uberisation'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['entrepreneurs', 'La French Tech', 'Renaissance'] },
+            ],
+          },
+          {
+            id: 'auto_entrepreneur_precarite',
+            statement: 'Le statut auto-entrepreneur masque une précarisation du travail',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['syndicats', 'sociologues', 'gauche'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['freelances', 'libéraux', 'patronat'] },
+            ],
+          },
+        ],
       },
       {
         id: 'crypto_trading',
         label: 'Crypto & trading',
         keywords: ['crypto', 'bitcoin', 'ethereum', 'trading', 'blockchain', 'nft', 'defi', 'web3', 'token', 'altcoin', 'bull', 'bear', 'hodl', 'pump', 'dump', 'airdrop', 'staking', 'memecoin', 'solana', 'whale', 'diamond hands', 'to the moon', 'dyor', 'fomo'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'crypto_arnaque',
+            statement: 'Les cryptomonnaies sont principalement des arnaques spéculatives',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'menace'], typicalActors: ['régulateurs', 'économistes traditionnels', 'BCE'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['crypto-enthousiastes', 'libertariens', 'traders'] },
+            ],
+          },
+          {
+            id: 'bitcoin_monnaie_libre',
+            statement: 'Le Bitcoin est la seule monnaie véritablement libre et décentralisée',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['empowerment', 'revelation'], typicalActors: ['bitcoiners maximalistes', 'libertariens'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'menace'], typicalActors: ['banques centrales', 'écologistes', 'régulateurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'coaching_hustle',
@@ -741,7 +1012,24 @@ export const THEMES: Theme[] = [
         id: 'investissement',
         label: 'Investissement',
         keywords: ['investissement', 'immobilier', 'scpi', 'assurance vie', 'pea', 'bourse', 'patrimoine', 'rente', 'etf', 'dividende', 'crowdfunding', 'rentier', 'rendement', 'portefeuille', 'action', 'obligation', 'livret a', 'plus-value'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'immobilier_bulle',
+            statement: 'L\'immobilier français est en bulle et devrait être régulé drastiquement',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['locataires', 'jeunes', 'gauche'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'aspiration'], typicalActors: ['propriétaires', 'agents immobiliers', 'investisseurs'] },
+            ],
+          },
+          {
+            id: 'rente_immorale',
+            statement: 'Vivre de ses rentes est immoral quand d\'autres travaillent',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'denonciation'], typicalActors: ['anticapitalistes', 'travailleurs'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['investisseurs', 'FIRE movement', 'libéraux'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -758,7 +1046,16 @@ export const THEMES: Theme[] = [
         id: 'fait_divers',
         label: 'Faits divers',
         keywords: ['fait divers', 'drame', 'accident', 'incendie', 'meurtre', 'disparition', 'alerte enl\u00e8vement'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'faits_divers_instrumentalises',
+            statement: 'Les faits divers sont instrumentalisés politiquement pour alimenter le sentiment d\'insécurité',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'derision'], typicalActors: ['gauche', 'sociologues', 'médias indépendants'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'denonciation'], typicalActors: ['droite', 'CNews', 'victimes'] },
+            ],
+          },
+        ],
       },
       {
         id: 'media_info',
@@ -779,7 +1076,16 @@ export const THEMES: Theme[] = [
         id: 'catastrophe_naturelle',
         label: 'Catastrophes naturelles',
         keywords: ['s\u00e9isme', 'seisme', 'tremblement de terre', 'ouragan', 'inondation', 'tsunami', 'tornade', 'canicule', 's\u00e9cheresse', 'secheresse'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'catastrophes_climat',
+            statement: 'Les catastrophes naturelles sont directement liées au réchauffement climatique',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'denonciation'], typicalActors: ['climatologues', 'GIEC', 'écologistes'] },
+              { label: 'contre', typicalNarratives: ['derision', 'ordre'], typicalActors: ['climato-sceptiques', 'industriels'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -822,7 +1128,24 @@ export const THEMES: Theme[] = [
         id: 'ecole_privee',
         label: '\u00c9cole priv\u00e9e & in\u00e9galit\u00e9s scolaires',
         keywords: ['\u00e9cole priv\u00e9e', 'ecole privee', 'priv\u00e9 hors contrat', 'stanislas', 'mixit\u00e9 scolaire', 'carte scolaire', 's\u00e9gr\u00e9gation scolaire'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'financement_ecole_privee',
+            statement: 'L\'État ne devrait plus financer l\'école privée sous contrat',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'denonciation'], typicalActors: ['gauche', 'syndicats enseignants', 'laïques'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'empowerment'], typicalActors: ['enseignement catholique', 'parents école privée', 'droite'] },
+            ],
+          },
+          {
+            id: 'carte_scolaire_supprimer',
+            statement: 'La carte scolaire devrait être supprimée pour permettre le libre choix',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['libéraux', 'parents classes moyennes'] },
+              { label: 'contre', typicalNarratives: ['injustice', 'denonciation'], typicalActors: ['gauche', 'urbanistes', 'syndicats'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -873,13 +1196,39 @@ export const THEMES: Theme[] = [
         id: 'cybersecurite',
         label: 'Cybers\u00e9curit\u00e9',
         keywords: ['cybers\u00e9curit\u00e9', 'cybersecurite', 'hacker', 'piratage', 'ransomware', 'phishing', 'donn\u00e9es personnelles', 'rgpd', 'fuite de donn\u00e9es'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'rgpd_frein_innovation',
+            statement: 'Le RGPD freine l\'innovation européenne face aux géants américains',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'declin'], typicalActors: ['startups', 'tech européenne', 'libéraux'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'ordre'], typicalActors: ['CNIL', 'défenseurs vie privée', 'La Quadrature'] },
+            ],
+          },
+        ],
       },
       {
         id: 'tech_gadgets',
         label: 'Tech & gadgets',
         keywords: ['smartphone', 'iphone', 'android', 'apple', 'samsung', 'google', 'app', 'application', 'gadget', 'test', 'review', 'unboxing'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'apple_monopole',
+            statement: 'Apple et Google exercent un monopole abusif sur les smartphones',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['UE', 'développeurs indépendants', 'Epic Games'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'aspiration'], typicalActors: ['Apple', 'Google', 'consommateurs satisfaits'] },
+            ],
+          },
+          {
+            id: 'obsolescence_programmee',
+            statement: 'L\'obsolescence programmée devrait être un délit pénal',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'urgence'], typicalActors: ['écologistes', 'HOP', 'consommateurs'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'aspiration'], typicalActors: ['constructeurs', 'industrie tech'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -922,7 +1271,24 @@ export const THEMES: Theme[] = [
         id: 'sante_mentale',
         label: 'Sant\u00e9 mentale',
         keywords: ['sant\u00e9 mentale', 'sante mentale', 'd\u00e9pression', 'depression', 'anxi\u00e9t\u00e9', 'anxiete', 'burn-out', 'burnout', 'th\u00e9rapie', 'therapie', 'psychiatrie', 'psychologue'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'sante_mentale_crise',
+            statement: 'La France traverse une crise majeure de santé mentale ignorée par les pouvoirs publics',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'denonciation'], typicalActors: ['psychiatres', 'psychologues', 'étudiants'] },
+              { label: 'contre', typicalNarratives: ['ordre'], typicalActors: ['gouvernement', 'gestionnaires santé'] },
+            ],
+          },
+          {
+            id: 'psychologue_rembourse',
+            statement: 'Les consultations psy devraient être intégralement remboursées',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'mobilisation'], typicalActors: ['psychologues', 'patients', 'gauche'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'menace'], typicalActors: ['Sécu', 'gestionnaires budget'] },
+            ],
+          },
+        ],
       },
       {
         id: 'drogue_addiction',
@@ -969,19 +1335,54 @@ export const THEMES: Theme[] = [
         id: 'musique',
         label: 'Musique',
         keywords: ['musique', 'rappeur', 'rap', 'chanteur', 'chanteuse', 'album', 'single', 'concert', 'festival', 'spotify', 'victoires de la musique', 'playlist', 'dj', 'beatmaker', 'feat', 'featuring', 'clip', 'vinyle', 'vinyl', 'rock', 'pop', 'electro', 'jazz', 'classique', 'afrobeat', 'm\u00e9lodie'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'rap_violence_misogynie',
+            statement: 'Le rap français véhicule trop de violence et de misogynie',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'menace'], typicalActors: ['conservateurs', 'féministes', 'parents'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'denonciation'], typicalActors: ['rappeurs', 'fans rap', 'liberté d\'expression'] },
+            ],
+          },
+          {
+            id: 'streaming_tue_musique',
+            statement: 'Le streaming (Spotify, Deezer) détruit la rémunération des artistes',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['artistes indépendants', 'labels', 'syndicats'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['plateformes', 'consommateurs', 'artistes émergents'] },
+            ],
+          },
+        ],
       },
       {
         id: 'series_tv',
         label: 'S\u00e9ries & TV',
         keywords: ['s\u00e9rie', 'serie', 'netflix', 'disney+', 'prime video', '\u00e9mission', 'emission', 't\u00e9l\u00e9r\u00e9alit\u00e9', 'telerealite', 'saison', '\u00e9pisode', 'episode', 'binge', 'spoiler', 'cliffhanger', 'recap', 'rewatch', 'showrunner', 'hbo', 'apple tv', 'canal+', 'canal plus'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'netflix_culture',
+            statement: 'Les plateformes de streaming uniformisent la culture mondiale',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['declin', 'denonciation'], typicalActors: ['cinéastes', 'exception culturelle', 'intellos'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['consommateurs', 'créateurs indépendants'] },
+            ],
+          },
+        ],
       },
       {
         id: 'litterature',
         label: 'Litt\u00e9rature',
         keywords: ['livre', 'roman', 'auteur', 'autrice', 'litt\u00e9rature', 'litterature', 'goncourt', 'lecture', 'librairie', 'best-seller', 'bd', 'manga', 'booktok', 'bookstagram', 'biblioth\u00e8que', 'bibliotheque', 'page turner', 'tbr', 'reading list', 'kindle'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'booktok_nivellement',
+            statement: 'BookTok nivelle la littérature vers le bas avec des lectures commerciales',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['declin', 'denonciation'], typicalActors: ['critiques littéraires', 'libraires indépendants'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['booktokers', 'éditeurs', 'jeunes lecteurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'art_patrimoine',
@@ -1009,13 +1410,31 @@ export const THEMES: Theme[] = [
         id: 'memes',
         label: 'M\u00e8mes & shitpost',
         keywords: ['meme', 'm\u00e8me', 'shitpost', 'mdr', 'ptdr', 'lol', 'troll', 'cursed', 'based', 'sus'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'memes_propagande',
+            statement: 'Les mèmes sont devenus un outil de propagande politique efficace',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'denonciation'], typicalActors: ['chercheurs', 'fact-checkers', 'régulateurs'] },
+              { label: 'contre', typicalNarratives: ['derision', 'empowerment'], typicalActors: ['communautés mème', 'trolls', 'internautes'] },
+            ],
+          },
+        ],
       },
       {
         id: 'humour_sketch',
         label: 'Humour & sketches',
         keywords: ['humour', 'blague', 'sketch', 'parodie', 'satire', 'stand-up', 'humoriste', 'dr\u00f4le', 'drole', 'hilarant', 'ironie'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'cancel_culture_humour',
+            statement: 'La cancel culture empêche les humoristes de s\'exprimer librement',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'menace'], typicalActors: ['humoristes', 'droite', 'anti-woke'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'denonciation'], typicalActors: ['militants anti-discrimination', 'féministes'] },
+            ],
+          },
+        ],
       },
       {
         id: 'humour_politique',
@@ -1055,22 +1474,72 @@ export const THEMES: Theme[] = [
         ],
       },
       {
+        id: 'jeux_de_societe',
+        label: 'Jeux de société & jeux de plateau',
+        keywords: ['jeu de société', 'jeu de societe', 'jeux de société', 'jeux de societe', 'board game', 'boardgame', 'jeu de plateau', 'jeu de cartes', 'jeu de rôle', 'jeu de role', 'jdr', 'dnd', 'donjons et dragons', 'dice', 'dés', 'meeple', 'figurine', 'wargame', 'catan', 'wingspan', 'ludique', 'ludothèque', 'ludotheque', 'soirée jeux', 'boardgamegeek'],
+        preciseSubjects: [
+          {
+            id: 'jeux_societe_meilleur_que_ecrans',
+            statement: 'Les jeux de société sont meilleurs que les écrans pour le développement social',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['aspiration', 'ordre'], typicalActors: ['parents', 'éducateurs', 'ludothèques'] },
+              { label: 'contre', typicalNarratives: ['derision', 'empowerment'], typicalActors: ['gamers', 'industrie jeux vidéo'] },
+            ],
+          },
+        ],
+      },
+      {
         id: 'people_celebrites',
         label: 'People & c\u00e9l\u00e9brit\u00e9s',
         keywords: ['people', 'c\u00e9l\u00e9brit\u00e9', 'celebrite', 'star', 'buzz', 'viral', 'influenceur', 'influenceuse', 'youtubeur', 'tiktokeur', 'gossip', 'paparazzi', 'tapis rouge', 'red carpet', 'interview', 'podcast', 'clash', 'drama'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'influenceurs_reguler',
+            statement: 'Les influenceurs devraient être régulés comme des médias',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['ordre', 'denonciation'], typicalActors: ['DGCCRF', 'législateurs', 'consommateurs'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'menace'], typicalActors: ['influenceurs', 'agences', 'plateformes'] },
+            ],
+          },
+          {
+            id: 'culture_celebrite_toxique',
+            statement: 'La culture de la célébrité sur les réseaux sociaux est toxique pour la jeunesse',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'denonciation'], typicalActors: ['psychologues', 'parents', 'éducateurs'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['influenceurs', 'jeunes', 'plateformes'] },
+            ],
+          },
+        ],
       },
       {
         id: 'telerealite',
         label: 'T\u00e9l\u00e9r\u00e9alit\u00e9',
         keywords: ['t\u00e9l\u00e9r\u00e9alit\u00e9', 'telerealite', 'reality', 'les marseillais', 'koh lanta', 'secret story', 'star academy', 'candidat', 'villa', 'les anges', 'tpmp', 'touche pas \u00e0 mon poste', 'big brother', 'bachelor'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'telerealite_trash',
+            statement: 'La téléréalité devrait être interdite car elle exploite et humilie les participants',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'menace'], typicalActors: ['CSA/Arcom', 'intellectuels', 'éducateurs'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'derision'], typicalActors: ['candidats', 'producteurs', 'téléspectateurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'anime_manga',
         label: 'Anime & manga',
         keywords: ['anime', 'manga', 'otaku', 'shonen', 'one piece', 'naruto', 'dragon ball', 'cosplay', 'japanimation', 'webtoon', 'shojo', 'seinen', 'isekai', 'demon slayer', 'jujutsu kaisen', 'crunchyroll', 'fan art', 'figurine', 'waifu'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'anime_representation',
+            statement: 'Les anime/manga véhiculent des stéréotypes sexistes et raciaux problématiques',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['féministes', 'critiques culturels'] },
+              { label: 'contre', typicalNarratives: ['derision', 'empowerment'], typicalActors: ['fans anime', 'otakus', 'mangakas'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -1082,25 +1551,68 @@ export const THEMES: Theme[] = [
       {
         id: 'football',
         label: 'Football',
-        keywords: ['football', 'ligue 1', 'champions league', 'psg', 'coupe du monde', 'mbappe', 'mbapp\u00e9', 'ballon d\'or', 'mercato', 'premier league', 'liga', 'serie a', 'bundesliga', 'but', 'goal', 'gardien', 'penalty', 'carton rouge', 'transfert', 'supporter', 'ultras', 'tifo', 'stade', 'derby', 'classico'],
-        preciseSubjects: [],
+        keywords: ['football', 'ligue 1', 'champions league', 'psg', 'coupe du monde', 'mbappe', 'mbapp\u00e9', 'ballon d\'or', 'mercato', 'premier league', 'bundesliga', 'penalty', 'carton rouge', 'transfert foot', 'supporter foot', 'ultras', 'tifo', 'derby foot', 'classico'],
+        preciseSubjects: [
+          {
+            id: 'foot_argent_tue',
+            statement: 'L\'argent du football (transferts, salaires, Qatar/Arabie) dénature ce sport',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'declin'], typicalActors: ['supporters traditionnels', 'petits clubs', 'ultras'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'ordre'], typicalActors: ['dirigeants clubs', 'ligues', 'investisseurs'] },
+            ],
+          },
+          {
+            id: 'psg_ligue1',
+            statement: 'Le PSG tue la compétitivité de la Ligue 1',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'declin'], typicalActors: ['supporters rivaux', 'journalistes sportifs'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['supporters PSG', 'Qatar Sports Investments'] },
+            ],
+          },
+        ],
       },
       {
         id: 'sports_combat',
         label: 'Sports de combat & MMA',
-        keywords: ['mma', 'ufc', 'boxe', 'kickboxing', 'judo', 'karat\u00e9', 'karate', 'combat', 'octogone', 'ko', 'ring', 'round', 'ceinture', 'sparring', 'muay thai', 'bjj', 'jiu-jitsu', 'grappling'],
-        preciseSubjects: [],
+        keywords: ['mma', 'ufc', 'boxe', 'kickboxing', 'judo', 'karat\u00e9', 'karate', 'octogone', 'sparring', 'muay thai', 'bjj', 'jiu-jitsu', 'grappling'],
+        preciseSubjects: [
+          {
+            id: 'mma_violence',
+            statement: 'Le MMA est un sport trop violent qui devrait être plus encadré',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'ordre'], typicalActors: ['médecins', 'conservateurs', 'certains politiques'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'derision'], typicalActors: ['combattants', 'fans MMA', 'promoteurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'jo_competition',
         label: 'JO & comp\u00e9titions internationales',
-        keywords: ['jeux olympiques', 'olympique', 'paralympique', 'champion du monde', 'm\u00e9daille d\'or', 'medaille d\'or', 'coupe du monde', 'championnat du monde', 'paris 2024', 'record', 'qualifications', 's\u00e9lection', 'selection', '\u00e9quipe de france', 'equipe de france', 'bleus', 'bleues'],
-        preciseSubjects: [],
+        keywords: ['jeux olympiques', 'olympique', 'paralympique', 'champion du monde', 'médaille d\'or', 'medaille d\'or', 'coupe du monde', 'championnat du monde', 'paris 2024', 'record du monde', 'qualifications', 'équipe de france', 'equipe de france'],
+        preciseSubjects: [
+          {
+            id: 'jo_sportswashing',
+            statement: 'Les JO et grandes compétitions sont du sportswashing pour pays autoritaires',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['ONG droits humains', 'journalistes', 'militants'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'mobilisation'], typicalActors: ['CIO', 'FIFA', 'pays hôtes'] },
+            ],
+          },
+          {
+            id: 'athletes_trans_competition',
+            statement: 'Les athlètes transgenres devraient pouvoir concourir dans leur genre d\'identification',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['empowerment', 'injustice'], typicalActors: ['associations trans', 'progressistes'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'injustice'], typicalActors: ['sportives cisgenres', 'fédérations', 'conservateurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'fitness',
         label: 'Fitness & musculation',
-        keywords: ['musculation', 'fitness', 'crossfit', 'running', 'marathon', 'gym', 's\u00e8che', 'seche', 'prise de masse', 'protein', 'coach sportif', 'workout', 'wod', 'squat', 'deadlift', 'bench press', 'cardio', 'hiit', 'gains', 'lean', 'bulk', 'macro', 'whey', 'abs'],
+        keywords: ['musculation', 'fitness', 'crossfit', 'marathon', 'prise de masse', 'coach sportif', 'workout', 'deadlift', 'bench press', 'cardio', 'hiit', 'whey'],
         preciseSubjects: [
           {
             id: 'sport_feminin_sous_mediatise',
@@ -1116,7 +1628,16 @@ export const THEMES: Theme[] = [
         id: 'autres_sports',
         label: 'Autres sports',
         keywords: ['tennis', 'rugby', 'basket', 'nba', 'cyclisme', 'tour de france', 'f1', 'formule 1', 'natation', 'athl\u00e9tisme', 'golf', 'ski', 'padel', 'surf', 'escalade', 'climbing', 'trail', 'triathlon', 'volley', 'handball', 'patinage'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'dopage_sport',
+            statement: 'Le dopage est inévitable dans le sport de haut niveau et devrait être toléré',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['derision', 'revelation'], typicalActors: ['certains athlètes', 'libertariens'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'denonciation'], typicalActors: ['AMA', 'fédérations', 'sport propre'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -1130,19 +1651,80 @@ export const THEMES: Theme[] = [
     domainId: 'lifestyle_bienetre',
     subjects: [
       {
-        id: 'deco_interieur',
-        label: 'D\u00e9co & int\u00e9rieur',
-        keywords: ['décoration', 'decoration', 'déco intérieur', 'deco interieur', 'am\u00e9nagement', 'amenagement', 'ikea', 'cocooning', 'design intérieur', 'design interieur'],
-        preciseSubjects: [],
+        id: 'mode',
+        label: 'Mode & luxe',
+        keywords: ['mode', 'fashion', 'ootd', 'outfit', 'luxe', 'haute couture', 'tendance', 'vintage', 'streetwear', 'fast fashion', 'shein', 'zara', 'haul', 'try on', 'grwm', 'capsule wardrobe'],
+        preciseSubjects: [
+          {
+            id: 'fast_fashion_interdire',
+            statement: 'La fast fashion devrait être interdite ou lourdement taxée',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'urgence'], typicalActors: ['écologistes', 'créateurs locaux'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'injustice'], typicalActors: ['consommateurs', 'marques low cost'] },
+            ],
+          },
+        ],
       },
       {
-        id: 'food',
-        label: 'Food & cuisine',
-        keywords: ['recette', 'cuisine', 'food', 'restaurant', 'gastronomie', 'chef', 'brunch', 'foodporn', 'vegan', 'v\u00e9g\u00e9tarien', 'vegetarien', 'bio'],
+        id: 'organisation_productivite',
+        label: 'Organisation & productivité',
+        keywords: ['organisation', 'productivité', 'productivite', 'routine', 'morning routine', 'planning', 'bullet journal', 'notion', 'to-do', 'time management'],
+        preciseSubjects: [
+          {
+            id: 'productivite_obsession',
+            statement: 'L\'obsession de la productivité est un symptôme de la culture capitaliste qui rend malade',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'declin'], typicalActors: ['anti-hustle', 'psychologues', 'slow movement'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['coaches productivité', 'entrepreneurs'] },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'food',
+    label: 'Cuisine & gastronomie',
+    domainId: 'lifestyle_bienetre',
+    subjects: [
+      {
+        id: 'recettes',
+        label: 'Recettes & cuisine maison',
+        keywords: ['recette', 'cuisine', 'food', 'foodporn', 'cooking', 'fait maison', 'batch cooking', 'meal prep', 'pâtisserie', 'patisserie', 'boulangerie', 'gâteau', 'gateau', 'tarte', 'dessert', 'plat', 'ingrédient', 'ingredient'],
+        preciseSubjects: [
+          {
+            id: 'cuisine_maison_luxe',
+            statement: 'Cuisiner maison est devenu un luxe que les classes populaires ne peuvent pas se permettre',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'denonciation'], typicalActors: ['travailleurs précaires', 'sociologues'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['influenceurs cuisine', 'batch cookers'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'restaurants',
+        label: 'Restaurants & sorties food',
+        keywords: ['restaurant', 'gastronomie', 'chef', 'brunch', 'bistro', 'étoilé', 'michelin', 'terrasse', 'bar', 'café', 'foodie', 'street food', 'fast food', 'brasserie', 'dégustation'],
+        preciseSubjects: [
+          {
+            id: 'fast_food_interdire_pub',
+            statement: 'La publicité pour le fast food devrait être interdite comme le tabac',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'denonciation'], typicalActors: ['nutritionnistes', 'OMS', 'écologistes'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'ordre'], typicalActors: ['industrie food', 'libéraux', 'consommateurs'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'alimentation_saine',
+        label: 'Alimentation saine & régimes',
+        keywords: ['vegan', 'végétarien', 'vegetarien', 'alimentation bio', 'produit bio', 'sans gluten', 'healthy', 'nutrition', 'protéines', 'proteines', 'calories', 'régime alimentaire', 'détox', 'detox', 'superaliment', 'smoothie'],
         preciseSubjects: [
           {
             id: 'veganisme_imperatif',
-            statement: 'Le v\u00e9ganisme est un imp\u00e9ratif \u00e9thique',
+            statement: 'Le véganisme est un impératif éthique',
             knownPositions: [
               { label: 'pour', typicalNarratives: ['mobilisation', 'denonciation'], typicalActors: ['associations animales', 'L214'] },
               { label: 'contre', typicalNarratives: ['derision', 'ordre'], typicalActors: ['agriculteurs', 'traditionalistes'] },
@@ -1151,31 +1733,131 @@ export const THEMES: Theme[] = [
         ],
       },
       {
-        id: 'voyage',
-        label: 'Voyage',
-        keywords: ['voyage', 'travel', 'destination', 'vacances', 'road trip', 'backpack', 'nomade', 'a\u00e9roport', 'aeroport', 'h\u00f4tel', 'airbnb'],
-        preciseSubjects: [],
-      },
-      {
-        id: 'mode',
-        label: 'Mode & luxe',
-        keywords: ['mode', 'fashion', 'ootd', 'outfit', 'luxe', 'haute couture', 'tendance', 'vintage', 'streetwear', 'fast fashion', 'shein'],
+        id: 'boissons',
+        label: 'Boissons & cocktails',
+        keywords: ['cocktail', 'bière artisanale', 'craft beer', 'whisky', 'spiritueux', 'barista', 'latte art', 'matcha latte', 'sommelier', 'dégustation vin', 'dégustation bière', 'mixologie', 'bar à vin'],
         preciseSubjects: [
           {
-            id: 'fast_fashion_interdire',
-            statement: 'La fast fashion devrait \u00eatre interdite ou lourdement tax\u00e9e',
+            id: 'pub_alcool_interdire',
+            statement: 'Toute publicité pour l\'alcool devrait être totalement interdite',
             knownPositions: [
-              { label: 'pour', typicalNarratives: ['denonciation', 'urgence'], typicalActors: ['\u00e9cologistes', 'cr\u00e9ateurs locaux'] },
-              { label: 'contre', typicalNarratives: ['empowerment', 'injustice'], typicalActors: ['consommateurs', 'marques low cost'] },
+              { label: 'pour', typicalNarratives: ['urgence', 'denonciation'], typicalActors: ['addictologues', 'associations santé'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'ordre'], typicalActors: ['vignerons', 'industrie alcool', 'libéraux'] },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'voyage',
+    label: 'Voyage & découverte',
+    domainId: 'lifestyle_bienetre',
+    subjects: [
+      {
+        id: 'destinations',
+        label: 'Destinations & itinéraires',
+        keywords: ['voyage', 'travel', 'destination', 'vacances', 'séjour', 'itinéraire', 'city trip', 'escapade', 'week-end', 'paradis', 'plage', 'île', 'montagne'],
+        preciseSubjects: [
+          {
+            id: 'tourisme_masse_detruit',
+            statement: 'Le tourisme de masse détruit les destinations et devrait être limité',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'urgence'], typicalActors: ['écologistes', 'locaux', 'Venise/Barcelone'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['industrie tourisme', 'compagnies aériennes'] },
             ],
           },
         ],
       },
       {
-        id: 'organisation_productivite',
-        label: 'Organisation & productivit\u00e9',
-        keywords: ['organisation', 'productivit\u00e9', 'productivite', 'routine', 'morning routine', 'planning', 'bullet journal', 'notion', 'to-do', 'time management'],
-        preciseSubjects: [],
+        id: 'aventure_backpack',
+        label: 'Aventure & backpacking',
+        keywords: ['backpack', 'road trip', 'nomade', 'van life', 'vanlife', 'randonnée', 'randonnee', 'trek', 'aventure', 'camping', 'bivouac', 'sac à dos'],
+        preciseSubjects: [
+          {
+            id: 'nomadisme_digital_privilege',
+            statement: 'Le nomadisme digital est un privilège de riches occidentaux qui gentrifie les pays du Sud',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['locaux pays concernés', 'critiques sociaux'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['digital nomads', 'freelances', 'influenceurs voyage'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'transport_hebergement',
+        label: 'Transport & hébergement',
+        keywords: ['aéroport', 'aeroport', 'hôtel', 'hotel', 'airbnb', 'avion', 'billet', 'vol', 'train', 'croisière', 'croisiere', 'auberge', 'gîte', 'glamping'],
+        preciseSubjects: [
+          {
+            id: 'airbnb_interdire',
+            statement: 'Airbnb devrait être interdit dans les grandes villes pour protéger le logement',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['locataires', 'mairies', 'gauche'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['propriétaires', 'touristes', 'Airbnb'] },
+            ],
+          },
+          {
+            id: 'avion_taxer',
+            statement: 'L\'avion devrait être beaucoup plus taxé voire interdit pour les vols courts',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'denonciation'], typicalActors: ['écologistes', 'flygskam', 'SNCF'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'menace'], typicalActors: ['compagnies aériennes', 'ruraux', 'industrie tourisme'] },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'maison_jardin',
+    label: 'Maison & jardin',
+    domainId: 'lifestyle_bienetre',
+    subjects: [
+      {
+        id: 'deco_interieur',
+        label: 'Déco & intérieur',
+        keywords: ['décoration', 'decoration', 'déco intérieur', 'deco interieur', 'aménagement', 'amenagement', 'ikea', 'cocooning', 'design intérieur', 'design interieur', 'meuble', 'salon', 'chambre', 'scandinave', 'bohème', 'minimaliste'],
+        preciseSubjects: [
+          {
+            id: 'ikea_uniformisation',
+            statement: 'IKEA et la déco Instagram uniformisent les intérieurs et tuent l\'authenticité',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['declin', 'denonciation'], typicalActors: ['designers', 'artisans', 'anti-consuméristes'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['consommateurs', 'IKEA', 'influenceuses déco'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'bricolage',
+        label: 'Bricolage & rénovation',
+        keywords: ['bricolage', 'rénovation', 'renovation', 'travaux', 'peinture', 'carrelage', 'parquet', 'diy', 'do it yourself', 'leroy merlin', 'castorama', 'outillage'],
+        preciseSubjects: [
+          {
+            id: 'renovation_energetique_obligatoire',
+            statement: 'La rénovation énergétique obligatoire des passoires thermiques est injuste pour les petits propriétaires',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'menace'], typicalActors: ['petits propriétaires', 'artisans', 'droite'] },
+              { label: 'contre', typicalNarratives: ['urgence', 'ordre'], typicalActors: ['écologistes', 'gouvernement', 'locataires'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'jardinage',
+        label: 'Jardinage & plantes',
+        keywords: ['jardin', 'jardinage', 'plante', 'potager', 'fleur', 'terrasse', 'balcon', 'arrosage', 'semis', 'bouture', 'compost', 'plant mom', 'urban jungle', 'monstera', 'succulent'],
+        preciseSubjects: [
+          {
+            id: 'potager_autosuffisance',
+            statement: 'L\'autosuffisance alimentaire par le potager est un idéal réaliste',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['permaculteurs', 'survivalistes', 'écologistes'] },
+              { label: 'contre', typicalNarratives: ['derision', 'ordre'], typicalActors: ['agronomes', 'réalistes', 'agriculteurs pros'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -1203,13 +1885,31 @@ export const THEMES: Theme[] = [
         id: 'maquillage',
         label: 'Maquillage',
         keywords: ['maquillage', 'makeup', 'mascara', 'rouge \u00e0 l\u00e8vres', 'foundation', 'fond de teint', 'tuto', 'tutorial', 'contouring', 'grwm', 'get ready with me', 'fenty', 'sephora', 'palette', 'highlighter', 'blush', 'liner', 'gloss', 'primer', 'setting spray'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'test_animaux_cosmetiques',
+            statement: 'Les tests sur animaux pour les cosmétiques devraient être totalement bannis mondialement',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'mobilisation'], typicalActors: ['associations animales', 'consommateurs', 'marques cruelty-free'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'menace'], typicalActors: ['industrie cosmétique Chine', 'régulateurs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'coiffure',
         label: 'Coiffure',
         keywords: ['coiffure', 'cheveux', 'hair', 'coloration', 'coupe', 'lissage', 'boucles', 'natural hair', 'balayage', 'ombr\u00e9', 'ombre', 'braids', 'tresses', 'twist', 'silk press', 'curly girl', 'shampoing'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'appropriation_culturelle_coiffure',
+            statement: 'Porter des tresses ou dreadlocks quand on est blanc est de l\'appropriation culturelle',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['militants antiracistes', 'communautés afro'] },
+              { label: 'contre', typicalNarratives: ['derision', 'empowerment'], typicalActors: ['universalistes', 'défenseurs liberté individuelle'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -1222,13 +1922,31 @@ export const THEMES: Theme[] = [
         id: 'meditation_mindfulness',
         label: 'M\u00e9ditation & pleine conscience',
         keywords: ['m\u00e9ditation', 'meditation', 'pleine conscience', 'mindfulness', 'respiration', 'yoga', 'zen', 'calme', 'stress', 'relaxation', 'sophrologie', 'hypnose', 'coh\u00e9rence cardiaque', 'coherence cardiaque', 'ancrage', 'grounding', 'self-care', 'morning routine', 'journaling'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'mindfulness_recupere_capitalisme',
+            statement: 'La pleine conscience a été récupérée par le capitalisme pour éviter de questionner les conditions de travail',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['critiques sociaux', 'gauche', 'McMindfulness'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['coachs', 'apps méditation', 'pratiquants'] },
+            ],
+          },
+        ],
       },
       {
         id: 'motivation',
         label: 'Motivation & citations',
         keywords: ['motivation', 'confiance en soi', 'affirmation', 'r\u00e9silience', 'resilience', 'citation', 'quote', 'inspirant', 'growth', 'croissance personnelle', 'discipline', 'objectif', 'vision board', 'gratitude', 'never give up', 'focus', 'achieve', 'manifest'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'pensee_positive_toxique',
+            statement: 'La positivité toxique ("good vibes only") est nocive et invalide les émotions négatives',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'empowerment'], typicalActors: ['psychologues', 'critiques dev perso'] },
+              { label: 'contre', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['influenceurs motivation', 'coachs'] },
+            ],
+          },
+        ],
       },
       {
         id: 'spiritualite_new_age',
@@ -1241,6 +1959,212 @@ export const THEMES: Theme[] = [
             knownPositions: [
               { label: 'pour', typicalNarratives: ['denonciation', 'derision'], typicalActors: ['sceptiques', 'journalistes', 'scientifiques'] },
               { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['coachs', 'influenceurs dev perso'] },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // DOMAINE : Vie quotidienne
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  {
+    id: 'animaux',
+    label: 'Animaux',
+    domainId: 'vie_quotidienne',
+    subjects: [
+      {
+        id: 'chiens',
+        label: 'Chiens',
+        keywords: ['chien', 'chiot', 'puppy', 'dog', 'golden retriever', 'berger', 'labrador', 'bouledogue', 'caniche', 'husky', 'promenade chien', 'dressage', 'croquettes'],
+        preciseSubjects: [
+          {
+            id: 'races_dangereuses_interdire',
+            statement: 'Certaines races de chiens dangereuses devraient être interdites',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['ordre', 'urgence'], typicalActors: ['victimes morsures', 'législateurs', 'vétérinaires'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'denonciation'], typicalActors: ['éleveurs', 'propriétaires', 'associations canines'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'chats',
+        label: 'Chats',
+        keywords: ['chat', 'chaton', 'kitten', 'cat', 'miaou', 'félin', 'felin', 'ronron', 'litière', 'litiere', 'croquettes chat', 'siamois', 'persan', 'maine coon'],
+        preciseSubjects: [
+          {
+            id: 'chats_libres_interdire',
+            statement: 'Les chats devraient être gardés en intérieur pour protéger la biodiversité',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'denonciation'], typicalActors: ['ornithologues', 'écologistes', 'LPO'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'derision'], typicalActors: ['propriétaires de chats', 'vétérinaires'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'animaux_divers',
+        label: 'Autres animaux & protection',
+        keywords: ['animal', 'animaux', 'spa', 'refuge', 'adoption', 'maltraitance animale', 'vétérinaire', 'veterinaire', 'hamster', 'lapin', 'poisson', 'perroquet', 'reptile', 'cheval', 'équitation', 'aquarium', 'terrarium'],
+        preciseSubjects: [
+          {
+            id: 'elevage_intensif',
+            statement: 'L\'élevage intensif devrait être interdit',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'urgence'], typicalActors: ['L214', 'véganistes', 'écologistes'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'menace'], typicalActors: ['éleveurs', 'FNSEA', 'industrie agro'] },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'parentalite',
+    label: 'Parentalité & famille',
+    domainId: 'vie_quotidienne',
+    subjects: [
+      {
+        id: 'grossesse_naissance',
+        label: 'Grossesse & naissance',
+        keywords: ['grossesse', 'enceinte', 'bébé', 'bebe', 'naissance', 'accouchement', 'maternité', 'maternite', 'prénatal', 'prenatal', 'échographie', 'baby shower', 'congé maternité', 'sage-femme'],
+        preciseSubjects: [
+          {
+            id: 'accouchement_medicalise',
+            statement: 'L\'accouchement est trop médicalisé en France et les femmes manquent de choix',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['empowerment', 'denonciation'], typicalActors: ['collectifs naissance', 'sages-femmes', 'doulas'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'urgence'], typicalActors: ['obstétriciens', 'hôpitaux'] },
+            ],
+          },
+          {
+            id: 'sharenting',
+            statement: 'Exposer ses enfants sur les réseaux sociaux (sharenting) devrait être interdit',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'ordre'], typicalActors: ['CNIL', 'pédiatres', 'défenseurs droits enfants'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'derision'], typicalActors: ['parents influenceurs', 'familles connectées'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'education_enfants',
+        label: 'Éducation & vie de famille',
+        keywords: ['enfant', 'maman', 'papa', 'parent', 'famille', 'parentalité', 'parentalite', 'éducation bienveillante', 'montessori', 'crèche', 'creche', 'garde', 'école maternelle', 'goûter', 'activité enfant', 'mère au foyer', 'père au foyer', 'momlife'],
+        preciseSubjects: [
+          {
+            id: 'ecrans_enfants',
+            statement: 'Les écrans devraient être interdits aux enfants avant 6 ans',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['menace', 'denonciation'], typicalActors: ['pédiatres', 'psychologues', 'parents inquiets'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'derision'], typicalActors: ['parents pragmatiques', 'industrie tech'] },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'automobile',
+    label: 'Automobile & moto',
+    domainId: 'vie_quotidienne',
+    subjects: [
+      {
+        id: 'voitures',
+        label: 'Voitures',
+        keywords: ['voiture', 'auto', 'automobile', 'bmw', 'mercedes', 'audi', 'porsche', 'ferrari', 'lamborghini', 'tesla', 'berline', 'suv', 'cabriolet', 'tuning', 'carrosserie', 'moteur', 'chevaux', 'cv', 'permis de conduire'],
+        preciseSubjects: [
+          {
+            id: 'suv_interdire_ville',
+            statement: 'Les SUV devraient être interdits en ville',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'urgence'], typicalActors: ['écologistes', 'mairie Paris', 'piétons'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'menace'], typicalActors: ['automobilistes', 'constructeurs', 'familles'] },
+            ],
+          },
+          {
+            id: 'voiture_autonome',
+            statement: 'La voiture autonome va rendre nos routes plus sûres',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['aspiration', 'empowerment'], typicalActors: ['Tesla', 'tech optimistes', 'assureurs'] },
+              { label: 'contre', typicalNarratives: ['menace', 'denonciation'], typicalActors: ['syndicats chauffeurs', 'sceptiques tech'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'moto',
+        label: 'Motos & deux-roues',
+        keywords: ['moto', 'motard', 'biker', 'scooter', 'harley', 'ducati', 'yamaha', 'kawasaki', 'casque moto', 'roadster', 'sportive', 'trail moto', 'enduro', 'supermotard'],
+        preciseSubjects: [
+          {
+            id: 'circulation_interfiles',
+            statement: 'La circulation inter-files des motos devrait être définitivement autorisée',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['motards', 'FFMC', 'usagers quotidiens'] },
+              { label: 'contre', typicalNarratives: ['menace', 'ordre'], typicalActors: ['automobilistes', 'sécurité routière'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'vehicules_electriques',
+        label: 'Véhicules électriques',
+        keywords: ['véhicule électrique', 'vehicule electrique', 'voiture électrique', 'voiture electrique', 'tesla', 'borne de recharge', 'autonomie', 'batterie', 'hybride'],
+        preciseSubjects: [
+          {
+            id: 'fin_thermique_2035',
+            statement: 'L\'interdiction des véhicules thermiques en 2035 est réaliste',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'aspiration'], typicalActors: ['écologistes', 'constructeurs EV'] },
+              { label: 'contre', typicalNarratives: ['menace', 'injustice'], typicalActors: ['automobilistes', 'industrie pétrolière', 'ruraux'] },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'shopping',
+    label: 'Shopping & bons plans',
+    domainId: 'vie_quotidienne',
+    subjects: [
+      {
+        id: 'hauls_reviews',
+        label: 'Hauls & avis produits',
+        keywords: ['haul', 'unboxing', 'review', 'avis', 'test produit', 'comparatif', 'meilleur', 'top produit', 'indispensable', 'coup de coeur', 'must have', 'wishlist', 'favoris'],
+        preciseSubjects: [
+          {
+            id: 'placements_produits_trompeurs',
+            statement: 'Les placements de produits déguisés des influenceurs sont de la publicité mensongère',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['DGCCRF', 'consommateurs', 'législateurs'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'derision'], typicalActors: ['influenceurs', 'marques', 'agences'] },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'bons_plans',
+        label: 'Bons plans & promos',
+        keywords: ['bon plan', 'promo', 'soldes', 'réduction', 'reduction', 'code promo', 'black friday', 'vente privée', 'occasion', 'seconde main', 'vinted', 'leboncoin', 'deal', 'pas cher', 'amazon'],
+        preciseSubjects: [
+          {
+            id: 'black_friday_boycotter',
+            statement: 'Le Black Friday est un symbole de surconsommation à boycotter',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'mobilisation'], typicalActors: ['écologistes', 'anti-consuméristes', 'Green Friday'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['commerçants', 'consommateurs', 'Amazon'] },
+            ],
+          },
+          {
+            id: 'amazon_trop_puissant',
+            statement: 'Amazon est trop puissant et détruit le commerce local',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'urgence'], typicalActors: ['libraires', 'commerçants locaux', 'écologistes'] },
+              { label: 'contre', typicalNarratives: ['empowerment', 'aspiration'], typicalActors: ['consommateurs', 'Amazon', 'libéraux'] },
             ],
           },
         ],
@@ -1290,18 +2214,52 @@ export const THEMES: Theme[] = [
         id: 'pollution',
         label: 'Pollution',
         keywords: ['pollution', 'plastique', 'pesticide', 'pfas', 'polluant', 'qualit\u00e9 de l\'air', 'qualite de lair', 'particules fines', 'microplastique'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'plastique_usage_unique_interdire',
+            statement: 'Tout plastique à usage unique devrait être interdit immédiatement',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'mobilisation'], typicalActors: ['écologistes', 'UE', 'associations océans'] },
+              { label: 'contre', typicalNarratives: ['menace', 'ordre'], typicalActors: ['industrie plastique', 'commerçants', 'pays en développement'] },
+            ],
+          },
+          {
+            id: 'pollueur_payeur',
+            statement: 'Les grandes entreprises polluantes devraient payer la totalité de la dépollution',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['injustice', 'mobilisation'], typicalActors: ['écologistes', 'ONG', 'gauche'] },
+              { label: 'contre', typicalNarratives: ['menace', 'ordre'], typicalActors: ['industriels', 'patronat', 'libéraux'] },
+            ],
+          },
+        ],
       },
       {
         id: 'biodiversite',
         label: 'Biodiversit\u00e9',
         keywords: ['biodiversit\u00e9', 'biodiversite', 'extinction', 'esp\u00e8ce menac\u00e9e', 'espece menacee', 'd\u00e9forestation', 'deforestation', 'oc\u00e9an', 'ocean', 'corail', 'faune', 'flore'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'sixieme_extinction',
+            statement: 'Nous vivons la sixième extinction de masse et la politique ne fait rien',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'denonciation'], typicalActors: ['scientifiques', 'IPBES', 'écologistes'] },
+              { label: 'contre', typicalNarratives: ['derision', 'ordre'], typicalActors: ['climato-sceptiques', 'industriels'] },
+            ],
+          },
+          {
+            id: 'droits_nature',
+            statement: 'La nature devrait avoir des droits juridiques au même titre que les personnes',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['mobilisation', 'aspiration'], typicalActors: ['juristes environnementaux', 'écologistes radicaux'] },
+              { label: 'contre', typicalNarratives: ['derision', 'ordre'], typicalActors: ['juristes classiques', 'industriels'] },
+            ],
+          },
+        ],
       },
       {
         id: 'agriculture',
         label: 'Agriculture & alimentation durable',
-        keywords: ['agriculture', 'bio', 'pesticide', 'ogm', 'permaculture', 'circuit court', 'local', 'paysan', 'fnsea', 'conf\u00e9d\u00e9ration paysanne', 'glyphosate'],
+        keywords: ['agriculture', 'agriculture bio', 'pesticide', 'ogm', 'permaculture', 'circuit court', 'paysan', 'fnsea', 'conf\u00e9d\u00e9ration paysanne', 'glyphosate'],
         preciseSubjects: [
           {
             id: 'interdire_glyphosate',
@@ -1381,13 +2339,47 @@ export const THEMES: Theme[] = [
         id: 'christianisme',
         label: 'Christianisme',
         keywords: ['chr\u00e9tien', 'chretien', 'catholique', '\u00e9glise', 'eglise', 'pape', 'messe', 'pri\u00e8re', 'priere', 'no\u00ebl', 'noel', 'p\u00e2ques', 'paques', 'vatican', '\u00e9vang\u00e9lique', 'bible', 'j\u00e9sus', 'jesus', 'gospel', 'b\u00e9n\u00e9diction', 'benediction', 'foi', 'croyant', 'dieu', 'seigneur', 'amen', 'car\u00eame', 'careme', 'communion', 'bapt\u00eame', 'bapteme'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'racines_chretiennes_france',
+            statement: 'La France a des racines chrétiennes qu\'il faut défendre',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['declin', 'ordre'], typicalActors: ['droite conservatrice', 'catholiques tradis', 'Reconquête'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'empowerment'], typicalActors: ['laïques', 'gauche', 'historiens'] },
+            ],
+          },
+          {
+            id: 'pedocriminalite_eglise',
+            statement: 'L\'Église catholique n\'a pas suffisamment répondu aux scandales de pédocriminalité',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['victimes', 'CIASE', 'médias'] },
+              { label: 'contre', typicalNarratives: ['ordre', 'aspiration'], typicalActors: ['hiérarchie catholique', 'fidèles'] },
+            ],
+          },
+        ],
       },
       {
         id: 'antisemitisme',
         label: 'Antis\u00e9mitisme',
         keywords: ['antis\u00e9mitisme', 'antisemitisme', 'juif', 'juda\u00efsme', 'judaisme', 'synagogue', 'shoah', 'holocauste', 'crif', 'kippa', '\u00e9toile de david', 'shabbat', 'torah', 'hanouka', 'kippour', 'casher'],
-        preciseSubjects: [],
+        preciseSubjects: [
+          {
+            id: 'antisionisme_antisemitisme',
+            statement: 'L\'antisionisme est une forme déguisée d\'antisémitisme',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['denonciation', 'menace'], typicalActors: ['CRIF', 'gouvernement', 'organisations juives'] },
+              { label: 'contre', typicalNarratives: ['denonciation', 'injustice'], typicalActors: ['pro-palestiniens', 'gauche', 'universitaires'] },
+            ],
+          },
+          {
+            id: 'antisemitisme_hausse',
+            statement: 'L\'antisémitisme progresse dangereusement en France',
+            knownPositions: [
+              { label: 'pour', typicalNarratives: ['urgence', 'menace'], typicalActors: ['CRIF', 'communauté juive', 'gouvernement'] },
+              { label: 'contre', typicalNarratives: ['derision', 'denonciation'], typicalActors: ['relativistes', 'certains à gauche'] },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -1459,10 +2451,11 @@ export function getPreciseSubjectsForTheme(themeId: string): PreciseSubject[] {
 const _kwRegexCache = new Map<string, RegExp>();
 
 function _matchKeyword(kw: string, text: string): boolean {
-  // Mots longs (>= 5 chars) : includes suffit, performances meilleures
-  if (kw.length >= 5) return text.includes(kw);
+  // Mots très longs (>= 7 chars) : includes suffit, aucun faux positif réaliste
+  if (kw.length >= 7) return text.includes(kw);
 
-  // Mots courts : word boundary obligatoire
+  // Mots courts et moyens (< 7 chars) : word boundary obligatoire
+  // Raison : "macro" matchait dans "emmanuelmacron", "gains" dans "bargains", etc.
   let re = _kwRegexCache.get(kw);
   if (!re) {
     // Escape regex special chars

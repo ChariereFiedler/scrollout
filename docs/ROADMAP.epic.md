@@ -198,15 +198,15 @@ Créer `src/profiler/` :
 ---
 
 ## EPIC-040 : Gouvernance et documentation
-**Statut** : `todo`
+**Statut** : `done`
 **Description** : Documenter limites, méthodologie, et sécuriser l'usage.
 
 | # | Tâche | Statut | Notes |
 |---|-------|--------|-------|
-| 040-1 | Documentation taxonomie + méthodologie | todo | |
-| 040-2 | Note de gouvernance (limites, risques) | todo | exposition ≠ conviction |
-| 040-3 | Guide lecture métier | todo | |
-| 040-4 | Versionnage taxonomies et scores | todo | `scoring_rules_version` |
+| 040-1 | Documentation taxonomie + méthodologie | done | `docs/TAXONOMY.md` |
+| 040-2 | Note de gouvernance (limites, risques) | done | `docs/GOVERNANCE.md` — exposition ≠ conviction |
+| 040-3 | Guide lecture métier | done | `docs/READING-GUIDE.md` |
+| 040-4 | Versionnage taxonomies et scores | done | `src/enrichment/version.ts` + `docs/VERSIONING.md` |
 
 ---
 
