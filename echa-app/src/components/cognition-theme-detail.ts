@@ -166,14 +166,14 @@ export class CognitionThemeDetail extends LitElement {
     }
 
     const metrics = [
-      ['frequency', themeData.postCount.toString(), 'Nombre de posts agrégés'],
-      ['durationTotalMs', `${Math.round(themeData.totalDwellTimeMs / 1000)}s`, 'Temps cumulé d’exposition'],
-      ['durationAverageMs', `${Math.round(themeData.averageDwellTimeMs / 1000)}s`, 'Temps moyen par post'],
-      ['engagement', `${Math.round(themeData.engagementScore)} / 100`, 'Niveau moyen d’attention'],
-      ['engagedShare', `${Math.round(themeData.engagedShare)}%`, 'Part viewed / engaged'],
-      ['politicalScore', themeData.politicalScoreAverage.toFixed(2), 'Score politique moyen'],
-      ['polarization', themeData.polarizationAverage.toFixed(2), 'Polarisation moyenne'],
-      ['confidence', themeData.confidenceAverage.toFixed(2), 'Confiance moyenne'],
+      ['frequency', themeData.postCount.toString(), 'Place occupée par cette thématique dans votre fil'],
+      ['durationTotalMs', `${Math.round(themeData.totalDwellTimeMs / 1000)}s`, 'Temps total passé sur cette thématique'],
+      ['durationAverageMs', `${Math.round(themeData.averageDwellTimeMs / 1000)}s`, 'Temps moyen passé sur chaque post'],
+      ['engagement', `${Math.round(themeData.engagementScore)} / 100`, 'Intensité moyenne de votre attention'],
+      ['engagedShare', `${Math.round(themeData.engagedShare)}%`, 'Part des posts vraiment regardés'],
+      ['politicalScore', themeData.politicalScoreAverage.toFixed(2), 'Degré moyen de contenu politique'],
+      ['polarization', themeData.polarizationAverage.toFixed(2), 'Niveau moyen de tension polarisante'],
+      ['confidence', themeData.confidenceAverage.toFixed(2), 'Fiabilité moyenne du classement'],
     ] as const;
 
     return html`

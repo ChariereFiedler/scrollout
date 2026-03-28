@@ -101,6 +101,31 @@ export class CognitionBarView extends LitElement {
         transition: width 180ms ease;
       }
 
+      .secondary-track {
+        position: relative;
+        height: var(--secondary-height, 6px);
+        margin-top: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+
+      .secondary-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: var(--secondary-fill, rgba(255, 255, 255, 0.92));
+        transition: width 180ms ease;
+      }
+
+      .secondary-legend {
+        margin-top: 6px;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 10px;
+        color: var(--text-dim);
+      }
+
       .track-foot {
         display: flex;
         justify-content: space-between;
@@ -151,9 +176,19 @@ export class CognitionBarView extends LitElement {
   private colorFor(theme: CognitiveThemeAggregate): string {
     const secondary = theme.normalizedMetrics?.[this.secondaryMetric] ?? 0;
     const hue = 205 + (secondary * 0.9);
-    const saturation = 30 + (this.chromaPower * 0.5);
-    const lightness = 32 + (secondary * 0.12);
-    return `linear-gradient(90deg, hsl(${hue} ${saturation}% ${lightness + 10}%), hsl(${hue - 14} ${Math.max(24, saturation - 10)}% ${lightness}%))`;
+    const saturation = 18 + (this.chromaPower * 0.7);
+    const contrastBoost = this.chromaPower / 100;
+    const lightness = 28 + (secondary * (0.06 + contrastBoost * 0.14));
+    return `linear-gradient(90deg, hsl(${hue} ${saturation}% ${lightness + 10 + contrastBoost * 8}%), hsl(${hue - 16} ${Math.max(18, saturation - 14)}% ${lightness - contrastBoost * 5}%))`;
+  }
+
+  private secondaryTrackStyle(theme: CognitiveThemeAggregate): string {
+    const secondary = theme.normalizedMetrics?.[this.secondaryMetric] ?? 0;
+    const contrastBoost = this.chromaPower / 100;
+    const hue = 205 + (secondary * 0.9);
+    const alpha = 0.25 + contrastBoost * 0.75;
+    const height = 4 + Math.round(contrastBoost * 8);
+    return `--secondary-height:${height}px;--secondary-fill:linear-gradient(90deg, rgba(255,255,255,${0.35 + contrastBoost * 0.45}), hsl(${hue} ${52 + contrastBoost * 34}% ${68 - contrastBoost * 12}% / ${alpha}))`;
   }
 
   render() {
@@ -205,6 +240,15 @@ export class CognitionBarView extends LitElement {
 
                 <div class="track" aria-label="${theme.themeLabel} ${this.metricLabel(this.primaryMetric)}">
                   <div class="fill" style="width:${Math.round(primary)}%;background:${this.colorFor(theme)}"></div>
+                </div>
+
+                <div class="secondary-track" style=${this.secondaryTrackStyle(theme)} aria-label="${theme.themeLabel} ${this.metricLabel(this.secondaryMetric)}">
+                  <div class="secondary-fill" style="width:${Math.round(secondary)}%"></div>
+                </div>
+
+                <div class="secondary-legend">
+                  <span>${this.metricLabel(this.secondaryMetric)}</span>
+                  <span>${Math.round(secondary)} / 100</span>
                 </div>
 
                 <div class="track-foot">

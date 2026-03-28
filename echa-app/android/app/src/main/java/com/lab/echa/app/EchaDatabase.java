@@ -11,6 +11,14 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -363,6 +371,124 @@ public class EchaDatabase extends SQLiteOpenHelper {
             result.put(cursorToPostJson(c));
         }
         c.close();
+        return result;
+    }
+
+    public JSONObject getCognitiveThemesBySession(String sessionId) throws JSONException {
+        JSONObject result = new JSONObject();
+        JSONArray themes = new JSONArray();
+        int totalPosts = 0;
+        boolean allSessions = sessionId == null || sessionId.trim().isEmpty();
+        Cursor c = getReadableDatabase().rawQuery(
+                "SELECT p.id, p.postId, p.username, p.dwellTimeMs, p.attentionLevel, " +
+                "e.politicalExplicitnessScore, e.polarizationScore, e.confidenceScore, " +
+                "e.mainTopics as enrichTopics, e.mediaCategory " +
+                "FROM posts p LEFT JOIN post_enriched e ON e.postId = p.id " +
+                (allSessions ? "" : "WHERE p.sessionId = ? ") +
+                "ORDER BY p.dwellTimeMs DESC",
+                allSessions ? new String[]{} : new String[]{sessionId});
+
+        Map<String, ThemeBucket> buckets = new LinkedHashMap<>();
+        while (c.moveToNext()) {
+            totalPosts += 1;
+
+            String themeLabel = "non classifié";
+            String source = "fallback";
+
+            int topicsIdx = c.getColumnIndex("enrichTopics");
+            if (topicsIdx >= 0 && !c.isNull(topicsIdx)) {
+                String firstTopic = firstTopicFromJson(c.getString(topicsIdx));
+                if (!firstTopic.isEmpty()) {
+                    themeLabel = firstTopic;
+                    source = "mainTopics";
+                }
+            }
+
+            int mediaCategoryIdx = c.getColumnIndex("mediaCategory");
+            if ("fallback".equals(source) && mediaCategoryIdx >= 0 && !c.isNull(mediaCategoryIdx)) {
+                String mediaCategory = c.getString(mediaCategoryIdx);
+                if (mediaCategory != null && !mediaCategory.trim().isEmpty()) {
+                    themeLabel = mediaCategory.trim();
+                    source = "mediaCategory";
+                }
+            }
+
+            String themeId = normalizeThemeId(themeLabel);
+            ThemeBucket bucket = buckets.get(themeId);
+            if (bucket == null) {
+                bucket = new ThemeBucket(themeId, themeLabel, source);
+                buckets.put(themeId, bucket);
+            }
+
+            int dwellTimeMs = c.getInt(c.getColumnIndexOrThrow("dwellTimeMs"));
+            String attentionLevel = c.getString(c.getColumnIndexOrThrow("attentionLevel"));
+            bucket.postCount += 1;
+            bucket.totalDwellTimeMs += Math.max(0, dwellTimeMs);
+            int attentionScore = resolveAttentionScore(attentionLevel, dwellTimeMs);
+            bucket.attentionSum += attentionScore;
+            if (attentionScore >= 66) bucket.engagedCount += 1;
+
+            int politicalIdx = c.getColumnIndex("politicalExplicitnessScore");
+            if (politicalIdx >= 0 && !c.isNull(politicalIdx)) {
+                bucket.enrichedPostCount += 1;
+                bucket.politicalSum += c.getDouble(politicalIdx);
+                bucket.politicalCount += 1;
+                bucket.polarizationSum += clamp(c.getDouble(c.getColumnIndexOrThrow("polarizationScore")), 0, 1);
+                bucket.polarizationCount += 1;
+                bucket.confidenceSum += clamp(c.getDouble(c.getColumnIndexOrThrow("confidenceScore")), 0, 1);
+                bucket.confidenceCount += 1;
+            }
+
+            String postId = c.getString(c.getColumnIndexOrThrow("postId"));
+            if (postId != null && !postId.isEmpty() && bucket.samplePostIds.size() < 5) {
+                bucket.samplePostIds.add(postId);
+            }
+            String username = c.getString(c.getColumnIndexOrThrow("username"));
+            if (username != null && !username.isEmpty()) {
+                bucket.sampleUsers.add(username);
+            }
+        }
+        c.close();
+
+        List<ThemeBucket> orderedBuckets = new ArrayList<>(buckets.values());
+        orderedBuckets.sort((a, b) -> {
+            if (b.totalDwellTimeMs != a.totalDwellTimeMs) {
+                return Long.compare(b.totalDwellTimeMs, a.totalDwellTimeMs);
+            }
+            if (b.postCount != a.postCount) {
+                return Integer.compare(b.postCount, a.postCount);
+            }
+            return a.themeLabel.compareToIgnoreCase(b.themeLabel);
+        });
+
+        for (ThemeBucket bucket : orderedBuckets) {
+            JSONObject theme = new JSONObject();
+            double averageDwellTimeMs = bucket.postCount > 0 ? (double) bucket.totalDwellTimeMs / bucket.postCount : 0;
+            double engagementScore = bucket.postCount > 0 ? bucket.attentionSum / bucket.postCount : 0;
+            double engagedShare = bucket.postCount > 0 ? (bucket.engagedCount * 100.0) / bucket.postCount : 0;
+            double politicalScoreAverage = bucket.politicalCount > 0 ? bucket.politicalSum / bucket.politicalCount : 0;
+            double polarizationAverage = bucket.polarizationCount > 0 ? bucket.polarizationSum / bucket.polarizationCount : 0;
+            double confidenceAverage = bucket.confidenceCount > 0 ? bucket.confidenceSum / bucket.confidenceCount : 0;
+
+            theme.put("themeId", bucket.themeId);
+            theme.put("themeLabel", bucket.themeLabel);
+            theme.put("source", bucket.source);
+            theme.put("postCount", bucket.postCount);
+            theme.put("totalDwellTimeMs", bucket.totalDwellTimeMs);
+            theme.put("averageDwellTimeMs", averageDwellTimeMs);
+            theme.put("engagementScore", engagementScore);
+            theme.put("engagedShare", engagedShare);
+            theme.put("politicalScoreAverage", politicalScoreAverage);
+            theme.put("polarizationAverage", polarizationAverage);
+            theme.put("confidenceAverage", confidenceAverage);
+            theme.put("enrichedPostCount", bucket.enrichedPostCount);
+            theme.put("samplePostIds", new JSONArray(bucket.samplePostIds));
+            theme.put("sampleUsers", new JSONArray(new ArrayList<>(bucket.sampleUsers)));
+            themes.put(theme);
+        }
+
+        result.put("themes", themes);
+        result.put("totalPosts", totalPosts);
         return result;
     }
 
@@ -780,6 +906,70 @@ public class EchaDatabase extends SQLiteOpenHelper {
         if (c.moveToFirst()) result = c.getString(0);
         c.close();
         return result;
+    }
+
+    private static final class ThemeBucket {
+        final String themeId;
+        final String themeLabel;
+        final String source;
+        int postCount = 0;
+        long totalDwellTimeMs = 0;
+        double attentionSum = 0;
+        int engagedCount = 0;
+        double politicalSum = 0;
+        int politicalCount = 0;
+        double polarizationSum = 0;
+        int polarizationCount = 0;
+        double confidenceSum = 0;
+        int confidenceCount = 0;
+        int enrichedPostCount = 0;
+        final List<String> samplePostIds = new ArrayList<>();
+        final Set<String> sampleUsers = new LinkedHashSet<>();
+
+        ThemeBucket(String themeId, String themeLabel, String source) {
+            this.themeId = themeId;
+            this.themeLabel = themeLabel;
+            this.source = source;
+        }
+    }
+
+    private static double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private static int resolveAttentionScore(String attentionLevel, int dwellTimeMs) {
+        if ("skipped".equals(attentionLevel)) return 0;
+        if ("glanced".equals(attentionLevel)) return 33;
+        if ("viewed".equals(attentionLevel)) return 66;
+        if ("engaged".equals(attentionLevel)) return 100;
+        return attentionScoreFromDwell(dwellTimeMs);
+    }
+
+    private static int attentionScoreFromDwell(int dwellTimeMs) {
+        if (dwellTimeMs < 500) return 0;
+        if (dwellTimeMs < 2000) return 33;
+        if (dwellTimeMs < 5000) return 66;
+        return 100;
+    }
+
+    private static String firstTopicFromJson(String json) {
+        if (json == null || json.trim().isEmpty()) return "";
+        try {
+            JSONArray arr = new JSONArray(json);
+            if (arr.length() == 0) return "";
+            String first = arr.optString(0, "");
+            return first == null ? "" : first.trim();
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private static String normalizeThemeId(String label) {
+        String normalized = Normalizer.normalize(label == null ? "" : label.trim().toLowerCase(), Normalizer.Form.NFKD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+        return normalized.isEmpty() ? "non-classe" : normalized;
     }
 
     private JSONObject cursorToPostJson(Cursor c) throws JSONException {

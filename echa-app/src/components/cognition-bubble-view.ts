@@ -89,6 +89,12 @@ export class CognitionBubbleView extends LitElement {
         overflow: hidden;
       }
 
+      .bubble-ring {
+        position: absolute;
+        border-radius: 50%;
+        pointer-events: none;
+      }
+
       .bubble:active {
         transform: scale(0.98);
       }
@@ -128,6 +134,16 @@ export class CognitionBubbleView extends LitElement {
       .bubble-meta {
         font-size: 9px;
         opacity: 0.8;
+      }
+
+      .bubble-secondary {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.2px;
+        padding: 3px 6px;
+        border-radius: 999px;
+        background: rgba(10, 10, 10, 0.26);
+        border: 1px solid rgba(255, 255, 255, 0.16);
       }
 
       .empty {
@@ -171,14 +187,33 @@ export class CognitionBubbleView extends LitElement {
   private colorFor(theme: CognitiveThemeAggregate): string {
     const secondary = theme.normalizedMetrics?.[this.secondaryMetric] ?? 0;
     const hue = 205 + (secondary * 0.9);
-    const saturation = 30 + (this.chromaPower * 0.55);
-    const lightness = 28 + (secondary * 0.16);
-    return `linear-gradient(145deg, hsl(${hue} ${saturation}% ${lightness + 14}%), hsl(${hue - 14} ${Math.max(24, saturation - 10)}% ${lightness}%))`;
+    const saturation = 18 + (this.chromaPower * 0.72);
+    const contrastBoost = this.chromaPower / 100;
+    const lightness = 24 + (secondary * (0.08 + contrastBoost * 0.18));
+    return `linear-gradient(145deg, hsl(${hue} ${saturation}% ${lightness + 12 + contrastBoost * 8}%), hsl(${hue - 18} ${Math.max(18, saturation - 14)}% ${lightness - contrastBoost * 4}%))`;
   }
 
   private sizeFor(theme: CognitiveThemeAggregate): number {
     const normalized = theme.normalizedMetrics?.[this.primaryMetric] ?? 0;
     return Math.round(74 + (normalized / 100) * 94);
+  }
+
+  private ringStyle(theme: CognitiveThemeAggregate): string {
+    const secondary = Math.max(0, Math.min(100, theme.normalizedMetrics?.[this.secondaryMetric] ?? 0));
+    const contrastBoost = this.chromaPower / 100;
+    const sweep = Math.max(14, Math.round((secondary / 100) * 360));
+    const inset = Math.round(11 - contrastBoost * 7);
+    const ringOpacity = 0.18 + contrastBoost * 0.78;
+    const idleOpacity = 0.06 + contrastBoost * 0.2;
+    const blur = 4 + contrastBoost * 16;
+    return [
+      `inset:${inset}px`,
+      `opacity:${0.55 + contrastBoost * 0.45}`,
+      `background:conic-gradient(rgba(255,255,255,${ringOpacity}) 0deg ${sweep}deg, rgba(255,255,255,${idleOpacity}) ${sweep}deg 360deg)`,
+      `box-shadow:0 0 ${blur}px rgba(255,255,255,${0.08 + contrastBoost * 0.32})`,
+      `mask:radial-gradient(circle, transparent calc(100% - ${3 + contrastBoost * 5}px), #000 calc(100% - ${2 + contrastBoost * 5}px))`,
+      `-webkit-mask:radial-gradient(circle, transparent calc(100% - ${3 + contrastBoost * 5}px), #000 calc(100% - ${2 + contrastBoost * 5}px))`,
+    ].join(';');
   }
 
   render() {
@@ -227,10 +262,12 @@ export class CognitionBubbleView extends LitElement {
                   title="${theme.themeLabel}"
                   @click=${() => this.selectTheme(theme.themeId)}
                 >
+                  <div class="bubble-ring" style=${this.ringStyle(theme)}></div>
                   <div class="bubble-inner">
                     <div class="bubble-name">${theme.themeLabel}</div>
                     <div class="bubble-value">${Math.round(primary)} / 100</div>
-                    <div class="bubble-meta">${theme.postCount} posts · ${Math.round(secondary)} / 100</div>
+                    <div class="bubble-meta">${theme.postCount} posts</div>
+                    <div class="bubble-secondary">${this.metricLabel(this.secondaryMetric)} ${Math.round(secondary)} / 100</div>
                   </div>
                 </button>
               `;

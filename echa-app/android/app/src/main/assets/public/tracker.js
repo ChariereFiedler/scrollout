@@ -392,7 +392,7 @@
           fullCaption: (entry.data.fullCaption || '').substring(0, 200),
           hashtags: entry.data.hashtags,
           imageAlts: entry.data.imageAlts,
-          videoUrl: entry.data.videoUrl || '',
+          videoUrl: '',
           likeCount: entry.data.likeCount,
           commentCount: entry.data.commentCount,
           date: entry.data.date,
@@ -460,7 +460,7 @@
         hashtags: entry.data.hashtags,
         imageAlts: entry.data.imageAlts,
         // imageUrls deliberately omitted — too large for logcat
-        videoUrl: entry.data.videoUrl || '',
+        videoUrl: '',
         likeCount: entry.data.likeCount,
         commentCount: entry.data.commentCount,
         date: entry.data.date,
@@ -515,8 +515,6 @@
           const prev = seenStories.get(currentStoryId);
           prev.dwellTimeMs += Date.now() - storySegmentStart;
           prev.lastSeen = Date.now();
-          updateDwellInDB(prev.postId, prev.data.username, prev.dwellTimeMs);
-          prev.lastSeen = Date.now();
         }
 
         currentStoryUser = username;
@@ -543,27 +541,6 @@
           savePostToDB(entry);
           enrichAndSave(entry);
           sendToNative({ type: 'new_post', post: entry });
-
-          // Video story: capture frame for OCR after a short delay
-          if (storyData.mediaType === 'story_video') {
-            setTimeout(function() {
-              try {
-                var videoEl = document.querySelector('video');
-                if (videoEl && window.ImageAnalyzer) {
-                  window.ImageAnalyzer.analyzeVideoFrame(videoEl, entry.postId).then(function(result) {
-                    if (result && result.text && result.text.trim()) {
-                      log('Story video OCR: ' + result.text.substring(0, 80));
-                      // Update post allText with OCR result
-                      entry.data.ocrText = result.text;
-                      entry.data.allText = (entry.data.allText || '') + ' [OCR] ' + result.text;
-                      // Re-enrich with the new text
-                      enrichAndSave(entry);
-                    }
-                  }).catch(function() {});
-                }
-              } catch(e) { log('Video OCR error: ' + e.message); }
-            }, 1500); // Wait 1.5s for video to display content
-          }
         } else {
           seenStories.get(currentStoryId).seenCount++;
         }
@@ -574,7 +551,6 @@
         const prev = seenStories.get(currentStoryId);
         prev.dwellTimeMs += Date.now() - storySegmentStart;
         prev.lastSeen = Date.now();
-        updateDwellInDB(prev.postId, prev.data.username, prev.dwellTimeMs);
       }
       const totalStoryTime = Date.now() - storyStart;
       log(`Story mode ended. ${seenStories.size} stories seen, ${Math.round(totalStoryTime / 1000)}s total`);
@@ -650,16 +626,7 @@
       // Filter out very short text (icons, buttons) and very long (page noise)
       if (text.length >= 3 && text.length <= 500 && !storyTexts.includes(text)) {
         // Skip navigation/UI elements
-        var uiPatterns = [
-          'Fermer', 'Close', 'Envoyer', 'Send', 'Répondre', 'Reply', 'Menu',
-          'Direct', 'J\'aime', 'Like', 'Partager', 'Share', 'Suivre', 'Follow',
-          'Réactions rapides', 'Le son est coupé', 'Chevron', 'Voir la traduction',
-          'Regarder le reel', 'Reels', 'Plus', 'Moins',
-        ];
-        var isUI = uiPatterns.some(function(p) { return text === p || text.startsWith(p); });
-        // Also skip emoji-only strings and reaction bars
-        var emojiOnly = /^[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]+$/u.test(text);
-        if (isUI || emojiOnly) continue;
+        if (['Fermer', 'Close', 'Envoyer', 'Send', 'Répondre', 'Reply'].includes(text)) continue;
         storyTexts.push(text);
       }
     }

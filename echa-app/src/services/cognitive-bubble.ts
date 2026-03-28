@@ -1,4 +1,8 @@
-import { getPosts, getSessions, safeParse, type PostEntry, type SessionSummary } from './db-bridge.js';
+import {
+  getCognitiveThemes,
+  safeParse,
+  type PostEntry,
+} from './db-bridge.js';
 import { normalizeSeries, type NormalizationStrategy } from './normalization.js';
 
 export type VisualizationMode =
@@ -61,7 +65,7 @@ export interface CognitiveThemeAggregate {
 }
 
 export interface CognitiveBubbleDataset {
-  session: SessionSummary | null;
+  session: null;
   posts: PostEntry[];
   themes: CognitiveThemeAggregate[];
   metricRanges: CognitiveMetricRanges;
@@ -72,7 +76,6 @@ export interface CognitiveBubbleDataset {
 }
 
 export interface CognitiveBubbleLoadOptions {
-  sessionId?: string;
   limit?: number;
 }
 
@@ -84,57 +87,57 @@ export interface CognitiveNormalizationOptions {
 export const COGNITIVE_METRICS: CognitiveMetricDefinition[] = [
   {
     key: 'frequency',
-    label: 'Fréquence',
-    description: 'Nombre de posts vus dans la thématique.',
+    label: 'Poids dans le fil',
+    description: 'Part de votre fil occupée par cette thématique.',
     unit: 'posts',
     sqliteSource: 'COUNT(posts.id)',
   },
   {
     key: 'durationTotalMs',
-    label: 'Durée totale',
-    description: 'Temps d’exposition cumulé pour la thématique.',
+    label: 'Temps cumulé',
+    description: 'Temps total passé sur cette thématique.',
     unit: 'ms',
     sqliteSource: 'SUM(posts.dwellTimeMs)',
   },
   {
     key: 'durationAverageMs',
-    label: 'Durée moyenne',
-    description: 'Temps moyen passé par post dans la thématique.',
+    label: 'Temps par post',
+    description: 'Temps moyen passé sur chaque post de cette thématique.',
     unit: 'ms',
     sqliteSource: 'AVG(posts.dwellTimeMs)',
   },
   {
     key: 'engagement',
-    label: 'Engagement',
-    description: 'Score moyen d’attention calculé à partir de la durée et du niveau d’attention.',
+    label: 'Attention',
+    description: 'Intensité moyenne de votre attention sur cette thématique.',
     unit: '0-100',
     sqliteSource: 'posts.attentionLevel + posts.dwellTimeMs',
   },
   {
     key: 'engagedShare',
-    label: 'Part engagée',
-    description: 'Part des posts vus au niveau viewed/engaged.',
+    label: 'Part très regardée',
+    description: 'Part des posts de cette thématique vraiment regardés.',
     unit: '%',
     sqliteSource: 'posts.attentionLevel',
   },
   {
     key: 'politicalScore',
-    label: 'Score politique',
-    description: 'Score politique moyen des posts enrichis de la thématique.',
+    label: 'Politisation',
+    description: 'Degré moyen de contenu politique dans cette thématique.',
     unit: '0-4',
     sqliteSource: 'post_enriched.politicalExplicitnessScore',
   },
   {
     key: 'polarization',
-    label: 'Polarisation',
-    description: 'Polarisation moyenne des posts enrichis de la thématique.',
+    label: 'Tension polarisante',
+    description: 'Niveau moyen de polarisation de cette thématique.',
     unit: '0-1',
     sqliteSource: 'post_enriched.polarizationScore',
   },
   {
     key: 'confidence',
-    label: 'Confiance',
-    description: 'Confiance moyenne des enrichissements.',
+    label: 'Fiabilité du classement',
+    description: 'Confiance moyenne du moteur de classement sur cette thématique.',
     unit: '0-1',
     sqliteSource: 'post_enriched.confidenceScore',
   },
@@ -389,9 +392,8 @@ export function normalizeCognitiveThemes(
 }
 
 export async function loadCognitiveBubbleData(options: CognitiveBubbleLoadOptions = {}): Promise<CognitiveBubbleDataset> {
-  const sessions = await getSessions();
-  const session = resolveSession(sessions, options.sessionId);
-  if (!session) {
+  const themeResult = await getCognitiveThemes();
+  if (themeResult.totalPosts === 0) {
     const emptyThemes: CognitiveThemeAggregate[] = [];
     const normalized = normalizeCognitiveThemes(emptyThemes);
     return {
@@ -406,34 +408,31 @@ export async function loadCognitiveBubbleData(options: CognitiveBubbleLoadOption
     };
   }
 
-  const totalAvailablePosts = session.postCount;
-  const fetchLimit = options.limit ?? totalAvailablePosts;
-  const posts = await getPosts(session.id, 0, fetchLimit);
-  const themes = aggregateCognitiveThemes(posts);
+  const totalAvailablePosts = themeResult.totalPosts;
+  const posts: PostEntry[] = [];
+  const themes = themeResult.themes.map(theme => ({
+    ...theme,
+    rawMetrics: {
+      frequency: theme.postCount,
+      durationTotalMs: theme.totalDwellTimeMs,
+      durationAverageMs: theme.averageDwellTimeMs,
+      engagement: theme.engagementScore,
+      engagedShare: theme.engagedShare,
+      politicalScore: theme.politicalScoreAverage,
+      polarization: theme.polarizationAverage,
+      confidence: theme.confidenceAverage,
+    },
+  } satisfies CognitiveThemeAggregate));
   const normalized = normalizeCognitiveThemes(themes);
 
   return {
-    session,
+    session: null,
     posts,
     themes: normalized.themes,
     metricRanges: normalized.metricRanges,
-    totalPosts: posts.length,
+    totalPosts: themeResult.totalPosts,
     totalAvailablePosts,
     totalThemes: normalized.themes.length,
-    isPartial: posts.length < totalAvailablePosts,
+    isPartial: themeResult.totalPosts < totalAvailablePosts,
   };
-}
-
-function resolveSession(sessions: SessionSummary[], sessionId?: string): SessionSummary | null {
-  if (sessionId) {
-    const byId = sessions.find(session => session.id === sessionId);
-    if (byId) return byId;
-  }
-
-  if (sessions.length === 0) return null;
-
-  return [...sessions].sort((a, b) => {
-    if (b.capturedAt !== a.capturedAt) return b.capturedAt - a.capturedAt;
-    return b.postCount - a.postCount;
-  })[0] ?? null;
 }
