@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { LogcatTap } from '../logcat-tap';
+import { LogcatTap, MLKitResult } from '../logcat-tap';
 
 // We test the chunk parsing logic by calling processLine directly
 // LogcatTap.processLine is private, so we access it via prototype hack
@@ -91,5 +91,51 @@ describe('Chunk reassembly', () => {
 
     expect(events).toHaveLength(1);
     expect(events[0].eventType).toBe('STATE_CHANGED');
+  });
+});
+
+describe('MLKit parsing', () => {
+  it('parses MLKIT| lines and emits mlkit event', () => {
+    const tap = createTap();
+    const results: MLKitResult[] = [];
+    tap.on('mlkit', (r: MLKitResult) => results.push(r));
+
+    const payload: MLKitResult = {
+      postId: 'user123|abc',
+      labels: [{ text: 'text', confidence: 0.95 }, { text: 'person', confidence: 0.8 }],
+      ocrText: 'Ceci est du texte incrusté dans la vidéo',
+      processingMs: 42,
+    };
+    tap.processLine(`MLKIT|${JSON.stringify(payload)}`);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].postId).toBe('user123|abc');
+    expect(results[0].ocrText).toBe('Ceci est du texte incrusté dans la vidéo');
+    expect(results[0].labels).toHaveLength(2);
+    expect(results[0].labels[0].text).toBe('text');
+  });
+
+  it('parses ECHA_MLKIT| prefixed lines', () => {
+    const tap = createTap();
+    const results: MLKitResult[] = [];
+    tap.on('mlkit', (r: MLKitResult) => results.push(r));
+
+    const payload: MLKitResult = { postId: 'test|xyz', labels: [], ocrText: 'overlay text', processingMs: 10 };
+    tap.processLine(`ECHA_MLKIT|${JSON.stringify(payload)}`);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].ocrText).toBe('overlay text');
+  });
+
+  it('increments mlkitResults metric on valid parse', () => {
+    const tap = createTap();
+    tap.on('mlkit', () => {}); // consume
+
+    const payload: MLKitResult = { postId: 'a|b', labels: [], ocrText: '', processingMs: 5 };
+    tap.processLine(`MLKIT|${JSON.stringify(payload)}`);
+    tap.processLine(`MLKIT|${JSON.stringify(payload)}`);
+
+    const metrics = tap.getMetrics();
+    expect(metrics.mlkitResults).toBe(2);
   });
 });

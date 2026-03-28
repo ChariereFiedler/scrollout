@@ -6,3 +6,5 @@ export type { TopicDefinition } from './topics-keywords';
 export { detectPoliticalAxes } from './political-axes';
 export type { AxisScore } from './political-axes';
 export { classifyMedia } from './media-category';
+export { detectPoliticalAccount } from './political-accounts';
+export type { PoliticalAccount } from './political-accounts';

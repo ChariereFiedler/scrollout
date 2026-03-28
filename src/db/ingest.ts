@@ -36,6 +36,9 @@ interface AnalysisPost {
   audioTrack: string;
   mentionedAccounts: string[];
   allTextContent: string;
+  ocrText: string;
+  mlkitLabels: Array<{ text: string; confidence: number }>;
+  subtitles: string;
   firstSeenAt: number;
   lastSeenAt: number;
   dwellTimeMs: number;
@@ -109,6 +112,8 @@ export async function ingestAnalysis(analysisPath: string): Promise<{ sessionId:
         audioTrack: p.audioTrack || '',
         mentioned: JSON.stringify(p.mentionedAccounts || []),
         allText: p.allTextContent || '',
+        ocrText: p.ocrText || '',
+        subtitles: p.subtitles || '',
         dwellTimeMs: p.dwellTimeMs || 0,
         attentionLevel: p.attentionLevel || 'skipped',
         category: p.contentCategory || 'non classifié',

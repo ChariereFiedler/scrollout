@@ -154,6 +154,9 @@ export function normalizePostText(input: {
   imageDesc: string;
   allText: string;
   hashtags: string[];
+  ocrText?: string;
+  subtitles?: string;
+  audioTranscription?: string;
 }): {
   normalizedText: string;
   language: string;
@@ -164,8 +167,21 @@ export function normalizePostText(input: {
   const cleanImageDesc = normalizeWhitespace(input.imageDesc);
   const cleanAllText = normalizeWhitespace(stripInstagramUI(reduceEmojis(stripUrls(stripMentions(input.allText)))));
 
+  // Sources vidéo (marquées pour le LLM)
+  const segments = [cleanCaption, cleanImageDesc, cleanAllText];
+
+  if (input.ocrText?.trim()) {
+    segments.push(`[OCR] ${normalizeWhitespace(input.ocrText)}`);
+  }
+  if (input.subtitles?.trim()) {
+    segments.push(`[SUBTITLES] ${normalizeWhitespace(input.subtitles)}`);
+  }
+  if (input.audioTranscription?.trim()) {
+    segments.push(`[AUDIO_TRANSCRIPT] ${normalizeWhitespace(input.audioTranscription)}`);
+  }
+
   // 2. Dédupliquer et fusionner
-  const normalizedText = deduplicateSegments([cleanCaption, cleanImageDesc, cleanAllText]);
+  const normalizedText = deduplicateSegments(segments);
 
   // 3. Détecter la langue
   const language = detectLanguage(normalizedText);

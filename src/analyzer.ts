@@ -33,11 +33,19 @@ interface RawEvent {
   dwellTimes: Record<string, number>;
 }
 
+interface MLKitResult {
+  postId: string;
+  labels: Array<{ text: string; confidence: number }>;
+  ocrText: string;
+  processingMs: number;
+}
+
 interface SessionFile {
   capturedAt: string;
   durationSec: number;
   totalEvents: number;
   events: RawEvent[];
+  mlkitResults?: Record<string, MLKitResult[]>;
 }
 
 interface ExtractedPost {
@@ -60,6 +68,9 @@ interface ExtractedPost {
   audioTrack: string;
   mentionedAccounts: string[];
   allTextContent: string; // all text + desc concatenated from the post's nodes
+  ocrText: string; // texte détecté par MLKit (overlay/sous-titres brûlés)
+  mlkitLabels: Array<{ text: string; confidence: number }>; // labels MLKit
+  subtitles: string; // sous-titres Instagram auto-générés (reels plein écran)
 }
 
 interface PostWithAttention extends ExtractedPost {
@@ -99,7 +110,12 @@ function extractPostsFromNodes(nodes: RawNode[]): ExtractedPost[] {
 
     const postNodes = nodes.slice(Math.max(0, startIdx - 3), endIdx);
     const post = parsePostNodes(postNodes);
-    if (post.username) posts.push(post);
+    if (post.username) {
+      // Try to extract subtitles from post's nodes
+      const subs = extractSubtitles(postNodes);
+      if (subs) post.subtitles = subs;
+      posts.push(post);
+    }
   }
 
   return posts;
@@ -126,6 +142,9 @@ function parsePostNodes(nodes: RawNode[]): ExtractedPost {
     audioTrack: '',
     mentionedAccounts: [],
     allTextContent: '',
+    ocrText: '',
+    mlkitLabels: [],
+    subtitles: '',
   };
 
   let afterLikeButton = false;
@@ -271,6 +290,46 @@ function parsePostNodes(nodes: RawNode[]): ExtractedPost {
   }
 
   return post;
+}
+
+/**
+ * Extracts Instagram auto-generated subtitles from accessibility nodes.
+ * In reel full-screen viewer, subtitles appear as TextView nodes without resourceId
+ * with class containing 'SubtitleTextView' or 'ClosedCaption'.
+ * In feed view, they may appear in imageDescription containing transcript-like text.
+ */
+function extractSubtitles(nodes: RawNode[]): string {
+  const subtitleTexts: string[] = [];
+
+  for (const node of nodes) {
+    const cls = node.class || '';
+    const r = rid(node);
+    const text = node.text || '';
+
+    // Pattern 1: Instagram subtitle view (reels plein écran)
+    if (!r && (cls.includes('Subtitle') || cls.includes('ClosedCaption') || cls.includes('Caption'))) {
+      if (text.length > 5) subtitleTexts.push(text.trim());
+    }
+
+    // Pattern 2: accessibility subtitle nodes (no resourceId, specific class patterns)
+    if (!r && cls.includes('TextView') && text.length > 20) {
+      // Heuristic: subtitle text is typically sentence-like, not a username or button
+      const looksLikeSentence = /[a-zàâéèêëîïôùûüç]{3,}/i.test(text) &&
+        !text.match(/^[\d\s,.K]+$/) && // not a number
+        !text.match(/^@/) && // not a mention
+        !text.match(/^#/) && // not a hashtag
+        !text.startsWith('Suivi') && // not a follow indicator
+        !text.startsWith('Sponsorisé') &&
+        !text.match(/il y a|hier|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche/i); // not a date
+      // Only consider as subtitle if it looks transcription-like (spoken language)
+      if (looksLikeSentence && text.split(' ').length >= 4) {
+        // This is a candidate but needs more context — only pick if not already captured as caption
+        // We'll deduplicate later in the pipeline
+      }
+    }
+  }
+
+  return subtitleTexts.join(' ');
 }
 
 function parseHeaderDesc(desc: string, post: ExtractedPost): void {
@@ -549,6 +608,32 @@ async function analyzeSession(sessionPath: string): Promise<void> {
     }
   }
 
+  // Merge MLKit OCR results into posts
+  if (raw.mlkitResults) {
+    for (const [mlPostId, results] of Object.entries(raw.mlkitResults)) {
+      // mlPostId format: "username|hash" — match by username prefix
+      const username = mlPostId.split('|')[0];
+      const post = postMap.get(username);
+      if (post) {
+        // Aggregate OCR text from all results (deduplicated)
+        const ocrTexts = new Set<string>();
+        for (const r of results) {
+          if (r.ocrText) ocrTexts.add(r.ocrText.trim());
+          if (r.labels?.length) {
+            for (const label of r.labels) {
+              const existing = post.mlkitLabels.find(l => l.text === label.text);
+              if (!existing || label.confidence > existing.confidence) {
+                if (existing) existing.confidence = label.confidence;
+                else post.mlkitLabels.push({ ...label });
+              }
+            }
+          }
+        }
+        post.ocrText = [...ocrTexts].join(' ');
+      }
+    }
+  }
+
   // Finalize posts
   const allPosts = [...postMap.values()]
     .map(p => {
@@ -674,6 +759,9 @@ async function analyzeSession(sessionPath: string): Promise<void> {
     }
     if (post.audioTrack) {
       report.push(`   Audio: ${post.audioTrack}`);
+    }
+    if (post.ocrText) {
+      report.push(`   OCR: ${post.ocrText.substring(0, 90)}`);
     }
     report.push('');
   }

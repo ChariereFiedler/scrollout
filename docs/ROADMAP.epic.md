@@ -210,6 +210,175 @@ Créer `src/profiler/` :
 
 ---
 
+## EPIC-012 : Analyse vidéo — Comprendre le message des médias
+**Statut** : `todo`
+**Description** : Exploiter tous les signaux disponibles (OCR, sous-titres, transcription audio) pour comprendre le message et les intentions des vidéos/reels Instagram.
+**Dépend de** : EPIC-010
+
+### Contexte
+
+Les vidéos/reels Instagram portent leur message sur 3 canaux actuellement sous-exploités :
+1. **Texte incrusté / sous-titres** — MLKit OCR capturé via logcat mais jamais persisté
+2. **Sous-titres Instagram auto** — présents dans l'arbre accessibilité, noyés dans `allText`
+3. **Audio** — canal le plus riche, complètement absent de la pipeline
+
+**État actuel** : les vidéos sont traitées identiquement aux photos par le pipeline d'enrichissement. Le `mediaType` est passé au LLM mais aucune logique spécifique n'existe.
+
+### Tâche 012-1 : Persister les résultats MLKit OCR
+**Statut** : `todo`
+**Priorité** : haute (quick win — données déjà capturées, jamais stockées)
+
+**Problème** : `MLKitResult` (labels + ocrText) est émis par `logcat-tap.ts` via `this.emit('mlkit', data)` mais n'est rattaché à aucun post ni persisté dans les sessions.
+
+**Implémentation** :
+- [ ] Dans `capture.ts` : écouter l'event `mlkit` du LogcatTap, accumuler les résultats par `postId`
+- [ ] Stocker `mlkitResults: Record<postId, MLKitResult[]>` dans le fichier session JSON
+- [ ] Dans `analyzer.ts` : merger les `ocrText` MLKit dans le post correspondant (match par `postId`)
+- [ ] Ajouter champ `ocrText` (String?) au modèle `Post` dans le schéma Prisma
+- [ ] Dans `db/ingest.ts` : persister `ocrText` depuis l'analysis JSON
+- [ ] Migration Prisma
+- [ ] Test : capturer une session avec un reel contenant du texte overlay → vérifier que `ocrText` est non-null en base
+
+**Fichiers impactés** : `logcat-tap.ts`, `capture.ts`, `analyzer.ts`, `db/ingest.ts`, `prisma/schema.prisma`
+
+---
+
+### Tâche 012-2 : Extraire les sous-titres Instagram de l'arbre accessibilité
+**Statut** : `todo`
+**Priorité** : haute (quick win — données déjà dans les nodes, pas identifiées)
+
+**Problème** : Instagram génère des sous-titres auto sur les reels. Ils apparaissent comme noeuds texte dans l'arbre accessibilité mais sont mélangés dans `allText` sans marquage.
+
+**Implémentation** :
+- [ ] Étudier les sessions existantes (`data/session_*.json`) pour identifier les patterns de noeuds sous-titres Instagram (resourceId, position dans l'arbre, texte caractéristique)
+- [ ] Dans `analyzer.ts` : créer `extractSubtitles(nodes: RawNode[]): string | null` qui isole les noeuds sous-titres des reels
+- [ ] Ajouter champ `subtitles` (String?) au modèle `Post` dans le schéma Prisma
+- [ ] Persister dans `db/ingest.ts`
+- [ ] Test : identifier un reel avec sous-titres auto dans les sessions existantes → vérifier extraction
+
+**Fichiers impactés** : `analyzer.ts`, `db/ingest.ts`, `prisma/schema.prisma`
+
+**Note** : cette tâche nécessite d'abord une phase d'exploration des données brutes pour comprendre la structure des sous-titres dans l'arbre UI.
+
+---
+
+### Tâche 012-3 : Enrichir la normalisation et le prompt LLM pour les vidéos
+**Statut** : `todo`
+**Priorité** : haute (dépend de 012-1 et 012-2)
+**Dépend de** : 012-1, 012-2
+
+**Problème** : `normalizePostText()` ne consolide que caption + imageDesc + allText. Le prompt LLM ne distingue pas les vidéos des photos.
+
+**Implémentation** :
+- [ ] Dans `normalize.ts` : ajouter `ocrText` et `subtitles` comme sources de texte (4ème et 5ème source)
+  - Déduplication avec `allText` (les sous-titres peuvent être en doublon)
+  - Marquer la provenance : `[OCR] texte` / `[SUBTITLES] texte` pour que le LLM distingue
+- [ ] Dans `prompts.ts` : enrichir le prompt pour les vidéos/reels :
+  - Instruction spécifique quand `mediaType` est video/reel
+  - Demander au LLM d'inférer le message principal du média en croisant : caption du créateur + texte overlay (OCR) + sous-titres + piste audio nommée
+  - Ajouter champs de sortie LLM : `media_message` (string — message principal du média), `media_intent` (enum — informer|divertir|vendre|convaincre|émouvoir|éduquer|provoquer)
+- [ ] Dans `pipeline.ts` : passer `ocrText` et `subtitles` au `normalizePostText()` et au `buildEnrichmentPrompt()`
+- [ ] Ajouter champs `mediaMessage` (String?) et `mediaIntent` (String?) au modèle `PostEnriched`
+- [ ] Migration Prisma
+- [ ] Test : enrichir un post vidéo avec ocrText rempli → vérifier que `mediaMessage` et `mediaIntent` sont produits
+
+**Fichiers impactés** : `normalize.ts`, `prompts.ts`, `pipeline.ts`, `prisma/schema.prisma`
+
+---
+
+### Tâche 012-4 : Pipeline transcription audio (Whisper)
+**Statut** : `todo`
+**Priorité** : moyenne (nécessite du dev + infrastructure)
+**Dépend de** : 012-3
+
+**Problème** : l'audio est le canal le plus riche des vidéos mais aucun mécanisme d'extraction ou de transcription n'existe.
+
+**Approche retenue** : extraction via `videoUrl` du WebView tracker → téléchargement → transcription Whisper (local ou API).
+
+**Implémentation** :
+
+#### 012-4a : Capturer et persister les videoUrl
+- [ ] Dans `logcat-tap.ts` / `capture.ts` : le `TrackerEvent` contient déjà `videoUrl` dans l'interface — vérifier qu'il est bien rempli côté `tracker.js`
+- [ ] Dans `tracker.js` (WebView) : extraire `videoUrl` depuis les éléments `<video>` du DOM Instagram
+- [ ] Persister `videoUrl` dans le fichier session et dans le modèle `Post` (nouveau champ String?)
+- [ ] Test : capturer un reel via WebView → vérifier que `videoUrl` est non-null
+
+#### 012-4b : Télécharger et extraire l'audio
+- [ ] Créer `src/media/download.ts` : télécharger la vidéo depuis `videoUrl` (CDN Instagram)
+  - Gestion CORS/auth headers si nécessaire
+  - Stockage temporaire dans `data/media/`
+  - Timeout + retry
+- [ ] Créer `src/media/audio-extract.ts` : extraire l'audio via ffmpeg (`ffmpeg -i video.mp4 -vn -acodec pcm_s16le audio.wav`)
+  - Prérequis : ffmpeg installé localement
+  - Nettoyage fichier vidéo après extraction
+
+#### 012-4c : Transcription Whisper
+- [ ] Créer `src/media/transcribe.ts` : abstraction `TranscriptionProvider`
+  - Interface : `transcribe(audioPath: string): Promise<{ text: string; language: string; segments: Array<{ start: number; end: number; text: string }> }>`
+  - Implémentation Whisper local (whisper.cpp ou openai/whisper via Python)
+  - Implémentation Whisper API (OpenAI, ~$0.006/min)
+  - Fallback : Deepgram API (tier gratuit 45h/mois)
+- [ ] Ajouter champ `audioTranscription` (String?) au modèle `Post` ou `PostEnriched`
+- [ ] Test : transcrire un reel en français → vérifier texte cohérent
+
+#### 012-4d : Intégration dans la pipeline d'enrichissement
+- [ ] Dans `pipeline.ts` ou nouveau `src/enrichment/media-pipeline.ts` :
+  - Avant enrichissement LLM : si post.mediaType = video/reel ET videoUrl disponible → download → extract audio → transcribe
+  - Injecter `audioTranscription` dans `normalizePostText()` comme 6ème source de texte
+  - Marquer provenance : `[AUDIO_TRANSCRIPT] texte`
+- [ ] Dans `enrich.ts` : ajouter flag `--with-audio` pour activer la transcription (désactivé par défaut, coûteux)
+- [ ] Test intégration : pipeline complète sur 5 reels → vérifier que transcription enrichit le scoring
+
+**Fichiers impactés** : `tracker.js`, `logcat-tap.ts`, `capture.ts`, `prisma/schema.prisma`, nouveau `src/media/`, `pipeline.ts`, `normalize.ts`, `enrich.ts`
+
+**Prérequis** :
+- ffmpeg installé sur la machine
+- Whisper local (whisper.cpp) OU clé API OpenAI/Deepgram
+- WebView Capacitor fonctionnel pour capturer les `videoUrl`
+
+---
+
+### Résumé des modifications schéma Prisma
+
+```prisma
+model Post {
+  // ... existant ...
+  ocrText      String?   // Texte détecté par MLKit (overlay/sous-titres brûlés)
+  subtitles    String?   // Sous-titres Instagram auto-générés (extraits de l'arbre accessibilité)
+  videoUrl     String?   // URL CDN de la vidéo (depuis WebView tracker)
+}
+
+model PostEnriched {
+  // ... existant ...
+  audioTranscription  String?   // Transcription audio Whisper
+  mediaMessage        String?   // Message principal du média (inféré par LLM)
+  mediaIntent         String?   // Intention du média (informer|divertir|vendre|convaincre|émouvoir|éduquer|provoquer)
+}
+```
+
+### Ordre d'implémentation et dépendances
+
+```mermaid
+graph TD
+    T1[012-1 Persister MLKit OCR] --> T3[012-3 Enrichir normalisation + prompt LLM]
+    T2[012-2 Extraire sous-titres Instagram] --> T3
+    T3 --> T4a[012-4a Capturer videoUrl]
+    T4a --> T4b[012-4b Download + extract audio]
+    T4b --> T4c[012-4c Transcription Whisper]
+    T4c --> T4d[012-4d Intégration pipeline]
+```
+
+### Estimation effort
+
+| Tâche | Effort | ROI |
+|-------|--------|-----|
+| 012-1 MLKit OCR | Faible — plomberie existante | Très élevé — données gratuites |
+| 012-2 Sous-titres Instagram | Moyen — exploration données + patterns | Élevé — transcription gratuite |
+| 012-3 Normalisation + prompt | Moyen — modification pipeline existante | Élevé — meilleure compréhension LLM |
+| 012-4 Transcription audio | Élevé — nouveau sous-système | Très élevé — canal le plus riche |
+
+---
+
 ## Dépendances
 
 ```mermaid
@@ -218,6 +387,8 @@ graph TD
     E001 -->|done| E002[EPIC-002 Analyse basique]
     E002 -->|done| E010[EPIC-010 Enrichissement post]
     E010 --> E011[EPIC-011 Calibration]
+    E010 --> E012[EPIC-012 Analyse vidéo]
+    E012 --> E011
     E011 --> E020[EPIC-020 Profil utilisateur]
     E010 --> E030[EPIC-030 Dashboard]
     E020 --> E030
@@ -226,4 +397,5 @@ graph TD
 ```
 
 ## Changelog
+- 2026-03-28 : ajout EPIC-012 analyse vidéo (OCR, sous-titres, transcription audio, prompt LLM enrichi)
 - 2026-03-28 : création du système epic/task, migration depuis ROADMAP.md + REPLAN.md

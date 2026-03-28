@@ -9,6 +9,7 @@ import { findAdbPath } from './adb-path';
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const TAG = 'ECHA_DATA';
+const MLKIT_TAG = 'ECHA_MLKIT';
 const duration = parseInt(process.argv[2] || '30', 10) * 1000;
 
 interface VisiblePost {
@@ -49,6 +50,13 @@ interface SessionSummary {
   }>;
 }
 
+interface MLKitResult {
+  postId: string;
+  labels: Array<{ text: string; confidence: number }>;
+  ocrText: string;
+  processingMs: number;
+}
+
 function log(msg: string): void {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
@@ -56,6 +64,7 @@ function log(msg: string): void {
 const adbPath = findAdbPath();
 const events: EchaEvent[] = [];
 const summaries: SessionSummary[] = [];
+const mlkitResults: Record<string, MLKitResult[]> = {}; // postId → results
 let chunkBuffer: string[] = [];
 let expectedChunks = 0;
 let lastFocusedPost = '';
@@ -65,7 +74,7 @@ clear.on('close', () => {
   log(`=== ECHA v2 — Instagram Tracker (${duration / 1000}s) ===`);
   log('Scroll Instagram on your phone!\n');
 
-  const logcat = spawn(adbPath, ['logcat', '-s', `${TAG}:I`, '*:S', '-v', 'raw']);
+  const logcat = spawn(adbPath, ['logcat', '-s', `${TAG}:I`, `${MLKIT_TAG}:I`, '*:S', '-v', 'raw']);
 
   logcat.stdout.on('data', (data: Buffer) => {
     for (const line of data.toString('utf-8').split('\n')) {
@@ -90,6 +99,27 @@ function processLine(line: string): void {
       summaries.push(summary);
       logSummary(summary);
     } catch { /* ignore */ }
+    return;
+  }
+
+  // MLKit results
+  if (line.startsWith('MLKIT|') || line.startsWith('ECHA_MLKIT|')) {
+    const separator = line.indexOf('|');
+    if (separator !== -1) {
+      try {
+        const data = JSON.parse(line.substring(separator + 1)) as MLKitResult;
+        if (data.postId) {
+          if (!mlkitResults[data.postId]) mlkitResults[data.postId] = [];
+          mlkitResults[data.postId].push(data);
+          if (data.ocrText) {
+            log(`[mlkit] OCR for ${data.postId.split('|')[0]}: "${data.ocrText.substring(0, 80)}"`);
+          }
+          if (data.labels?.length) {
+            log(`[mlkit] Labels: ${data.labels.map(l => `${l.text}(${(l.confidence * 100).toFixed(0)}%)`).join(', ')}`);
+          }
+        }
+      } catch { /* ignore */ }
+    }
     return;
   }
 
@@ -228,6 +258,7 @@ function save(): void {
       .sort((a, b) => b.dwellTimeSec - a.dwellTimeSec),
     events,
     summaries,
+    mlkitResults,
   };
 
   const outPath = path.join(DATA_DIR, `session_${Date.now()}.json`);

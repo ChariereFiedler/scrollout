@@ -45,6 +45,8 @@ interface LLMEnrichmentResult {
   narrative_frame: string;
   call_to_action_type: string;
   problem_solution_pattern: string;
+  media_message: string;
+  media_intent: string;
   confidence_score: number;
 }
 
@@ -161,6 +163,8 @@ function mergeResults(
       narrativeFrame: '',
       callToActionType: 'aucun',
       problemSolutionPattern: '',
+      mediaMessage: '',
+      mediaIntent: '',
       confidenceScore: rules.confidenceScore * 0.6, // confiance réduite sans LLM
       reviewFlag: rules.confidenceScore < 0.4,
       reviewReason: rules.confidenceScore < 0.4 ? 'low_confidence_rules_only' : '',
@@ -216,6 +220,8 @@ function mergeResults(
     narrativeFrame: llm.narrative_frame,
     callToActionType: llm.call_to_action_type,
     problemSolutionPattern: llm.problem_solution_pattern,
+    mediaMessage: llm.media_message || '',
+    mediaIntent: llm.media_intent || '',
     confidenceScore: Math.round(confidence * 100) / 100,
     reviewFlag: needsReview,
     reviewReason: needsReview
@@ -244,12 +250,14 @@ export async function enrichBatch(options: EnrichmentOptions): Promise<{
     stats.processed++;
     const hashtags = parseHashtags(post.hashtags);
 
-    // 1. Normalize
+    // 1. Normalize (include video sources if available)
     const { normalizedText, language, keywordTerms } = normalizePostText({
       caption: post.caption,
       imageDesc: post.imageDesc,
       allText: post.allText,
       hashtags,
+      ocrText: post.ocrText || undefined,
+      subtitles: post.subtitles || undefined,
     });
 
     // Skip si texte trop court

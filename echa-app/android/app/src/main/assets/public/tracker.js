@@ -50,6 +50,7 @@
       isReel: false,
       location: '',
       audioTrack: '',
+      allText: '',
     };
 
     // Username — look for header link
@@ -120,31 +121,53 @@
       'h1',                       // single post caption
     ];
 
-    // Better approach: find spans that contain the username followed by text
+    // Caption extraction — multiple strategies
     const allSpans = article.querySelectorAll('span');
     for (const span of allSpans) {
-      const text = span.textContent || '';
+      const text = (span.textContent || '').trim();
+      // Strategy 1: span containing username followed by caption text
       if (text.includes(post.username) && text.length > post.username.length + 5 && !post.caption) {
         post.caption = text;
       }
-      // Full caption (visible text after the username)
-      if (span.parentElement?.getAttribute('role') === 'button' && text === 'plus' || text === 'more') {
-        // The sibling before contains truncated caption
-        const parent = span.closest('div') || span.parentElement;
-        if (parent) {
-          post.fullCaption = parent.textContent || '';
+    }
+
+    // Strategy 2: look for the caption container (usually the first <li> or first visible text block after header)
+    if (!post.caption) {
+      const listItems = article.querySelectorAll('ul > div li, ul > li');
+      if (listItems.length > 0) {
+        post.caption = (listItems[0].textContent || '').trim();
+      }
+    }
+
+    // Strategy 3: find "plus"/"more" button and grab the parent's full text
+    const moreButtons = article.querySelectorAll('span[role="button"], button');
+    for (const btn of moreButtons) {
+      const btnText = (btn.textContent || '').trim().toLowerCase();
+      if (btnText === 'plus' || btnText === 'more' || btnText === '... plus' || btnText === '... more') {
+        // Try clicking to expand
+        try { btn.click(); } catch {}
+        // Get the expanded text from parent container
+        const container = btn.closest('div') || btn.parentElement;
+        if (container) {
+          const expanded = (container.textContent || '').trim();
+          if (expanded.length > post.fullCaption.length) {
+            post.fullCaption = expanded;
+          }
         }
       }
     }
 
-    // Alternative caption extraction
-    if (!post.caption) {
-      const listItems = article.querySelectorAll('ul > div li');
-      if (listItems.length > 0) {
-        const firstComment = listItems[0];
-        post.caption = firstComment.textContent || '';
-      }
+    // If fullCaption is still empty or just "plus", use caption
+    if (!post.fullCaption || post.fullCaption === 'plus' || post.fullCaption === 'more') {
+      post.fullCaption = post.caption;
     }
+
+    // Build allText for enrichment (combine all visible text content)
+    const allTextParts = [post.username, post.caption, post.fullCaption];
+    allTextParts.push(...post.imageAlts);
+    allTextParts.push(...post.hashtags.map(h => '#' + h));
+    if (post.location) allTextParts.push(post.location);
+    post.allText = allTextParts.filter(Boolean).join(' ');
 
     // Hashtags
     const hashtagLinks = article.querySelectorAll('a[href*="/explore/tags/"]');
@@ -222,7 +245,6 @@
               dwellTimeMs: 0,
               seenCount: 1,
               data,
-              imageAnalysis: null,
             };
             seenPosts.set(postId, postEntry);
             log(`New post: @${data.username} (${data.mediaType})${data.isSponsored ? ' [AD]' : ''}`);
@@ -238,11 +260,34 @@
   });
 
   function sendPostUpdate(entry) {
+    // Strip imageUrls from updates to reduce payload (already sent with new_post)
     sendToNative({
       type: 'post_update',
       post: {
-        ...entry,
+        postId: entry.postId,
+        firstSeen: entry.firstSeen,
+        lastSeen: entry.lastSeen,
+        dwellTimeMs: entry.dwellTimeMs,
+        seenCount: entry.seenCount,
         dwellTimeSec: Math.round(entry.dwellTimeMs / 100) / 10,
+        data: {
+          username: entry.data.username,
+          displayName: entry.data.displayName,
+          caption: entry.data.caption,
+          fullCaption: (entry.data.fullCaption || '').substring(0, 200),
+          hashtags: entry.data.hashtags,
+          imageAlts: entry.data.imageAlts,
+          videoUrl: '',
+          likeCount: entry.data.likeCount,
+          commentCount: entry.data.commentCount,
+          date: entry.data.date,
+          mediaType: entry.data.mediaType,
+          isSponsored: entry.data.isSponsored,
+          isSuggested: entry.data.isSuggested,
+          isReel: entry.data.isReel,
+          location: entry.data.location,
+          audioTrack: entry.data.audioTrack,
+        },
       },
     });
   }
@@ -284,9 +329,33 @@
       currentPostStart = Date.now();
     }
 
+    // Strip imageUrls from summary to avoid payload bloat (already sent with new_post events)
     const posts = Array.from(seenPosts.values()).map(entry => ({
-      ...entry,
+      postId: entry.postId,
+      firstSeen: entry.firstSeen,
+      lastSeen: entry.lastSeen,
+      dwellTimeMs: entry.dwellTimeMs,
+      seenCount: entry.seenCount,
       dwellTimeSec: Math.round(entry.dwellTimeMs / 100) / 10,
+      data: {
+        username: entry.data.username,
+        displayName: entry.data.displayName,
+        caption: entry.data.caption,
+        fullCaption: (entry.data.fullCaption || '').substring(0, 200),
+        hashtags: entry.data.hashtags,
+        imageAlts: entry.data.imageAlts,
+        // imageUrls deliberately omitted — too large for logcat
+        videoUrl: '',
+        likeCount: entry.data.likeCount,
+        commentCount: entry.data.commentCount,
+        date: entry.data.date,
+        mediaType: entry.data.mediaType,
+        isSponsored: entry.data.isSponsored,
+        isSuggested: entry.data.isSuggested,
+        isReel: entry.data.isReel,
+        location: entry.data.location,
+        audioTrack: entry.data.audioTrack,
+      },
     }));
 
     sendToNative({
@@ -297,6 +366,203 @@
       posts: posts.sort((a, b) => b.dwellTimeMs - a.dwellTimeMs),
     });
   }, 10000);
+
+  // ─── Stories Tracker ───────────────────────────────────────
+
+  let storyMode = false;
+  let currentStoryUser = '';
+  let currentStoryId = '';
+  let storyStart = 0;
+  let storySegmentStart = 0;
+  let storyCounter = 0;
+  const seenStories = new Map(); // storyId -> { username, firstSeen, dwellTimeMs, ... }
+
+  function checkStoryMode() {
+    const path = window.location.pathname;
+    const storyMatch = path.match(/^\/stories\/([^\/]+)\/?(.*)$/);
+
+    if (storyMatch) {
+      const username = storyMatch[1];
+      const storyPath = storyMatch[2] || '';
+
+      if (!storyMode) {
+        // Entering story mode
+        storyMode = true;
+        storyStart = Date.now();
+        log(`Story mode: @${username}`);
+      }
+
+      // Detect story change (new user or new segment)
+      const newStoryKey = `${username}/${storyPath}`;
+      if (newStoryKey !== currentStoryId) {
+        // Finalize previous story segment
+        if (currentStoryId && seenStories.has(currentStoryId)) {
+          const prev = seenStories.get(currentStoryId);
+          prev.dwellTimeMs += Date.now() - storySegmentStart;
+          prev.lastSeen = Date.now();
+        }
+
+        currentStoryUser = username;
+        currentStoryId = newStoryKey;
+        storySegmentStart = Date.now();
+
+        if (!seenStories.has(currentStoryId)) {
+          storyCounter++;
+          const storyData = extractStoryContent(username);
+          const entry = {
+            postId: 'story_' + storyCounter,
+            storyKey: currentStoryId,
+            firstSeen: Date.now(),
+            lastSeen: Date.now(),
+            dwellTimeMs: 0,
+            seenCount: 1,
+            data: storyData,
+          };
+          seenStories.set(currentStoryId, entry);
+          seenPosts.set(entry.postId, entry); // Add to main posts map too
+
+          log(`New story: @${username} (${storyData.mediaType})`);
+          sendToNative({ type: 'new_post', post: entry });
+        } else {
+          seenStories.get(currentStoryId).seenCount++;
+        }
+      }
+    } else if (storyMode) {
+      // Exiting story mode — finalize
+      if (currentStoryId && seenStories.has(currentStoryId)) {
+        const prev = seenStories.get(currentStoryId);
+        prev.dwellTimeMs += Date.now() - storySegmentStart;
+        prev.lastSeen = Date.now();
+      }
+      const totalStoryTime = Date.now() - storyStart;
+      log(`Story mode ended. ${seenStories.size} stories seen, ${Math.round(totalStoryTime / 1000)}s total`);
+      storyMode = false;
+      currentStoryUser = '';
+      currentStoryId = '';
+    }
+  }
+
+  function extractStoryContent(username) {
+    const story = {
+      username: username,
+      displayName: '',
+      caption: '',
+      fullCaption: '',
+      hashtags: [],
+      imageUrls: [],
+      imageAlts: [],
+      videoUrl: '',
+      likeCount: '',
+      commentCount: '',
+      date: '',
+      mediaType: 'story',
+      isSponsored: false,
+      isSuggested: false,
+      isReel: false,
+      location: '',
+      audioTrack: '',
+      allText: '',
+    };
+
+    // Stories use fullscreen img or video — find the largest visible media
+    const allImages = document.querySelectorAll('img[src]');
+    let bestImg = null;
+    let bestSize = 0;
+    for (const img of allImages) {
+      const src = img.getAttribute('src') || '';
+      if (!src.includes('cdninstagram') && !src.includes('scontent')) continue;
+      const rect = img.getBoundingClientRect();
+      const area = rect.width * rect.height;
+      // Story images are typically large (>50% viewport)
+      if (area > bestSize && rect.width > window.innerWidth * 0.3) {
+        bestSize = area;
+        bestImg = img;
+      }
+    }
+    if (bestImg) {
+      story.imageUrls.push(bestImg.getAttribute('src') || '');
+      const alt = bestImg.getAttribute('alt') || '';
+      if (alt.length > 5) story.imageAlts.push(alt);
+    }
+
+    // Video in story
+    const videos = document.querySelectorAll('video[src], video source[src]');
+    for (const vid of videos) {
+      const src = vid.getAttribute('src') || '';
+      if (src) {
+        story.videoUrl = src;
+        story.mediaType = 'story_video';
+        break;
+      }
+    }
+
+    // Text overlays and stickers — look for visible text not in tiny elements
+    const textElements = document.querySelectorAll('span, div, h1, h2, p');
+    const storyTexts = [];
+    for (const el of textElements) {
+      const rect = el.getBoundingClientRect();
+      // Only visible elements in the story area
+      if (rect.width < 50 || rect.height < 10) continue;
+      if (rect.top < 0 || rect.bottom > window.innerHeight) continue;
+      const text = (el.textContent || '').trim();
+      // Filter out very short text (icons, buttons) and very long (page noise)
+      if (text.length >= 3 && text.length <= 500 && !storyTexts.includes(text)) {
+        // Skip navigation/UI elements
+        if (['Fermer', 'Close', 'Envoyer', 'Send', 'Répondre', 'Reply'].includes(text)) continue;
+        storyTexts.push(text);
+      }
+    }
+
+    // Extract username display name (usually visible at top of story)
+    for (const text of storyTexts) {
+      if (text.toLowerCase().includes(username.toLowerCase()) && text.length < 50) {
+        story.displayName = text;
+        break;
+      }
+    }
+
+    // Sponsored story detection
+    const pageText = document.body.textContent || '';
+    if (pageText.includes('Sponsorisé') || pageText.includes('Sponsored') || pageText.includes('Payé par')) {
+      story.isSponsored = true;
+    }
+
+    // Date/time
+    const timeEl = document.querySelector('time');
+    if (timeEl) {
+      story.date = timeEl.getAttribute('datetime') || timeEl.textContent || '';
+    }
+
+    // Hashtags in story text
+    for (const text of storyTexts) {
+      const tags = text.match(/#[\w\u00C0-\u024F]+/g);
+      if (tags) story.hashtags.push(...tags.map(t => t.replace('#', '')));
+    }
+
+    // Location sticker
+    const locationLinks = document.querySelectorAll('a[href*="/explore/locations/"], a[href*="/locations/"]');
+    for (const link of locationLinks) {
+      story.location = link.textContent || '';
+      break;
+    }
+
+    // Build caption from story texts (skip username display)
+    story.caption = storyTexts.filter(t => !t.includes(username) || t.length > 50).join(' | ');
+    story.fullCaption = story.caption;
+
+    // Build allText
+    const allTextParts = [username, ...storyTexts, ...story.imageAlts, ...story.hashtags.map(h => '#' + h)];
+    if (story.location) allTextParts.push(story.location);
+    story.allText = allTextParts.filter(Boolean).join(' ');
+
+    return story;
+  }
+
+  // Poll for story mode changes (URL-based detection)
+  setInterval(checkStoryMode, 500);
+
+  // Also detect story entry via popstate/navigation events
+  window.addEventListener('popstate', () => setTimeout(checkStoryMode, 100));
 
   // ─── Export function callable from native ─────────────────
 
@@ -316,20 +582,8 @@
       posts: Array.from(seenPosts.values()).map(entry => ({
         ...entry,
         dwellTimeSec: Math.round(entry.dwellTimeMs / 100) / 10,
-        imageAnalysis: entry.imageAnalysis || null,
       })).sort((a, b) => b.dwellTimeMs - a.dwellTimeMs),
     };
-  };
-
-  // ─── Receive ML Kit analysis results from native ────────
-
-  window.__echaSetAnalysis = function(postId, labels, ocrText) {
-    if (seenPosts.has(postId)) {
-      const entry = seenPosts.get(postId);
-      entry.imageAnalysis = { labels, ocrText };
-      log('ML Kit @' + entry.data.username + ': ' + labels.map(l => l.text).join(', '));
-      sendToNative({ type: 'image_analysis', postId, labels, ocrText });
-    }
   };
 
   log('Tracker ready. ' + document.querySelectorAll('article').length + ' articles found.');

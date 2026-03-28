@@ -3,7 +3,7 @@
  * Scoring rule-based à partir des dictionnaires.
  * Produit un enrichissement partiel qui sera complété par le LLM.
  */
-import { detectPoliticalActors, analyzeHashtags, detectPolarization, classifyTopics, detectPoliticalAxes, classifyMedia } from './dictionaries';
+import { detectPoliticalActors, analyzeHashtags, detectPolarization, classifyTopics, detectPoliticalAxes, classifyMedia, detectPoliticalAccount } from './dictionaries';
 import type { AxisScore } from './dictionaries';
 
 export interface RulesResult {
@@ -90,6 +90,15 @@ export function applyRules(input: {
     if (politicalTopics.includes(t.id)) politicalIssueTags.push(t.id);
   }
   if (politicalIssueTags.length > 0 && politicalScore < 2) politicalScore = 2;
+
+  // ── Comptes politiques connus ──
+  const knownAccount = detectPoliticalAccount(username);
+  if (knownAccount) {
+    politicalScore = Math.max(politicalScore, knownAccount.minPoliticalScore);
+    for (const tag of knownAccount.tags) {
+      if (!politicalIssueTags.includes(tag)) politicalIssueTags.push(tag);
+    }
+  }
 
   // ── Polarisation ──
   const polarization = detectPolarization(textForAnalysis);

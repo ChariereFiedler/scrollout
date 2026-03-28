@@ -79,6 +79,9 @@ model Post {
   audioTrack     String   @default("")
   mentioned      String   @default("[]") // JSON array
   allText        String   @default("") // blob complet pour full-text search
+  ocrText        String   @default("") // texte détecté par MLKit (overlay/sous-titres brûlés)
+  subtitles      String   @default("") // sous-titres Instagram auto-générés
+  videoUrl       String   @default("") // URL CDN vidéo (depuis WebView tracker)
   dwellTimeMs    Int      @default(0)
   attentionLevel String   @default("skipped") // skipped | glanced | viewed | engaged
   category       String   @default("non classifié")
@@ -166,6 +169,11 @@ model PostEnriched {
   confidenceScore Float   @default(0) // 0-1
   reviewFlag      Boolean @default(false)
   reviewReason    String  @default("")
+
+  // ── Analyse vidéo (EPIC-012) ──
+  audioTranscription String @default("") // transcription audio Whisper
+  mediaMessage       String @default("") // message principal du média (inféré LLM)
+  mediaIntent        String @default("") // informer|divertir|vendre|convaincre|émouvoir|éduquer|provoquer
 
   // ── Embedding optionnel ──
   embedding Bytes? // vector pour similarity search

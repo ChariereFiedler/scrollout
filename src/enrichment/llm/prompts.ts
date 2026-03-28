@@ -10,7 +10,8 @@ IMPORTANT :
 - Tu mesures le CONTENU du post, pas l'opinion de l'auteur ni du lecteur.
 - Tu évalues l'EXPOSITION à un type de contenu, pas l'adhésion.
 - Sois conservateur dans tes scores : en cas de doute, score bas.
-- Justifie toujours tes scores politiques et de polarisation.`;
+- Justifie toujours tes scores politiques et de polarisation.
+- Pour les vidéos/reels, le texte peut contenir des marqueurs [OCR], [SUBTITLES] ou [AUDIO_TRANSCRIPT] indiquant la provenance. Croise ces sources pour comprendre le message global du média.`;
 
 export function buildEnrichmentPrompt(input: {
   normalizedText: string;
@@ -29,6 +30,15 @@ export function buildEnrichmentPrompt(input: {
     ? `\nIndices pré-calculés (règles) : topics=[${input.rulesHints.mainTopics.join(',')}], political_score=${input.rulesHints.politicalScore}, polarization=${input.rulesHints.polarizationScore}, actors=[${input.rulesHints.detectedActors.join(',')}]`
     : '';
 
+  const isVideo = ['video', 'reel'].includes(input.mediaType);
+  const videoInstruction = isVideo
+    ? `\nATTENTION : Ce post est une vidéo/reel. Le texte peut inclure des marqueurs :
+- [OCR] = texte incrusté/overlay détecté dans la vidéo (titres, sous-titres brûlés)
+- [SUBTITLES] = sous-titres auto-générés par Instagram
+- [AUDIO_TRANSCRIPT] = transcription de la piste audio
+Croise TOUTES les sources disponibles pour déterminer le message et l'intention du média. Le champ "media_message" doit synthétiser le propos global, pas juste la caption.\n`
+    : '';
+
   return `Analyse ce post Instagram et produis un JSON structuré.
 
 --- POST ---
@@ -37,7 +47,7 @@ Type : ${input.mediaType}
 Hashtags : ${hashtagStr}
 Texte :
 ${input.normalizedText || '(texte vide ou non disponible)'}
-${rulesContext}
+${rulesContext}${videoInstruction}
 --- FIN POST ---
 
 Produis un JSON avec EXACTEMENT ces champs :
@@ -70,6 +80,8 @@ Produis un JSON avec EXACTEMENT ces champs :
   "narrative_frame": "un parmi: declin | urgence | injustice | revelation | mobilisation | denonciation | empowerment | ordre | menace | aspiration | inspiration | derision | victimisation | heroisation | aucun",
   "call_to_action_type": "un parmi: aucun | commenter | partager | sindigner | sinformer | voter | soutenir | boycotter | manifester | acheter | suivre_le_compte",
   "problem_solution_pattern": "description du pattern problème-solution si présent, sinon vide",
+  "media_message": "message principal véhiculé par le média (1-2 phrases, en croisant caption + texte overlay + sous-titres + audio si disponibles). Vide si le post est une simple photo sans message clair.",
+  "media_intent": "un parmi: informer | divertir | vendre | convaincre | emouvoir | eduquer | provoquer | aucun",
   "confidence_score": 0.0 à 1.0
 }
 

@@ -29,8 +29,9 @@
       color: var(--text);
       height: 100vh;
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr auto auto;
       overflow: hidden;
+      padding-top: env(safe-area-inset-top, 0px);
     }
 
     /* ─── Stats Bar ──────────────────────────── */
@@ -347,6 +348,32 @@
       font-size: 12px;
     }
 
+    /* ─── Bottom Tab Bar ─────────────────────── */
+    #tab-bar {
+      display: flex;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 4px;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      transition: color 0.2s;
+      gap: 3px;
+    }
+    .tab-item:hover { color: var(--text); }
+    .tab-item.active { color: var(--accent); }
+    .tab-icon { font-size: 18px; line-height: 1; }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -457,9 +484,18 @@
       <div class="quality-dot q-good" id="q-enrich-dot"></div>
       <span>Enriched: <span id="q-enrich">0</span></span>
     </div>
-    <div class="quality-item" style="margin-left: auto;">
-      <a href="/enrichment.html" style="color: var(--accent); text-decoration: none; font-weight: 600;">Enrichment Dashboard →</a>
-    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <div id="tab-bar">
+    <a href="/" class="tab-item active">
+      <span class="tab-icon">&#9881;</span>
+      Debug
+    </a>
+    <a href="/enrichment.html" class="tab-item">
+      <span class="tab-icon">&#9733;</span>
+      Enrichment
+    </a>
   </div>
 
   <script src="dashboard.js"></script>
