@@ -276,12 +276,20 @@ export class ScreenCognition extends LitElement {
     void this.initialize();
   }
 
+  private getPreferredSessionId(sessions: SessionSummary[]): string {
+    const sorted = [...sessions].sort((a, b) => {
+      if (b.postCount !== a.postCount) return b.postCount - a.postCount;
+      return b.capturedAt - a.capturedAt;
+    });
+    return sorted.find(session => session.postCount > 0)?.id ?? sessions[0]?.id ?? '';
+  }
+
   private async initialize() {
     this.loading = true;
     this.error = '';
     try {
       this.sessions = await getSessions();
-      this.selectedSessionId = this.sessions[0]?.id || '';
+      this.selectedSessionId = this.getPreferredSessionId(this.sessions);
       await this.loadDataset();
     } catch (e: any) {
       this.error = e?.message || 'Erreur de chargement';
@@ -294,6 +302,19 @@ export class ScreenCognition extends LitElement {
     this.bubbleData = await loadCognitiveBubbleData({
       sessionId: this.selectedSessionId || undefined,
     });
+
+    if ((this.bubbleData.totalPosts === 0 || this.bubbleData.totalThemes === 0) && this.sessions.length > 1) {
+      const fallbackSessionId = this.getPreferredSessionId(
+        this.sessions.filter(session => session.id !== this.selectedSessionId),
+      );
+      if (fallbackSessionId) {
+        const fallbackData = await loadCognitiveBubbleData({ sessionId: fallbackSessionId });
+        if (fallbackData.totalPosts > 0 || fallbackData.totalThemes > 0) {
+          this.selectedSessionId = fallbackSessionId;
+          this.bubbleData = fallbackData;
+        }
+      }
+    }
 
     const themes = this.bubbleData.themes ?? [];
     if (themes.length === 0) {
@@ -362,7 +383,7 @@ export class ScreenCognition extends LitElement {
         <div class="placeholder">
           <div>
             <strong>Aucune thématique disponible</strong>
-            <p>Cette vue se branchera sur les données capturées dès qu’une session enrichie est sélectionnée.</p>
+            <p>Essayez une autre session ou capturez davantage de posts pour peupler cette vue.</p>
           </div>
         </div>
       `;

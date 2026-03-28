@@ -1,7 +1,14 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { theme } from './styles/theme.js';
-import { openInstagram, showInstagram, hideInstagram, isInstagramOpen, onOpenCognition } from './services/native-bridge.js';
+import {
+  openInstagram,
+  showInstagram,
+  hideInstagram,
+  isInstagramOpen,
+  onOpenCognition,
+  setCognitionButtonVisible,
+} from './services/native-bridge.js';
 
 type Tab = 'home' | 'instagram' | 'cognition' | 'enrichment' | 'posts' | 'settings';
 
@@ -79,14 +86,12 @@ export class AppShell extends LitElement {
         position: fixed;
         left: var(--fab-left, calc(100vw - 84px));
         top: var(--fab-top, calc(100vh - 180px));
-        width: 60px;
-        height: 60px;
+        width: 56px;
+        height: 56px;
         border: none;
         border-radius: 18px;
-        background:
-          radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.24), transparent 34%),
-          linear-gradient(135deg, var(--accent), var(--purple));
-        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+        background: #c13584;
+        box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
         display: grid;
         place-items: center;
         z-index: 10001;
@@ -100,28 +105,9 @@ export class AppShell extends LitElement {
       }
 
       .floating-cognition svg {
-        width: 30px;
-        height: 30px;
+        width: 28px;
+        height: 28px;
         fill: #fff;
-      }
-
-      .floating-label {
-        position: absolute;
-        top: -10px;
-        right: -8px;
-        min-width: 22px;
-        height: 22px;
-        border-radius: 999px;
-        background: rgba(10, 10, 10, 0.92);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #fff;
-        font-size: 8px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        display: grid;
-        place-items: center;
-        padding: 0 6px;
-        text-transform: uppercase;
       }
     `,
   ];
@@ -143,6 +129,7 @@ export class AppShell extends LitElement {
     super.connectedCallback();
     this.resetFabPosition();
     void this.bindNativeListeners();
+    void this.syncCognitionButtonVisibility();
   }
 
   disconnectedCallback() {
@@ -179,6 +166,8 @@ export class AppShell extends LitElement {
         }
       }
     }
+
+    await this.syncCognitionButtonVisibility();
   }
 
   private async bindNativeListeners() {
@@ -191,7 +180,20 @@ export class AppShell extends LitElement {
         }
       }
       this.activeTab = 'cognition';
+      await this.syncCognitionButtonVisibility();
     });
+  }
+
+  private get showWebFab() {
+    return this.activeTab !== 'cognition' && this.activeTab !== 'instagram';
+  }
+
+  private async syncCognitionButtonVisibility() {
+    try {
+      await setCognitionButtonVisible(this.activeTab === 'instagram');
+    } catch (e) {
+      console.warn('[ECHA] Failed to sync native cognition button visibility:', e);
+    }
   }
 
   private resetFabPosition() {
@@ -253,21 +255,22 @@ export class AppShell extends LitElement {
         ${this.activeTab === 'posts' ? html`<screen-posts></screen-posts>` : ''}
         ${this.activeTab === 'settings' ? html`<screen-settings></screen-settings>` : ''}
 
-        <button
-          class="floating-cognition"
-          aria-label="Ouvrir les visualisations cognitives"
-          title="Cognition"
-          @pointerdown=${this.beginFabDrag}
-          @pointermove=${this.moveFab}
-          @pointerup=${this.endFabDrag}
-          @pointercancel=${this.endFabDrag}
-          @click=${this.openCognitionFromFab}
-        >
-          <span class="floating-label">Vue</span>
-          <svg viewBox="0 0 108 108" aria-hidden="true">
-            <path d="M66.94 46.02C72.44 50.07 76 56.61 76 64H32C32 56.61 35.56 50.11 40.98 46.06L36.18 41.19C35.45 40.45 35.45 39.3 36.18 38.56C36.91 37.81 38.05 37.81 38.78 38.56L44.25 44.05C47.18 42.57 50.48 41.71 54 41.71C57.48 41.71 60.78 42.57 63.68 44.05L69.11 38.56C69.84 37.81 70.98 37.81 71.71 38.56C72.44 39.3 72.44 40.45 71.71 41.19L66.94 46.02ZM62.94 56.92C64.08 56.92 65 56.01 65 54.88C65 53.76 64.08 52.85 62.94 52.85C61.8 52.85 60.88 53.76 60.88 54.88C60.88 56.01 61.8 56.92 62.94 56.92ZM45.06 56.92C46.2 56.92 47.13 56.01 47.13 54.88C47.13 53.76 46.2 52.85 45.06 52.85C43.92 52.85 43 53.76 43 54.88C43 56.01 43.92 56.92 45.06 56.92Z"/>
-          </svg>
-        </button>
+        ${this.showWebFab ? html`
+          <button
+            class="floating-cognition"
+            aria-label="Ouvrir les visualisations cognitives"
+            title="Cognition"
+            @pointerdown=${this.beginFabDrag}
+            @pointermove=${this.moveFab}
+            @pointerup=${this.endFabDrag}
+            @pointercancel=${this.endFabDrag}
+            @click=${this.openCognitionFromFab}
+          >
+            <svg viewBox="0 0 108 108" aria-hidden="true">
+              <path d="M66.94 46.02C72.44 50.07 76 56.61 76 64H32C32 56.61 35.56 50.11 40.98 46.06L36.18 41.19C35.45 40.45 35.45 39.3 36.18 38.56C36.91 37.81 38.05 37.81 38.78 38.56L44.25 44.05C47.18 42.57 50.48 41.71 54 41.71C57.48 41.71 60.78 42.57 63.68 44.05L69.11 38.56C69.84 37.81 70.98 37.81 71.71 38.56C72.44 39.3 72.44 40.45 71.71 41.19L66.94 46.02ZM62.94 56.92C64.08 56.92 65 56.01 65 54.88C65 53.76 64.08 52.85 62.94 52.85C61.8 52.85 60.88 53.76 60.88 54.88C60.88 56.01 61.8 56.92 62.94 56.92ZM45.06 56.92C46.2 56.92 47.13 56.01 47.13 54.88C47.13 53.76 46.2 52.85 45.06 52.85C43.92 52.85 43 53.76 43 54.88C43 56.01 43.92 56.92 45.06 56.92Z"/>
+            </svg>
+          </button>
+        ` : ''}
       </div>
 
       <nav>

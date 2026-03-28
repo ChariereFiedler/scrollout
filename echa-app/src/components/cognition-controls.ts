@@ -270,7 +270,7 @@ export class CognitionControls extends LitElement {
           <div>
             <div class="title">Bulle cognitive</div>
             <div class="subtitle">
-              Choisissez le mode et les 2 dimensions à projeter. Le rendu détaillé viendra ensuite.
+              Choisissez le mode et 2 dimensions issues de SQLite: champs `posts`, champs `post_enriched` ou agrégations directes calculées dessus.
             </div>
           </div>
           <button class="refresh" @click=${this.refresh} ?disabled=${this.loading}>
@@ -303,7 +303,7 @@ export class CognitionControls extends LitElement {
                 return html`<option value=${session.id}>${date} · ${session.postCount} posts</option>`;
               }) : html`<option value="">Aucune session disponible</option>`}
             </select>
-            <div class="hint">Les métriques s’appliquent à la session sélectionnée.</div>
+            <div class="hint">Les dimensions proposées viennent uniquement des données stockées dans SQLite pour cette session.</div>
           </div>
 
           <div class="field">

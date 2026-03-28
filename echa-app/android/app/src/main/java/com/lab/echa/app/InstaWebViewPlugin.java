@@ -61,6 +61,7 @@ public class InstaWebViewPlugin extends Plugin {
     private String enrichmentScript = "";
     private final List<String> collectedData = new ArrayList<>();
     private boolean instagramVisible = false;
+    private boolean cognitionButtonVisible = false;
     private ImageButton cognitionButton;
 
     // ML Kit
@@ -202,7 +203,8 @@ public class InstaWebViewPlugin extends Plugin {
 
     private void updateCognitionButtonVisibility() {
         if (cognitionButton != null) {
-            cognitionButton.setVisibility(instagramVisible ? View.VISIBLE : View.GONE);
+            boolean shouldShow = instagramVisible && cognitionButtonVisible;
+            cognitionButton.setVisibility(shouldShow ? View.VISIBLE : View.GONE);
         }
     }
 
@@ -371,6 +373,18 @@ public class InstaWebViewPlugin extends Plugin {
         ret.put("open", instaWebView != null);
         ret.put("visible", instagramVisible);
         call.resolve(ret);
+    }
+
+    @PluginMethod()
+    public void setCognitionButtonVisible(PluginCall call) {
+        boolean visible = call.getBoolean("visible", false);
+        getActivity().runOnUiThread(() -> {
+            cognitionButtonVisible = visible;
+            updateCognitionButtonVisibility();
+            JSObject ret = new JSObject();
+            ret.put("status", visible ? "visible" : "hidden");
+            call.resolve(ret);
+        });
     }
 
     private void showInstaWebView() {

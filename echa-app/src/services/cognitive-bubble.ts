@@ -27,6 +27,7 @@ export interface CognitiveMetricDefinition {
   label: string;
   description: string;
   unit: string;
+  sqliteSource: string;
 }
 
 export interface CognitiveMetricRanges {
@@ -86,48 +87,56 @@ export const COGNITIVE_METRICS: CognitiveMetricDefinition[] = [
     label: 'Fréquence',
     description: 'Nombre de posts vus dans la thématique.',
     unit: 'posts',
+    sqliteSource: 'COUNT(posts.id)',
   },
   {
     key: 'durationTotalMs',
     label: 'Durée totale',
     description: 'Temps d’exposition cumulé pour la thématique.',
     unit: 'ms',
+    sqliteSource: 'SUM(posts.dwellTimeMs)',
   },
   {
     key: 'durationAverageMs',
     label: 'Durée moyenne',
     description: 'Temps moyen passé par post dans la thématique.',
     unit: 'ms',
+    sqliteSource: 'AVG(posts.dwellTimeMs)',
   },
   {
     key: 'engagement',
     label: 'Engagement',
     description: 'Score moyen d’attention calculé à partir de la durée et du niveau d’attention.',
     unit: '0-100',
+    sqliteSource: 'posts.attentionLevel + posts.dwellTimeMs',
   },
   {
     key: 'engagedShare',
     label: 'Part engagée',
     description: 'Part des posts vus au niveau viewed/engaged.',
     unit: '%',
+    sqliteSource: 'posts.attentionLevel',
   },
   {
     key: 'politicalScore',
     label: 'Score politique',
     description: 'Score politique moyen des posts enrichis de la thématique.',
     unit: '0-4',
+    sqliteSource: 'post_enriched.politicalExplicitnessScore',
   },
   {
     key: 'polarization',
     label: 'Polarisation',
     description: 'Polarisation moyenne des posts enrichis de la thématique.',
     unit: '0-1',
+    sqliteSource: 'post_enriched.polarizationScore',
   },
   {
     key: 'confidence',
     label: 'Confiance',
     description: 'Confiance moyenne des enrichissements.',
     unit: '0-1',
+    sqliteSource: 'post_enriched.confidenceScore',
   },
 ];
 

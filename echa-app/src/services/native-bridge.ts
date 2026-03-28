@@ -14,6 +14,7 @@ function getPlugin(): any {
     closeInstagram: async () => ({ status: 'mock' }),
     showInstagram: async () => ({ status: 'mock' }),
     hideInstagram: async () => ({ status: 'mock' }),
+    setCognitionButtonVisible: async () => ({ status: 'mock' }),
     isInstagramOpen: async () => ({ open: false, visible: false }),
     exportSession: async () => ({ path: '', data: '{}' }),
     getCollectedData: async () => ({ count: 0, data: '[]' }),
@@ -38,6 +39,10 @@ export async function showInstagram(): Promise<{ status: string }> {
 
 export async function hideInstagram(): Promise<{ status: string }> {
   return getPlugin().hideInstagram();
+}
+
+export async function setCognitionButtonVisible(visible: boolean): Promise<{ status: string }> {
+  return getPlugin().setCognitionButtonVisible({ visible });
 }
 
 export async function isInstagramOpen(): Promise<{ open: boolean; visible: boolean }> {
