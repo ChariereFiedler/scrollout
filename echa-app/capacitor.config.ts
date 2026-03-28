@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.lab.echa.app',
-  appName: 'ECHA',
+  appName: 'Scrollout',
   webDir: 'www',
   server: {
     // We'll handle navigation in native code
