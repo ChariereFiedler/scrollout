@@ -18,6 +18,7 @@
     "enrich": "tsx src/enrich.ts",
     "enrich:rules": "tsx src/enrich.ts --rules-only",
     "enrich:dry": "tsx src/enrich.ts --dry-run",
+    "enrich:watch": "tsx src/enrichment/daemon-cli.ts",
     "lint": "eslint . --max-warnings 50",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
@@ -30,7 +31,9 @@
   "type": "commonjs",
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "canvas": "^3.2.2",
     "eslint": "^10.1.0",
+    "sharp": "^0.34.5",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.57.2",
