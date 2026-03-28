@@ -100,6 +100,50 @@ const ImageAnalyzer = {
   },
 
   /**
+   * Capture a frame from a <video> element, OCR via ML Kit.
+   * @param {HTMLVideoElement} videoElement
+   * @param {string} postId - For dedup
+   * @returns {Promise<{labels: Array, text: string, skipped: boolean}>}
+   */
+  async analyzeVideoFrame(videoElement, postId) {
+    const dedupKey = 'video_' + postId;
+    if (this._analyzedUrls.has(dedupKey)) {
+      return { skipped: true, reason: 'already_analyzed' };
+    }
+
+    try {
+      // Wait a bit for the video to show meaningful content
+      if (videoElement.readyState < 2) {
+        await new Promise(function(resolve) {
+          videoElement.addEventListener('loadeddata', resolve, { once: true });
+          setTimeout(resolve, 3000); // timeout
+        });
+      }
+
+      var canvas = document.createElement('canvas');
+      canvas.width = videoElement.videoWidth || 720;
+      canvas.height = videoElement.videoHeight || 1280;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+      var base64 = canvas.toDataURL('image/jpeg', 0.7);
+
+      this._analyzedUrls.add(dedupKey);
+
+      if (window.Capacitor && window.Capacitor.Plugins.ImageAnalyzer) {
+        return await window.Capacitor.Plugins.ImageAnalyzer.analyzeImage({
+          image: base64,
+          imageUrl: dedupKey,
+        });
+      }
+
+      return { success: true, skipped: false, labels: [], text: '' };
+    } catch (e) {
+      console.error('[ImageAnalyzer] Video frame capture failed:', e);
+      return { skipped: false, success: false, error: e.message };
+    }
+  },
+
+  /**
    * Reset le cache de dédup (nouvelle session)
    */
   resetCache() {
