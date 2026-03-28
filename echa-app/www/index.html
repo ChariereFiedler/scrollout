@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>ECHA</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; }
+
+    /* Start screen */
+    #start-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 20px; }
+    #start-screen h1 { font-size: 32px; letter-spacing: 4px; }
+    #start-screen p { color: #888; font-size: 14px; }
+
+    /* Dashboard overlay */
+    #dashboard { display: none; padding: 16px; padding-bottom: 80px; }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 8px 0 12px; }
+    .header h1 { font-size: 18px; letter-spacing: 2px; }
+    .header-actions { display: flex; gap: 8px; }
+
+    /* Buttons */
+    .btn { background: #3897f0; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; touch-action: manipulation; }
+    .btn:active { opacity: 0.8; }
+    .btn-stop { background: #ed4956; }
+    .btn-export { background: #44b868; }
+    .btn-small { padding: 6px 12px; font-size: 12px; }
+
+    /* Stats grid */
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+    .stat-card { background: #1a1a1a; border-radius: 8px; padding: 12px; }
+    .stat-card .value { font-size: 24px; font-weight: bold; color: #3897f0; }
+    .stat-card .label { font-size: 11px; color: #888; margin-top: 4px; }
+
+    /* Attention breakdown */
+    .attention-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin: 0 0 12px; background: #1a1a1a; }
+    .attention-bar .seg { transition: width 0.3s; }
+    .seg-engaged { background: #ed4956; }
+    .seg-viewed { background: #f77737; }
+    .seg-glanced { background: #fdcb58; }
+    .seg-skipped { background: #555; }
+    .attention-legend { display: flex; gap: 12px; font-size: 10px; color: #888; margin-bottom: 12px; }
+    .attention-legend span::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+    .leg-engaged::before { background: #ed4956; }
+    .leg-viewed::before { background: #f77737; }
+    .leg-glanced::before { background: #fdcb58; }
+    .leg-skipped::before { background: #555; }
+
+    /* Post log */
+    #post-log { max-height: 50vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .post-entry { background: #1a1a1a; border-radius: 6px; padding: 8px 10px; margin: 4px 0; border-left: 3px solid #333; }
+    .post-entry.sponsored { border-left-color: #ed4956; }
+    .post-entry.suggested { border-left-color: #fdcb58; }
+    .post-entry .top-row { display: flex; justify-content: space-between; align-items: center; }
+    .post-entry .username { color: #3897f0; font-weight: bold; font-size: 13px; }
+    .post-entry .dwell { color: #fff; font-size: 12px; font-weight: 600; }
+    .post-entry .caption { color: #aaa; font-size: 11px; margin-top: 3px; line-height: 1.3; }
+    .post-entry .meta { color: #666; font-size: 10px; margin-top: 3px; }
+    .tag { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 600; margin-left: 4px; }
+    .tag-ad { background: #ed4956; color: #fff; }
+    .tag-algo { background: #fdcb58; color: #000; }
+    .tag-reel { background: #c13584; color: #fff; }
+
+    /* Status bar (floating bottom) */
+    #status-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #222; padding: 10px 16px; display: none; }
+    #status-bar .status-row { display: flex; justify-content: space-between; align-items: center; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #44b868; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .status-text { font-size: 12px; color: #888; }
+  </style>
+</head>
+<body>
+
+  <div id="start-screen">
+    <h1>ECHA</h1>
+    <p>Instagram Content Intelligence</p>
+    <button class="btn" id="btn-start">Ouvrir Instagram</button>
+  </div>
+
+  <div id="dashboard">
+    <div class="header">
+      <h1>ECHA</h1>
+      <div class="header-actions">
+        <button class="btn btn-small btn-export" id="btn-export">Export</button>
+        <button class="btn btn-small btn-stop" id="btn-stop">Fermer</button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card"><div class="value" id="stat-posts">0</div><div class="label">Posts vus</div></div>
+      <div class="stat-card"><div class="value" id="stat-time">0:00</div><div class="label">Durée session</div></div>
+      <div class="stat-card"><div class="value" id="stat-ads">0</div><div class="label">Publicités</div></div>
+      <div class="stat-card"><div class="value" id="stat-algo">0</div><div class="label">Suggestions</div></div>
+    </div>
+
+    <div class="attention-bar" id="attention-bar"></div>
+    <div class="attention-legend">
+      <span class="leg-engaged">Engagé (&gt;5s)</span>
+      <span class="leg-viewed">Vu (2-5s)</span>
+      <span class="leg-glanced">Aperçu (0.5-2s)</span>
+      <span class="leg-skipped">Ignoré (&lt;0.5s)</span>
+    </div>
+
+    <div id="post-log"></div>
+  </div>
+
+  <div id="status-bar">
+    <div class="status-row">
+      <div>
+        <span class="status-dot"></span>
+        <span class="status-text" id="status-text">Tracking actif</span>
+      </div>
+      <button class="btn btn-small" id="btn-toggle-dash">Dashboard</button>
+    </div>
+  </div>
+
+  <script src="insta-webview.js"></script>
+  <script src="image-analyzer.js"></script>
+  <script>
+    'use strict';
+
+    // ─── State ──────────────────────────────────────────────
+    const state = {
+      startTime: 0,
+      posts: new Map(),       // postId -> postEntry
+      logEntries: [],         // ordered list for display
+      isTracking: false,
+      dashboardVisible: false,
+      listeners: [],
+    };
+
+    // ─── DOM refs ───────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+
+    // ─── Start tracking ─────────────────────────────────────
+    $('btn-start').addEventListener('click', async () => {
+      $('start-screen').style.display = 'none';
+      state.startTime = Date.now();
+      state.isTracking = true;
+
+      // Open Instagram via native plugin
+      try {
+        await window.EchaPlugin.openInstagram();
+      } catch(e) {
+        console.warn('[ECHA] Plugin open failed:', e);
+      }
+
+      // Show status bar
+      $('status-bar').style.display = 'block';
+
+      // Listen for tracker data
+      const handle = await window.EchaPlugin.onTrackerData(onTrackerData);
+      state.listeners.push(handle);
+
+      // Start timer update
+      updateTimer();
+    });
+
+    // ─── Toggle dashboard overlay ───────────────────────────
+    $('btn-toggle-dash').addEventListener('click', () => {
+      state.dashboardVisible = !state.dashboardVisible;
+      $('dashboard').style.display = state.dashboardVisible ? 'block' : 'none';
+      $('btn-toggle-dash').textContent = state.dashboardVisible ? 'Masquer' : 'Dashboard';
+      if (state.dashboardVisible) refreshDashboard();
+    });
+
+    // ─── Export ─────────────────────────────────────────────
+    $('btn-export').addEventListener('click', async () => {
+      try {
+        const result = await window.EchaPlugin.exportSession();
+        $('status-text').textContent = 'Export: ' + (result.path || 'OK');
+        setTimeout(() => { $('status-text').textContent = 'Tracking actif'; }, 3000);
+      } catch(e) {
+        $('status-text').textContent = 'Export echoué';
+        console.error('[ECHA] Export error:', e);
+      }
+    });
+
+    // ─── Stop / Close ───────────────────────────────────────
+    $('btn-stop').addEventListener('click', async () => {
+      // Export first
+      try { await window.EchaPlugin.exportSession(); } catch(e) {}
+
+      // Close Instagram WebView
+      try { await window.EchaPlugin.closeInstagram(); } catch(e) {}
+
+      // Cleanup listeners
+      for (const h of state.listeners) {
+        try { await h.remove(); } catch(e) {}
+      }
+
+      state.isTracking = false;
+      $('status-bar').style.display = 'none';
+      $('dashboard').style.display = 'block';
+      state.dashboardVisible = true;
+      $('status-text').textContent = 'Session terminée';
+      refreshDashboard();
+    });
+
+    // ─── Tracker data handler ───────────────────────────────
+    function onTrackerData(event) {
+      const data = event;
+
+      if (data.type === 'new_post') {
+        const post = data.post;
+        state.posts.set(post.postId, post);
+        state.logEntries.unshift(post);
+        if (state.dashboardVisible) {
+          addLogEntry(post);
+          updateStats();
+        }
+      }
+
+      if (data.type === 'post_update') {
+        const post = data.post;
+        state.posts.set(post.postId, post);
+        if (state.dashboardVisible) {
+          updateLogEntry(post);
+          updateStats();
+        }
+      }
+
+      if (data.type === 'session_summary') {
+        // Full update from periodic tracker summary
+        if (data.posts) {
+          for (const p of data.posts) {
+            state.posts.set(p.postId, p);
+          }
+        }
+        if (state.dashboardVisible) refreshDashboard();
+      }
+
+      if (data.type === 'log') {
+        console.log('[Tracker]', data.message);
+      }
+    }
+
+    // ─── Dashboard rendering ────────────────────────────────
+    function refreshDashboard() {
+      updateStats();
+      renderAttentionBar();
+      renderLog();
+    }
+
+    function updateStats() {
+      const posts = Array.from(state.posts.values());
+      $('stat-posts').textContent = posts.length;
+      $('stat-ads').textContent = posts.filter(p => p.data?.isSponsored).length;
+      $('stat-algo').textContent = posts.filter(p => p.data?.isSuggested).length;
+    }
+
+    function updateTimer() {
+      if (!state.isTracking) return;
+      const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+      const min = Math.floor(elapsed / 60);
+      const sec = elapsed % 60;
+      $('stat-time').textContent = min + ':' + String(sec).padStart(2, '0');
+      setTimeout(updateTimer, 1000);
+    }
+
+    function getAttentionLevel(dwellMs) {
+      if (dwellMs > 5000) return 'engaged';
+      if (dwellMs > 2000) return 'viewed';
+      if (dwellMs > 500)  return 'glanced';
+      return 'skipped';
+    }
+
+    function renderAttentionBar() {
+      const posts = Array.from(state.posts.values());
+      if (posts.length === 0) return;
+
+      const counts = { engaged: 0, viewed: 0, glanced: 0, skipped: 0 };
+      for (const p of posts) {
+        counts[getAttentionLevel(p.dwellTimeMs || 0)]++;
+      }
+      const total = posts.length;
+
+      $('attention-bar').innerHTML =
+        '<div class="seg seg-engaged" style="width:' + (counts.engaged / total * 100) + '%"></div>' +
+        '<div class="seg seg-viewed" style="width:' + (counts.viewed / total * 100) + '%"></div>' +
+        '<div class="seg seg-glanced" style="width:' + (counts.glanced / total * 100) + '%"></div>' +
+        '<div class="seg seg-skipped" style="width:' + (counts.skipped / total * 100) + '%"></div>';
+    }
+
+    function renderLog() {
+      $('post-log').innerHTML = '';
+      // Sort by most recently seen
+      const sorted = Array.from(state.posts.values())
+        .sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+      for (const post of sorted) {
+        addLogEntry(post);
+      }
+    }
+
+    function addLogEntry(post) {
+      const log = $('post-log');
+      const d = post.data || {};
+      const dwellSec = post.dwellTimeSec || (post.dwellTimeMs ? Math.round(post.dwellTimeMs / 100) / 10 : 0);
+
+      const el = document.createElement('div');
+      el.className = 'post-entry' + (d.isSponsored ? ' sponsored' : '') + (d.isSuggested ? ' suggested' : '');
+      el.id = 'post-' + post.postId;
+
+      let tags = '';
+      if (d.isSponsored) tags += '<span class="tag tag-ad">AD</span>';
+      if (d.isSuggested) tags += '<span class="tag tag-algo">ALGO</span>';
+      if (d.mediaType === 'video' || d.mediaType === 'reel' || d.isReel) tags += '<span class="tag tag-reel">REEL</span>';
+
+      const caption = (d.caption || '').substring(0, 120);
+      const meta = [d.mediaType, d.likeCount ? d.likeCount + ' likes' : '', d.location].filter(Boolean).join(' · ');
+
+      el.innerHTML =
+        '<div class="top-row">' +
+          '<span class="username">@' + escHtml(d.username || '?') + tags + '</span>' +
+          '<span class="dwell">' + dwellSec + 's</span>' +
+        '</div>' +
+        (caption ? '<div class="caption">' + escHtml(caption) + '</div>' : '') +
+        (meta ? '<div class="meta">' + escHtml(meta) + '</div>' : '');
+
+      log.insertBefore(el, log.firstChild);
+    }
+
+    function updateLogEntry(post) {
+      const existing = document.getElementById('post-' + post.postId);
+      if (existing) {
+        const dwellSec = post.dwellTimeSec || (post.dwellTimeMs ? Math.round(post.dwellTimeMs / 100) / 10 : 0);
+        const dwellEl = existing.querySelector('.dwell');
+        if (dwellEl) dwellEl.textContent = dwellSec + 's';
+      }
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  </script>
+</body>
+</html>
