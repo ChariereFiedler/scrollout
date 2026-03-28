@@ -39,6 +39,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -304,14 +305,26 @@ public class InstaWebViewPlugin extends Plugin {
         if (instaWebView != null) {
             instaWebView.setVisibility(View.VISIBLE);
             instagramVisible = true;
+            runTrackerHook("__echaResumeTracking", "native_show");
         }
     }
 
     private void hideInstaWebView() {
         if (instaWebView != null) {
+            runTrackerHook("__echaPauseTracking", "native_hide");
             instaWebView.setVisibility(View.GONE);
             instagramVisible = false;
         }
+    }
+
+    private void runTrackerHook(String hookName, String reason) {
+        if (instaWebView == null) return;
+        String js = "(function() {" +
+                "  try {" +
+                "    if (window." + hookName + ") window." + hookName + "('" + reason + "');" +
+                "  } catch (e) {}" +
+                "})();";
+        instaWebView.evaluateJavascript(js, null);
     }
 
     @PluginMethod()
@@ -328,6 +341,55 @@ public class InstaWebViewPlugin extends Plugin {
             JSObject ret = new JSObject();
             ret.put("status", "closed");
             call.resolve(ret);
+        });
+    }
+
+    @PluginMethod()
+    public void openInstagramProfile(PluginCall call) {
+        String username = call.getString("username", "").trim();
+        if (username.isEmpty()) {
+            call.reject("username is required");
+            return;
+        }
+        if (instaWebView == null) {
+            call.reject("Instagram WebView is not open");
+            return;
+        }
+
+        getActivity().runOnUiThread(() -> {
+            showInstaWebView();
+            instaWebView.loadUrl("https://www.instagram.com/" + username + "/");
+            JSObject ret = new JSObject();
+            ret.put("status", "opened_profile");
+            ret.put("username", username);
+            call.resolve(ret);
+        });
+    }
+
+    @PluginMethod()
+    public void openInstagramSearch(PluginCall call) {
+        String query = call.getString("query", "").trim();
+        if (query.isEmpty()) {
+            call.reject("query is required");
+            return;
+        }
+        if (instaWebView == null) {
+            call.reject("Instagram WebView is not open");
+            return;
+        }
+
+        getActivity().runOnUiThread(() -> {
+            try {
+                String encoded = URLEncoder.encode(query, "UTF-8");
+                showInstaWebView();
+                instaWebView.loadUrl("https://www.instagram.com/explore/search/keyword/?q=" + encoded);
+                JSObject ret = new JSObject();
+                ret.put("status", "opened_search");
+                ret.put("query", query);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("search failed: " + e.getMessage());
+            }
         });
     }
 

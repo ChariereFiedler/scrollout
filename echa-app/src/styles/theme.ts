@@ -84,3 +84,25 @@ export const domainColors: Record<string, string> = {
 
 /** Scrollout color dots (brand identity) */
 export const scrolloutDots = ['#FFE94A', '#6BE88B', '#6B6BFF', '#FF7B33', '#E88BE8', '#8B44E8', '#FF2222', '#88CCFF', '#88EEBB'];
+
+/** Brand mark rendered as inline SVG string for .innerHTML bindings */
+export function scrolloutIconSvg(size = 28): string {
+  const r = size / 8;
+  const dots = [
+    { x: size * 0.18, y: size * 0.18, c: '#FFE94A' },
+    { x: size * 0.5, y: size * 0.14, c: '#6BE88B' },
+    { x: size * 0.82, y: size * 0.18, c: '#6B6BFF' },
+    { x: size * 0.18, y: size * 0.5, c: '#FF7B33' },
+    { x: size * 0.5, y: size * 0.5, c: '#E88BE8' },
+    { x: size * 0.82, y: size * 0.5, c: '#8B44E8' },
+    { x: size * 0.18, y: size * 0.82, c: '#FF2222' },
+    { x: size * 0.5, y: size * 0.86, c: '#88CCFF' },
+    { x: size * 0.82, y: size * 0.82, c: '#88EEBB' },
+  ];
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" aria-hidden="true">
+      ${dots.map(dot => `<circle cx="${dot.x}" cy="${dot.y}" r="${r}" fill="${dot.c}"></circle>`).join('')}
+    </svg>
+  `;
+}

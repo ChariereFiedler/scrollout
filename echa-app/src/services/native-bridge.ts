@@ -14,6 +14,8 @@ function getPlugin(): any {
     closeInstagram: async () => ({ status: 'mock' }),
     showInstagram: async () => ({ status: 'mock' }),
     hideInstagram: async () => ({ status: 'mock' }),
+    openInstagramProfile: async () => ({ status: 'mock' }),
+    openInstagramSearch: async () => ({ status: 'mock' }),
     isInstagramOpen: async () => ({ open: false, visible: false }),
     exportSession: async () => ({ path: '', data: '{}' }),
     getCollectedData: async () => ({ count: 0, data: '[]' }),
@@ -23,6 +25,11 @@ function getPlugin(): any {
 }
 
 type NativeListenerHandle = { remove: () => Promise<void> };
+
+interface TrackerEvent {
+  type?: string;
+  [key: string]: any;
+}
 
 export async function openInstagram(): Promise<{ status: string }> {
   return getPlugin().openInstagram();
@@ -38,6 +45,14 @@ export async function showInstagram(): Promise<{ status: string }> {
 
 export async function hideInstagram(): Promise<{ status: string }> {
   return getPlugin().hideInstagram();
+}
+
+export async function openInstagramProfile(username: string): Promise<{ status: string }> {
+  return getPlugin().openInstagramProfile({ username });
+}
+
+export async function openInstagramSearch(query: string): Promise<{ status: string }> {
+  return getPlugin().openInstagramSearch({ query });
 }
 
 export async function isInstagramOpen(): Promise<{ open: boolean; visible: boolean }> {
@@ -56,3 +71,10 @@ export async function onTrackerData(callback: (data: any) => void): Promise<{ re
   return getPlugin().addListener('trackerData', callback);
 }
 
+export async function onSidebarRequest(callback: () => void): Promise<NativeListenerHandle> {
+  return onTrackerData((data: TrackerEvent) => {
+    if (data?.type === 'open_sidebar') {
+      callback();
+    }
+  });
+}

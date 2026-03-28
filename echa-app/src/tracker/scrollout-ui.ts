@@ -4,6 +4,7 @@
  * - Hides Instagram bottom navigation bar
  * - Hides "Utiliser l'application" / "Use the app" banners
  */
+export {};
 
 const SCROLLOUT_COLORS = [
   '#FFE94A', '#6BE88B', '#6B6BFF',

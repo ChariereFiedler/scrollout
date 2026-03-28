@@ -3,6 +3,8 @@ import { customElement, state } from 'lit/decorators.js';
 import { theme, scrolloutDots, scrolloutIconSvg } from './styles/theme.js';
 import {
   openInstagram,
+  openInstagramProfile,
+  openInstagramSearch,
   showInstagram,
   hideInstagram,
   isInstagramOpen,
@@ -10,7 +12,7 @@ import {
 } from './services/native-bridge.js';
 import { startDaemon, getDaemonStatus } from './services/enrichment-daemon.js';
 
-type Tab = 'home' | 'instagram' | 'cognition' | 'posts' | 'settings';
+type Tab = 'home' | 'instagram' | 'scrollout' | 'cognition' | 'posts' | 'settings';
 
 @customElement('app-shell')
 export class AppShell extends LitElement {
@@ -213,7 +215,7 @@ export class AppShell extends LitElement {
 
   private async bindSidebarEvent() {
     try {
-      this.sidebarHandle = await onSidebarRequest(() => { this.drawer = true; });
+      this.sidebarHandle = await onSidebarRequest(() => { void this.go('scrollout'); });
     } catch { /* mock */ }
   }
 
@@ -267,6 +269,40 @@ export class AppShell extends LitElement {
       } catch (e) { console.warn('[Scrollout] IG error:', e); }
     } else if (this.igOpen) {
       try { await hideInstagram(); } catch {}
+    }
+  }
+
+  private async launchPlaylist(ev: CustomEvent<{ username: string }>) {
+    this.drawer = false;
+    this.tab = 'instagram';
+    try {
+      const s = await isInstagramOpen();
+      if (!s.open) {
+        await openInstagram();
+      } else {
+        await showInstagram();
+      }
+      await openInstagramProfile(ev.detail.username);
+      this.igOpen = true;
+    } catch (e) {
+      console.warn('[Scrollout] Playlist launch failed:', e);
+    }
+  }
+
+  private async launchRadio(ev: CustomEvent<{ query: string }>) {
+    this.drawer = false;
+    this.tab = 'instagram';
+    try {
+      const s = await isInstagramOpen();
+      if (!s.open) {
+        await openInstagram();
+      } else {
+        await showInstagram();
+      }
+      await openInstagramSearch(ev.detail.query);
+      this.igOpen = true;
+    } catch (e) {
+      console.warn('[Scrollout] Radio launch failed:', e);
     }
   }
 
@@ -339,6 +375,14 @@ export class AppShell extends LitElement {
             <h2>Capture en cours</h2>
             <p>Parcourez votre fil Instagram normalement. Scrollout analyse chaque post en arriere-plan.</p>
           </div>
+        ` : ''}
+        ${this.tab === 'scrollout' ? html`
+          <screen-scrollout
+            @go-instagram=${() => this.go('instagram')}
+            @open-wrapped=${() => { this.wrapped = true; }}
+            @launch-playlist=${(ev: CustomEvent<{ username: string }>) => this.launchPlaylist(ev)}
+            @launch-radio=${(ev: CustomEvent<{ query: string }>) => this.launchRadio(ev)}
+          ></screen-scrollout>
         ` : ''}
         ${this.tab === 'cognition' ? html`<screen-cognition @go-home=${() => this.go('home')}></screen-cognition>` : ''}
         ${this.tab === 'posts' ? html`<screen-posts></screen-posts>` : ''}
