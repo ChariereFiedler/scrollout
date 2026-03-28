@@ -102,6 +102,9 @@ export function applyRules(input: {
   // ── Axes politiques ──
   const axes = detectPoliticalAxes(textForAnalysis);
 
+  // ── Catégorie média ──
+  const media = classifyMedia(textForAnalysis, input.isSponsored || false);
+
   // ── Confiance ──
   // Plus le texte est long et riche en signaux, plus la confiance est haute
   const textLength = normalizedText.length;
@@ -129,6 +132,8 @@ export function applyRules(input: {
     enemyDesignationSignal: polarization.signals.enemyDesignation,
     politicalAxes: axes.scores,
     dominantAxis: axes.dominant,
+    mediaCategory: media.category,
+    mediaQuality: media.quality,
     confidenceScore: Math.round(confidence * 100) / 100,
     _debug: {
       hashtagAnalysis: hashtagResult,

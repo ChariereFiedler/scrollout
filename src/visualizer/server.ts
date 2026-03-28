@@ -131,6 +131,7 @@ function enrichPost(post: {
   caption?: string;
   imageDescription?: string;
   allText?: string;
+  isSponsored?: boolean;
 }, postId: string): void {
   if (enrichmentCache.has(postId)) return;
 
@@ -154,6 +155,7 @@ function enrichPost(post: {
     normalizedText,
     hashtags,
     username: post.username || '',
+    isSponsored: post.isSponsored || false,
   });
 
   const result = { ...rules, normalizedText, language };
@@ -174,6 +176,10 @@ function enrichPost(post: {
     ingroupOutgroupSignal: rules.ingroupOutgroupSignal,
     moralAbsoluteSignal: rules.moralAbsoluteSignal,
     enemyDesignationSignal: rules.enemyDesignationSignal,
+    politicalAxes: rules.politicalAxes,
+    dominantAxis: rules.dominantAxis,
+    mediaCategory: rules.mediaCategory,
+    mediaQuality: rules.mediaQuality,
     confidenceScore: rules.confidenceScore,
   };
 
@@ -211,6 +217,13 @@ async function persistEnrichment(
         conflictSignal: rules.conflictSignal,
         moralAbsoluteSignal: rules.moralAbsoluteSignal,
         enemyDesignationSignal: rules.enemyDesignationSignal,
+        axisEconomic: rules.politicalAxes.economic,
+        axisSocietal: rules.politicalAxes.societal,
+        axisAuthority: rules.politicalAxes.authority,
+        axisSystem: rules.politicalAxes.system,
+        dominantAxis: rules.dominantAxis || '',
+        mediaCategory: rules.mediaCategory,
+        mediaQuality: rules.mediaQuality,
         confidenceScore: rules.confidenceScore,
       },
       update: {
@@ -227,6 +240,13 @@ async function persistEnrichment(
         conflictSignal: rules.conflictSignal,
         moralAbsoluteSignal: rules.moralAbsoluteSignal,
         enemyDesignationSignal: rules.enemyDesignationSignal,
+        axisEconomic: rules.politicalAxes.economic,
+        axisSocietal: rules.politicalAxes.societal,
+        axisAuthority: rules.politicalAxes.authority,
+        axisSystem: rules.politicalAxes.system,
+        dominantAxis: rules.dominantAxis || '',
+        mediaCategory: rules.mediaCategory,
+        mediaQuality: rules.mediaQuality,
         confidenceScore: rules.confidenceScore,
         updatedAt: new Date(),
       },
