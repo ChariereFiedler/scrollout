@@ -270,7 +270,7 @@ export class CognitionControls extends LitElement {
           <div>
             <div class="title">Bulle cognitive</div>
             <div class="subtitle">
-              Choisissez le mode et 2 dimensions issues de SQLite: champs `posts`, champs `post_enriched` ou agrégations directes calculées dessus.
+              Choisissez le mode et 2 dimensions issues de SQLite: champs posts, champs post_enriched ou agrégations directes calculées dessus.
             </div>
           </div>
           <button class="refresh" @click=${this.refresh} ?disabled=${this.loading}>
@@ -310,18 +310,20 @@ export class CognitionControls extends LitElement {
             <label for="primary">Dimension primaire</label>
             <select id="primary" .value=${this.primaryMetric} @change=${this.onPrimaryChange}>
               ${COGNITIVE_METRICS.map(metric => html`
-                <option value=${metric.key}>${metric.label} · ${metric.unit}</option>
+                <option value=${metric.key}>${metric.label} · ${metric.unit} · ${metric.sqliteSource}</option>
               `)}
             </select>
+            <div class="hint">Dimension calculée uniquement depuis ${COGNITIVE_METRICS.find(metric => metric.key === this.primaryMetric)?.sqliteSource ?? 'SQLite'}.</div>
           </div>
 
           <div class="field">
             <label for="secondary">Dimension secondaire</label>
             <select id="secondary" .value=${this.secondaryMetric} @change=${this.onSecondaryChange}>
               ${COGNITIVE_METRICS.map(metric => html`
-                <option value=${metric.key}>${metric.label} · ${metric.unit}</option>
+                <option value=${metric.key}>${metric.label} · ${metric.unit} · ${metric.sqliteSource}</option>
               `)}
             </select>
+            <div class="hint">Dimension calculée uniquement depuis ${COGNITIVE_METRICS.find(metric => metric.key === this.secondaryMetric)?.sqliteSource ?? 'SQLite'}.</div>
           </div>
 
           <div class="field">
