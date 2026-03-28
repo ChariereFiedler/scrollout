@@ -23,7 +23,7 @@ public class EchaDatabase extends SQLiteOpenHelper {
 
     private static final String TAG = "EchaDB";
     private static final String DB_NAME = "echa.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
 
     private static EchaDatabase instance;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -112,6 +112,10 @@ public class EchaDatabase extends SQLiteOpenHelper {
                 "mediaCategory TEXT DEFAULT ''," +
                 "mediaQuality TEXT DEFAULT ''," +
                 "confidenceScore REAL DEFAULT 0," +
+                "tone TEXT DEFAULT ''," +
+                "semanticSummary TEXT DEFAULT ''," +
+                "primaryEmotion TEXT DEFAULT ''," +
+                "narrativeFrame TEXT DEFAULT ''," +
                 "createdAt INTEGER NOT NULL," +
                 "updatedAt INTEGER NOT NULL," +
                 "FOREIGN KEY (postId) REFERENCES posts(id)" +
@@ -131,8 +135,22 @@ public class EchaDatabase extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // Future migrations here
         Log.i(TAG, "Database upgrade " + oldVersion + " → " + newVersion);
+        if (oldVersion < 2) {
+            // Add LLM enrichment fields
+            safeAddColumn(db, "post_enriched", "tone", "TEXT DEFAULT ''");
+            safeAddColumn(db, "post_enriched", "semanticSummary", "TEXT DEFAULT ''");
+            safeAddColumn(db, "post_enriched", "primaryEmotion", "TEXT DEFAULT ''");
+            safeAddColumn(db, "post_enriched", "narrativeFrame", "TEXT DEFAULT ''");
+        }
+    }
+
+    private void safeAddColumn(SQLiteDatabase db, String table, String column, String type) {
+        try {
+            db.execSQL("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+        } catch (Exception e) {
+            // Column already exists
+        }
     }
 
     // ── Session CRUD ────────────────────────────────────────────
@@ -310,9 +328,13 @@ public class EchaDatabase extends SQLiteOpenHelper {
         JSONArray result = new JSONArray();
         Cursor c = getReadableDatabase().rawQuery(
                 "SELECT p.*, e.politicalExplicitnessScore, e.polarizationScore, " +
-                "e.mainTopics as enrichTopics, e.confidenceScore, e.axisEconomic, " +
+                "e.mainTopics as enrichTopics, e.secondaryTopics as enrichSecondaryTopics, " +
+                "e.confidenceScore, e.axisEconomic, " +
                 "e.axisSocietal, e.axisAuthority, e.axisSystem, e.dominantAxis, " +
-                "e.mediaCategory, e.mediaQuality " +
+                "e.mediaCategory, e.mediaQuality, e.tone as enrichTone, " +
+                "e.semanticSummary, e.primaryEmotion, e.narrativeFrame, " +
+                "e.politicalActors as enrichActors, e.activismSignal as enrichActivism, " +
+                "e.conflictSignal as enrichConflict " +
                 "FROM posts p LEFT JOIN post_enriched e ON e.postId = p.id " +
                 "WHERE p.sessionId = ? ORDER BY p.dwellTimeMs DESC LIMIT ? OFFSET ?",
                 new String[]{sessionId, String.valueOf(limit), String.valueOf(offset)});
@@ -371,22 +393,204 @@ public class EchaDatabase extends SQLiteOpenHelper {
         c6.close();
         stats.put("political", political);
 
-        // Average axes
+        // Average polarization & confidence (all enriched posts)
+        Cursor cAvg = db.rawQuery(
+                "SELECT AVG(polarizationScore), AVG(confidenceScore) FROM post_enriched", null);
+        if (cAvg.moveToFirst()) {
+            stats.put("avgPolarization", Math.round(cAvg.getDouble(0) * 100.0) / 100.0);
+            stats.put("avgConfidence", Math.round(cAvg.getDouble(1) * 100.0) / 100.0);
+        }
+        cAvg.close();
+
+        // Average axes (only posts with political content)
         Cursor c7 = db.rawQuery(
-                "SELECT AVG(axisEconomic), AVG(axisSocietal), AVG(axisAuthority), AVG(axisSystem), " +
-                "AVG(polarizationScore), AVG(confidenceScore) " +
+                "SELECT AVG(axisEconomic), AVG(axisSocietal), AVG(axisAuthority), AVG(axisSystem) " +
                 "FROM post_enriched WHERE axisEconomic != 0 OR axisSocietal != 0 OR axisAuthority != 0 OR axisSystem != 0", null);
-        if (c7.moveToFirst()) {
+        if (c7.moveToFirst() && !c7.isNull(0)) {
             JSONObject axes = new JSONObject();
             axes.put("economic", Math.round(c7.getDouble(0) * 100.0) / 100.0);
             axes.put("societal", Math.round(c7.getDouble(1) * 100.0) / 100.0);
             axes.put("authority", Math.round(c7.getDouble(2) * 100.0) / 100.0);
             axes.put("system", Math.round(c7.getDouble(3) * 100.0) / 100.0);
             stats.put("axes", axes);
-            stats.put("avgPolarization", Math.round(c7.getDouble(4) * 100.0) / 100.0);
-            stats.put("avgConfidence", Math.round(c7.getDouble(5) * 100.0) / 100.0);
         }
         c7.close();
+
+        // Total dwell time
+        Cursor cDwell = db.rawQuery("SELECT COALESCE(SUM(dwellTimeMs),0) FROM posts", null);
+        cDwell.moveToFirst(); stats.put("totalDwellMs", cDwell.getLong(0)); cDwell.close();
+
+        // Top topics (parse JSON arrays from mainTopics column)
+        stats.put("topTopics", aggregateJsonArrayField(db, "mainTopics", 15));
+
+        // Top domains (from secondaryTopics or mainTopics as domain proxy)
+        // Use mainTopics as "domains" since domains field is often empty
+        stats.put("topDomains", aggregateJsonArrayField(db, "mainTopics", 10));
+
+        // Top tones
+        JSONArray topTones = new JSONArray();
+        Cursor cTones = db.rawQuery(
+                "SELECT tone, COUNT(*) as cnt FROM post_enriched " +
+                "WHERE tone != '' AND tone IS NOT NULL GROUP BY tone ORDER BY cnt DESC LIMIT 10", null);
+        while (cTones.moveToNext()) {
+            JSONObject t = new JSONObject();
+            t.put("tone", cTones.getString(0));
+            t.put("count", cTones.getInt(1));
+            topTones.put(t);
+        }
+        cTones.close();
+        stats.put("topTones", topTones);
+
+        // Top narratives
+        JSONArray topNarratives = new JSONArray();
+        Cursor cNarr = db.rawQuery(
+                "SELECT narrativeFrame, COUNT(*) as cnt FROM post_enriched " +
+                "WHERE narrativeFrame != '' AND narrativeFrame IS NOT NULL GROUP BY narrativeFrame ORDER BY cnt DESC LIMIT 10", null);
+        while (cNarr.moveToNext()) {
+            JSONObject n = new JSONObject();
+            n.put("narrative", cNarr.getString(0));
+            n.put("count", cNarr.getInt(1));
+            topNarratives.put(n);
+        }
+        cNarr.close();
+        stats.put("topNarratives", topNarratives);
+
+        // Top political actors
+        stats.put("topActors", aggregateJsonArrayField(db, "politicalActors", 10));
+
+        // ── Cross-analyses avancées ──────────────────────────────
+
+        // Attention × Politique: est-ce que tu t'arrêtes plus sur le contenu politique ?
+        JSONObject attentionPolitical = new JSONObject();
+        Cursor cAP = db.rawQuery(
+                "SELECT p.attentionLevel, AVG(e.politicalExplicitnessScore) as avgPol, " +
+                "AVG(e.polarizationScore) as avgPolar, COUNT(*) as cnt " +
+                "FROM posts p JOIN post_enriched e ON e.postId = p.id " +
+                "GROUP BY p.attentionLevel", null);
+        while (cAP.moveToNext()) {
+            JSONObject row = new JSONObject();
+            row.put("avgPolitical", Math.round(cAP.getDouble(1) * 100.0) / 100.0);
+            row.put("avgPolarization", Math.round(cAP.getDouble(2) * 100.0) / 100.0);
+            row.put("count", cAP.getInt(3));
+            attentionPolitical.put(cAP.getString(0), row);
+        }
+        cAP.close();
+        stats.put("attentionPolitical", attentionPolitical);
+
+        // Top comptes par polarisation moyenne (qui te polarise le plus)
+        JSONArray polarizingAccounts = new JSONArray();
+        Cursor cPA = db.rawQuery(
+                "SELECT p.username, AVG(e.polarizationScore) as avgPolar, " +
+                "AVG(e.politicalExplicitnessScore) as avgPol, COUNT(*) as cnt, " +
+                "SUM(p.dwellTimeMs) as totalDwell " +
+                "FROM posts p JOIN post_enriched e ON e.postId = p.id " +
+                "WHERE p.username != '' " +
+                "GROUP BY p.username HAVING cnt >= 1 " +
+                "ORDER BY avgPolar DESC LIMIT 10", null);
+        while (cPA.moveToNext()) {
+            JSONObject acc = new JSONObject();
+            acc.put("username", cPA.getString(0));
+            acc.put("avgPolarization", Math.round(cPA.getDouble(1) * 100.0) / 100.0);
+            acc.put("avgPolitical", Math.round(cPA.getDouble(2) * 100.0) / 100.0);
+            acc.put("count", cPA.getInt(3));
+            acc.put("totalDwellMs", cPA.getLong(4));
+            polarizingAccounts.put(acc);
+        }
+        cPA.close();
+        stats.put("polarizingAccounts", polarizingAccounts);
+
+        // Sponsored vs organic
+        JSONObject sponsoredStats = new JSONObject();
+        Cursor cSp = db.rawQuery(
+                "SELECT p.isSponsored, COUNT(*) as cnt, AVG(p.dwellTimeMs) as avgDwell, " +
+                "AVG(e.politicalExplicitnessScore) as avgPol " +
+                "FROM posts p LEFT JOIN post_enriched e ON e.postId = p.id " +
+                "GROUP BY p.isSponsored", null);
+        while (cSp.moveToNext()) {
+            String key = cSp.getInt(0) == 1 ? "sponsored" : "organic";
+            JSONObject row = new JSONObject();
+            row.put("count", cSp.getInt(1));
+            row.put("avgDwellMs", Math.round(cSp.getDouble(2)));
+            row.put("avgPolitical", Math.round(cSp.getDouble(3) * 100.0) / 100.0);
+            sponsoredStats.put(key, row);
+        }
+        cSp.close();
+        stats.put("sponsoredStats", sponsoredStats);
+
+        // Signaux d'alerte (conflict, activism, enemy designation, moral absolutes)
+        JSONObject signals = new JSONObject();
+        Cursor cSig = db.rawQuery(
+                "SELECT " +
+                "SUM(CASE WHEN activismSignal = 1 THEN 1 ELSE 0 END) as activism, " +
+                "SUM(CASE WHEN conflictSignal = 1 THEN 1 ELSE 0 END) as conflict, " +
+                "SUM(CASE WHEN moralAbsoluteSignal = 1 THEN 1 ELSE 0 END) as moralAbsolute, " +
+                "SUM(CASE WHEN enemyDesignationSignal = 1 THEN 1 ELSE 0 END) as enemyDesignation, " +
+                "SUM(CASE WHEN ingroupOutgroupSignal = 1 THEN 1 ELSE 0 END) as ingroupOutgroup, " +
+                "COUNT(*) as total " +
+                "FROM post_enriched", null);
+        if (cSig.moveToFirst()) {
+            signals.put("activism", cSig.getInt(0));
+            signals.put("conflict", cSig.getInt(1));
+            signals.put("moralAbsolute", cSig.getInt(2));
+            signals.put("enemyDesignation", cSig.getInt(3));
+            signals.put("ingroupOutgroup", cSig.getInt(4));
+            signals.put("total", cSig.getInt(5));
+        }
+        cSig.close();
+        stats.put("signals", signals);
+
+        // Emotions
+        JSONArray topEmotions = new JSONArray();
+        Cursor cEmo = db.rawQuery(
+                "SELECT primaryEmotion, COUNT(*) as cnt FROM post_enriched " +
+                "WHERE primaryEmotion != '' AND primaryEmotion IS NOT NULL " +
+                "GROUP BY primaryEmotion ORDER BY cnt DESC LIMIT 8", null);
+        while (cEmo.moveToNext()) {
+            JSONObject e = new JSONObject();
+            e.put("emotion", cEmo.getString(0));
+            e.put("count", cEmo.getInt(1));
+            topEmotions.put(e);
+        }
+        cEmo.close();
+        stats.put("topEmotions", topEmotions);
+
+        // Dwell time moyen par topic (sur quoi tu passes le plus de temps)
+        // Parse mainTopics JSON per post, aggregate dwell time
+        JSONArray dwellByTopic = new JSONArray();
+        java.util.Map<String, long[]> topicDwell = new java.util.LinkedHashMap<>();
+        Cursor cDT = db.rawQuery(
+                "SELECT e.mainTopics, p.dwellTimeMs FROM posts p " +
+                "JOIN post_enriched e ON e.postId = p.id " +
+                "WHERE e.mainTopics IS NOT NULL AND e.mainTopics != '[]'", null);
+        while (cDT.moveToNext()) {
+            String topicsJson = cDT.getString(0);
+            long dwell = cDT.getLong(1);
+            try {
+                JSONArray topics = new JSONArray(topicsJson);
+                for (int ti = 0; ti < topics.length(); ti++) {
+                    String topic = topics.getString(ti).trim().toLowerCase();
+                    if (!topic.isEmpty()) {
+                        long[] vals = topicDwell.getOrDefault(topic, new long[]{0, 0});
+                        vals[0] += dwell; // total dwell
+                        vals[1]++;        // count
+                        topicDwell.put(topic, vals);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        cDT.close();
+        java.util.List<java.util.Map.Entry<String, long[]>> sortedDwell = new java.util.ArrayList<>(topicDwell.entrySet());
+        sortedDwell.sort((a1, b1) -> Long.compare(b1.getValue()[0], a1.getValue()[0]));
+        for (int di = 0; di < Math.min(sortedDwell.size(), 10); di++) {
+            java.util.Map.Entry<String, long[]> entry = sortedDwell.get(di);
+            JSONObject item = new JSONObject();
+            item.put("topic", entry.getKey());
+            item.put("totalDwellMs", entry.getValue()[0]);
+            item.put("avgDwellMs", entry.getValue()[1] > 0 ? entry.getValue()[0] / entry.getValue()[1] : 0);
+            item.put("count", entry.getValue()[1]);
+            dwellByTopic.put(item);
+        }
+        stats.put("dwellByTopic", dwellByTopic);
 
         // Top usernames
         JSONArray topUsers = new JSONArray();
@@ -423,6 +627,111 @@ public class EchaDatabase extends SQLiteOpenHelper {
         result.put("posts", getPostsBySession(sessionId, 0, 1000));
 
         return result;
+    }
+
+    // ── Unenriched posts query ────────────────────────────────────
+
+    public JSONArray getUnenrichedPosts(int limit) throws JSONException {
+        JSONArray result = new JSONArray();
+        Cursor c = getReadableDatabase().rawQuery(
+                "SELECT p.id, p.postId, p.username, p.caption, p.fullCaption, " +
+                "p.hashtags, p.imageAlts, p.allText, p.ocrText, p.mlkitLabels, " +
+                "p.mediaType, p.isSponsored, p.isSuggested " +
+                "FROM posts p LEFT JOIN post_enriched e ON e.postId = p.id " +
+                "WHERE e.id IS NULL AND length(p.allText) > 10 " +
+                "ORDER BY p.createdAt DESC LIMIT ?",
+                new String[]{String.valueOf(limit)});
+        while (c.moveToNext()) {
+            JSONObject post = new JSONObject();
+            post.put("id", c.getString(c.getColumnIndexOrThrow("id")));
+            post.put("postId", c.getString(c.getColumnIndexOrThrow("postId")));
+            post.put("username", c.getString(c.getColumnIndexOrThrow("username")));
+            post.put("caption", c.getString(c.getColumnIndexOrThrow("caption")));
+            post.put("fullCaption", c.getString(c.getColumnIndexOrThrow("fullCaption")));
+            post.put("hashtags", c.getString(c.getColumnIndexOrThrow("hashtags")));
+            post.put("imageAlts", c.getString(c.getColumnIndexOrThrow("imageAlts")));
+            post.put("allText", c.getString(c.getColumnIndexOrThrow("allText")));
+            post.put("ocrText", c.getString(c.getColumnIndexOrThrow("ocrText")));
+            post.put("mlkitLabels", c.getString(c.getColumnIndexOrThrow("mlkitLabels")));
+            post.put("mediaType", c.getString(c.getColumnIndexOrThrow("mediaType")));
+            post.put("isSponsored", c.getInt(c.getColumnIndexOrThrow("isSponsored")) == 1);
+            post.put("isSuggested", c.getInt(c.getColumnIndexOrThrow("isSuggested")) == 1);
+            result.put(post);
+        }
+        c.close();
+        return result;
+    }
+
+    public int countUnenrichedPosts() {
+        Cursor c = getReadableDatabase().rawQuery(
+                "SELECT COUNT(*) FROM posts p LEFT JOIN post_enriched e ON e.postId = p.id " +
+                "WHERE e.id IS NULL AND length(p.allText) > 10", null);
+        c.moveToFirst();
+        int count = c.getInt(0);
+        c.close();
+        return count;
+    }
+
+    /**
+     * Insert or update enrichment with extended LLM fields.
+     * Supports both rules-only and LLM-enriched data.
+     */
+    public void upsertEnrichment(String dbPostId, JSONObject enrichment) {
+        long now = System.currentTimeMillis();
+
+        ContentValues cv = new ContentValues();
+        cv.put("postId", dbPostId);
+        cv.put("provider", enrichment.optString("provider", "rules"));
+        cv.put("model", enrichment.optString("model", "rules-v1"));
+        cv.put("normalizedText", enrichment.optString("normalizedText", ""));
+        cv.put("mainTopics", jsonArrayToString(enrichment, "mainTopics"));
+        cv.put("secondaryTopics", jsonArrayToString(enrichment, "secondaryTopics"));
+        cv.put("politicalActors", jsonArrayToString(enrichment, "politicalActors"));
+        cv.put("institutions", jsonArrayToString(enrichment, "institutions"));
+        cv.put("politicalExplicitnessScore", enrichment.optInt("politicalExplicitnessScore", 0));
+        cv.put("politicalIssueTags", jsonArrayToString(enrichment, "politicalIssueTags"));
+        cv.put("polarizationScore", enrichment.optDouble("polarizationScore", 0));
+        cv.put("ingroupOutgroupSignal", enrichment.optBoolean("ingroupOutgroupSignal", false) ? 1 : 0);
+        cv.put("conflictSignal", enrichment.optBoolean("conflictSignal", false) ? 1 : 0);
+        cv.put("moralAbsoluteSignal", enrichment.optBoolean("moralAbsoluteSignal", false) ? 1 : 0);
+        cv.put("enemyDesignationSignal", enrichment.optBoolean("enemyDesignationSignal", false) ? 1 : 0);
+        cv.put("activismSignal", enrichment.optBoolean("activismSignal", false) ? 1 : 0);
+        cv.put("axisEconomic", enrichment.optDouble("axisEconomic", 0));
+        cv.put("axisSocietal", enrichment.optDouble("axisSocietal", 0));
+        cv.put("axisAuthority", enrichment.optDouble("axisAuthority", 0));
+        cv.put("axisSystem", enrichment.optDouble("axisSystem", 0));
+        cv.put("dominantAxis", enrichment.optString("dominantAxis", ""));
+        cv.put("mediaCategory", enrichment.optString("mediaCategory", ""));
+        cv.put("mediaQuality", enrichment.optString("mediaQuality", ""));
+        cv.put("confidenceScore", enrichment.optDouble("confidenceScore", 0));
+        // LLM-specific fields
+        cv.put("tone", enrichment.optString("tone", ""));
+        cv.put("semanticSummary", enrichment.optString("semanticSummary", ""));
+        cv.put("primaryEmotion", enrichment.optString("primaryEmotion", ""));
+        cv.put("narrativeFrame", enrichment.optString("narrativeFrame", ""));
+        cv.put("updatedAt", now);
+
+        // Try update first, insert if not found
+        int rows = getWritableDatabase().update("post_enriched", cv,
+                "postId = ?", new String[]{dbPostId});
+        if (rows == 0) {
+            String id = "e_" + now + "_" + dbPostId.hashCode();
+            cv.put("id", id);
+            cv.put("createdAt", now);
+            getWritableDatabase().insertWithOnConflict("post_enriched", null, cv, SQLiteDatabase.CONFLICT_REPLACE);
+        }
+    }
+
+    /**
+     * Delete enrichments with empty mainTopics (broken by imageAlts bug).
+     * Returns number of rows deleted.
+     */
+    public int purgeEmptyEnrichments() {
+        // Purge enrichments missing LLM data (no tone = never processed by LLM)
+        int deleted = getWritableDatabase().delete("post_enriched",
+                "tone IS NULL OR tone = '' OR mainTopics IS NULL OR mainTopics = '[]' OR mainTopics = ''", null);
+        Log.i(TAG, "Purged " + deleted + " enrichments (no LLM data)");
+        return deleted;
     }
 
     // ── Helpers ──────────────────────────────────────────────────
@@ -468,6 +777,23 @@ public class EchaDatabase extends SQLiteOpenHelper {
             enrichment.put("dominantAxis", c.getString(c.getColumnIndex("dominantAxis")));
             enrichment.put("mediaCategory", c.getString(c.getColumnIndex("mediaCategory")));
             enrichment.put("mediaQuality", c.getString(c.getColumnIndex("mediaQuality")));
+            // Extended LLM fields
+            int toneIdx = c.getColumnIndex("enrichTone");
+            if (toneIdx >= 0 && !c.isNull(toneIdx)) enrichment.put("tone", c.getString(toneIdx));
+            int summaryIdx = c.getColumnIndex("semanticSummary");
+            if (summaryIdx >= 0 && !c.isNull(summaryIdx)) enrichment.put("semanticSummary", c.getString(summaryIdx));
+            int emotionIdx = c.getColumnIndex("primaryEmotion");
+            if (emotionIdx >= 0 && !c.isNull(emotionIdx)) enrichment.put("primaryEmotion", c.getString(emotionIdx));
+            int narrIdx = c.getColumnIndex("narrativeFrame");
+            if (narrIdx >= 0 && !c.isNull(narrIdx)) enrichment.put("narrativeFrame", c.getString(narrIdx));
+            int actorsIdx = c.getColumnIndex("enrichActors");
+            if (actorsIdx >= 0 && !c.isNull(actorsIdx)) enrichment.put("politicalActors", c.getString(actorsIdx));
+            int secTopicsIdx = c.getColumnIndex("enrichSecondaryTopics");
+            if (secTopicsIdx >= 0 && !c.isNull(secTopicsIdx)) enrichment.put("secondaryTopics", c.getString(secTopicsIdx));
+            int activismIdx = c.getColumnIndex("enrichActivism");
+            if (activismIdx >= 0 && !c.isNull(activismIdx)) enrichment.put("activismSignal", c.getInt(activismIdx) == 1);
+            int conflictIdx = c.getColumnIndex("enrichConflict");
+            if (conflictIdx >= 0 && !c.isNull(conflictIdx)) enrichment.put("conflictSignal", c.getInt(conflictIdx) == 1);
             post.put("enrichment", enrichment);
         }
 
@@ -491,9 +817,59 @@ public class EchaDatabase extends SQLiteOpenHelper {
         }
     }
 
+    /**
+     * Parse JSON array strings from a column, aggregate counts, return top N.
+     * E.g. mainTopics: '["culture","humour"]' → {topic: "culture", count: 15}
+     */
+    private JSONArray aggregateJsonArrayField(SQLiteDatabase db, String column, int limit) throws JSONException {
+        java.util.Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+        Cursor c = db.rawQuery(
+                "SELECT " + column + " FROM post_enriched WHERE " + column + " IS NOT NULL AND " + column + " != '[]'", null);
+        while (c.moveToNext()) {
+            String jsonStr = c.getString(0);
+            try {
+                JSONArray arr = new JSONArray(jsonStr);
+                for (int i = 0; i < arr.length(); i++) {
+                    String val = arr.getString(i).trim().toLowerCase();
+                    if (!val.isEmpty()) {
+                        counts.put(val, counts.getOrDefault(val, 0) + 1);
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+        c.close();
+
+        // Sort by count desc
+        java.util.List<java.util.Map.Entry<String, Integer>> sorted = new java.util.ArrayList<>(counts.entrySet());
+        sorted.sort((a, b) -> b.getValue() - a.getValue());
+
+        JSONArray result = new JSONArray();
+        int i = 0;
+        // Use "topic" as generic key name for compat with frontend
+        for (java.util.Map.Entry<String, Integer> entry : sorted) {
+            if (i++ >= limit) break;
+            JSONObject item = new JSONObject();
+            item.put("topic", entry.getKey());
+            item.put("count", entry.getValue());
+            // Also add domain alias for topDomains compat
+            item.put("domain", entry.getKey());
+            result.put(item);
+        }
+        return result;
+    }
+
+    /**
+     * Extract a JSON array field as string.
+     * Handles both JSONArray and pre-stringified JSON array values.
+     */
     private static String jsonArrayToString(JSONObject obj, String key) {
+        // Try as JSONArray first
         JSONArray arr = obj.optJSONArray(key);
-        return arr != null ? arr.toString() : "[]";
+        if (arr != null) return arr.toString();
+        // Might be a pre-stringified JSON array (e.g. "[\"culture\"]")
+        String str = obj.optString(key, "[]");
+        if (str.startsWith("[")) return str;
+        return "[]";
     }
 
     /**

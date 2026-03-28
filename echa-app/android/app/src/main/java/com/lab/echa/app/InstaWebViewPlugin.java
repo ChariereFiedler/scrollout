@@ -570,6 +570,75 @@ public class InstaWebViewPlugin extends Plugin {
         });
     }
 
+    // ─── Enrichment Daemon Methods (Capacitor @PluginMethod) ──
+
+    @PluginMethod()
+    public void queryUnenrichedPosts(PluginCall call) {
+        int limit = call.getInt("limit", 20);
+        db.runAsync(() -> {
+            try {
+                JSONArray posts = db.getUnenrichedPosts(limit);
+                JSObject ret = new JSObject();
+                ret.put("posts", posts.toString());
+                ret.put("count", posts.length());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("queryUnenrichedPosts error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void countUnenrichedPosts(PluginCall call) {
+        db.runAsync(() -> {
+            try {
+                int count = db.countUnenrichedPosts();
+                JSObject ret = new JSObject();
+                ret.put("count", count);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("countUnenrichedPosts error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void saveEnrichmentFromApp(PluginCall call) {
+        String dbPostId = call.getString("dbPostId", "");
+        String enrichmentJson = call.getString("enrichment", "{}");
+
+        if (dbPostId.isEmpty()) {
+            call.reject("dbPostId is required");
+            return;
+        }
+
+        db.runAsync(() -> {
+            try {
+                JSONObject enrichment = new JSONObject(enrichmentJson);
+                db.upsertEnrichment(dbPostId, enrichment);
+                JSObject ret = new JSObject();
+                ret.put("success", true);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("saveEnrichmentFromApp error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void purgeEmptyEnrichments(PluginCall call) {
+        db.runAsync(() -> {
+            try {
+                int deleted = db.purgeEmptyEnrichments();
+                JSObject ret = new JSObject();
+                ret.put("deleted", deleted);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("purgeEmptyEnrichments error: " + e.getMessage());
+            }
+        });
+    }
+
     // ─── ML Kit: download image and analyze ─────────────────
 
     private void analyzeImageFromUrl(String imageUrl, String postId, String username) {
@@ -754,6 +823,18 @@ public class InstaWebViewPlugin extends Plugin {
                 try {
                     JSONObject post = new JSONObject(postJson);
                     db.insertPost(currentSessionId, post);
+
+                    // Trigger ML Kit analysis (OCR + labels) on image
+                    String imageUrlsStr = post.optString("imageUrls", "[]");
+                    String postId = post.optString("postId", "");
+                    String username = post.optString("username", "");
+                    try {
+                        JSONArray imageUrls = new JSONArray(imageUrlsStr);
+                        if (imageUrls.length() > 0) {
+                            String firstUrl = imageUrls.getString(0);
+                            analyzeImageFromUrl(firstUrl, postId, username);
+                        }
+                    } catch (Exception ignored) {}
                 } catch (Exception e) {
                     Log.e(TAG, "savePost error: " + e.getMessage());
                 }
