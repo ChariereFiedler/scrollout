@@ -21,6 +21,7 @@ variables:
 
 .node-job:
   image: ${NODE_IMAGE}
+  tags: [docker]
   cache:
     key: node-${CI_COMMIT_REF_SLUG}
     paths:
@@ -84,6 +85,7 @@ test:vitest:
 
 build:apk:
   image: eclipse-temurin:21-jdk-jammy
+  tags: [docker]
   stage: build
   cache:
     key: gradle-${CI_COMMIT_REF_SLUG}
@@ -175,6 +177,7 @@ analyze:logs:
 
 publish:registry:
   stage: publish
+  tags: [docker]
   image: curlimages/curl:latest
   needs:
     - job: build:apk
@@ -196,11 +199,9 @@ publish:registry:
 
 pages:
   stage: pages
+  tags: [docker]
   image: ${NODE_IMAGE}
-  needs:
-    - job: build:apk
-      artifacts: true
-      optional: true
+  needs: []
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
