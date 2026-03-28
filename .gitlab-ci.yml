@@ -189,11 +189,17 @@ publish:registry:
     - |
       VERSION="${CI_COMMIT_TAG:-${CI_COMMIT_SHORT_SHA}}"
       echo "Publishing APK v${VERSION} to GitLab Package Registry..."
+      # Upload versioned APK
       curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
            --upload-file "${APK_NAME}" \
            "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/scrollout-apk/${VERSION}/${APK_NAME}"
+      # Upload as "latest" with stable filename (overwrite previous)
+      echo "Publishing as latest..."
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+           --upload-file "${APK_NAME}" \
+           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/scrollout-apk/latest/scrollout-latest.apk"
       echo ""
-      echo "Download: ${CI_PROJECT_URL}/-/packages"
+      echo "Download: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/scrollout-apk/latest/scrollout-latest.apk"
 
 # ── Stage: pages (site Astro + APK download) ──────────────
 
@@ -201,7 +207,10 @@ pages:
   stage: pages
   tags: [docker]
   image: ${NODE_IMAGE}
-  needs: []
+  needs:
+    - job: build:apk
+      artifacts: true
+      optional: true
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
@@ -210,12 +219,15 @@ pages:
     - npx astro build
     - mv dist ../public
     - cd ..
-    # Copier l'APK dans le site si disponible
+    # Copier l'APK dans le site si disponible (fallback local)
     - |
       if [ -f "${APK_NAME}" ]; then
         mkdir -p public/download
         cp "${APK_NAME}" "public/download/${APK_NAME}"
         cp "${APK_NAME}" "public/download/scrollout-latest.apk"
+        echo "APK copied to pages: ${APK_NAME}"
+      else
+        echo "No APK artifact found — site will use registry link"
       fi
   artifacts:
     paths:

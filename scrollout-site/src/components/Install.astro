@@ -1,0 +1,195 @@
+---
+import Dots from './Dots.astro';
+
+const steps = [
+  {
+    num: '01',
+    color: 'var(--color-bleu-ciel)',
+    title: 'Autorise les sources inconnues',
+    text: 'Ouvre <strong>Param\u00e8tres &gt; S\u00e9curit\u00e9</strong> sur ton t\u00e9l\u00e9phone et active <strong>Sources inconnues</strong> (ou "Installer des applis inconnues" pour ton navigateur). Android bloque par d\u00e9faut les applis hors Play Store.',
+  },
+  {
+    num: '02',
+    color: 'var(--color-bleu-indigo)',
+    textColor: 'white',
+    title: 'T\u00e9l\u00e9charge l\u2019APK',
+    text: 'Clique sur le bouton ci-dessous depuis ton t\u00e9l\u00e9phone Android. Le fichier <code>scrollout-latest.apk</code> se t\u00e9l\u00e9charge directement.',
+    cta: true,
+  },
+  {
+    num: '03',
+    color: 'var(--color-vert-menthe)',
+    title: 'Installe et active',
+    text: 'Ouvre le fichier t\u00e9l\u00e9charg\u00e9, accepte l\u2019installation, puis lance Scrollout. L\u2019app te guide pour activer le <strong>service d\u2019accessibilit\u00e9</strong> \u2014 c\u2019est ce qui permet de lire ce qu\u2019Instagram te montre.',
+  },
+  {
+    num: '04',
+    color: 'var(--color-orange)',
+    title: 'Scrolle normalement',
+    text: 'Ouvre Instagram et utilise-le comme d\u2019habitude. Scrollout capture en arri\u00e8re-plan. Reviens dans l\u2019app quand tu veux voir ton rapport.',
+  },
+];
+
+const apkUrl = 'https://gitlab.com/api/v4/projects/tordu-jardin%2Fechafaud/packages/generic/scrollout-apk/latest/scrollout-latest.apk';
+---
+
+<section id="installer" class="install">
+  <span class="section-label mono">Installer Scrollout</span>
+
+  <div class="install-intro">
+    <p>Scrollout n'est pas sur le Play Store. C'est volontaire&nbsp;: pas de tracking, pas de compte Google, pas de conditions.</p>
+  </div>
+
+  <Dots />
+
+  <div class="install-steps">
+    {steps.map((s, i) => (
+      <div class="step">
+        <div class="step-header">
+          <div class="step-icon" style={`background: ${s.color}; ${s.textColor ? `color: ${s.textColor}` : ''}`}>
+            {s.num}
+          </div>
+          {i < steps.length - 1 && <div class="step-connector"></div>}
+        </div>
+        <div class="step-content">
+          <h3>{s.title}</h3>
+          <p set:html={s.text} />
+          {s.cta && (
+            <a href={apkUrl} class="btn btn-black install-btn">
+              T&eacute;l&eacute;charger l'APK
+            </a>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+
+  <div class="install-note">
+    <p class="mono">Android 8+ requis &middot; ~15 Mo &middot; Aucune donn&eacute;e collect&eacute;e</p>
+  </div>
+</section>
+
+<style>
+  .install {
+    padding: 100px 24px;
+    max-width: var(--container-width);
+    margin: 0 auto;
+  }
+
+  .install-intro {
+    max-width: 600px;
+    margin-bottom: 8px;
+  }
+
+  .install-intro p {
+    font-size: 1.15rem;
+    color: var(--text-grey);
+    line-height: 1.7;
+  }
+
+  .install-steps {
+    margin-top: 48px;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 28px;
+    min-height: 140px;
+  }
+
+  .step-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .step-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    z-index: 1;
+  }
+
+  .step-connector {
+    width: 2px;
+    flex: 1;
+    background: linear-gradient(to bottom, #DDD, #EEE);
+    margin: 8px 0;
+  }
+
+  .step-content {
+    padding-bottom: 32px;
+  }
+
+  .step-content h3 {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+  }
+
+  .step-content p {
+    font-size: 1.05rem;
+    color: var(--text-grey);
+    line-height: 1.7;
+    max-width: 560px;
+  }
+
+  .step-content :global(code) {
+    background: #F0F0F0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .install-btn {
+    margin-top: 16px;
+    display: inline-block;
+  }
+
+  .install-note {
+    margin-top: 48px;
+    text-align: center;
+  }
+
+  .install-note p {
+    color: var(--text-grey);
+    font-size: 0.75rem;
+  }
+
+  @media (max-width: 640px) {
+    .install {
+      padding: 60px 16px;
+    }
+
+    .step {
+      grid-template-columns: 48px 1fr;
+      gap: 20px;
+    }
+
+    .step-icon {
+      width: 44px;
+      height: 44px;
+      font-size: 0.8rem;
+    }
+
+    .step-content h3 {
+      font-size: 1.3rem;
+    }
+
+    .step-content p {
+      font-size: 0.95rem;
+    }
+
+    .install-intro p {
+      font-size: 1rem;
+    }
+  }
+</style>
