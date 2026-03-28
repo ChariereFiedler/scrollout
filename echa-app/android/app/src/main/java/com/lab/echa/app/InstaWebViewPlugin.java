@@ -382,10 +382,28 @@ public class InstaWebViewPlugin extends Plugin {
 
     // ─── JS Bridge ──────────────────────────────────────────
 
+    private static final int BRIDGE_CHUNK_SIZE = 3900;
+    private int bridgeMsgSeq = 0;
+
+    private void logBridgeChunked(String json) {
+        int total = (int) Math.ceil((double) json.length() / BRIDGE_CHUNK_SIZE);
+        if (total <= 1) {
+            Log.i(TAG, "BRIDGE_DATA|" + json);
+        } else {
+            int seq = bridgeMsgSeq++;
+            for (int i = 0; i < total; i++) {
+                int start = i * BRIDGE_CHUNK_SIZE;
+                int end = Math.min(start + BRIDGE_CHUNK_SIZE, json.length());
+                Log.i(TAG, "BRIDGE_CHUNK|" + seq + "|" + i + "|" + total + "|" + json.substring(start, end));
+            }
+            Log.i(TAG, "BRIDGE_END|" + seq);
+        }
+    }
+
     class EchaBridge {
         @JavascriptInterface
         public void onData(String jsonData) {
-            Log.i(TAG, "Bridge data: " + jsonData.substring(0, Math.min(200, jsonData.length())));
+            logBridgeChunked(jsonData);
             collectedData.add(jsonData);
 
             // Forward to Capacitor listeners

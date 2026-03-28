@@ -21,6 +21,9 @@ npm run db:migrate       # Appliquer migrations Prisma
 npm run db:generate      # Régénérer le client Prisma
 npm run db:ingest        # Ingérer toutes les sessions analysées dans SQLite
 
+# Visualizer (debug)
+npm run visualizer       # Lance le dashboard debug sur http://localhost:3000
+
 # APK
 npm run apk:install -- <path.apk>    # Install APK sur tous les devices
 ```
@@ -29,7 +32,20 @@ npm run apk:install -- <path.apk>    # Install APK sur tous les devices
 
 ECHA capture et analyse l'activité Instagram d'un utilisateur pour produire un **rapport structuré** de sa consommation : quels contenus vus, combien de temps sur chacun, quelle catégorie, quelle origine (organique/algo/pub).
 
-**Objectif final** : workflow complet **capture WebView Capacitor → OCR → classification → rapport d'attention** avec tracking du temps passé par contenu.
+**Objectif final** : workflow complet **capture → enrichissement sémantique → scoring politique/polarisation → profil utilisateur** avec pipeline documentaire complet.
+
+## Roadmap
+
+Voir [`docs/ROADMAP.md`](docs/ROADMAP.md) pour le plan détaillé du MVP en 2 niveaux :
+- **Niveau post** : enrichissement sémantique, scoring politique (0-4), polarisation (0-1), narratif, confiance
+- **Niveau utilisateur** : agrégation 7j/30j/90j, profils de consommation, indices de diversité
+
+### État d'avancement vs Roadmap
+- **Phase 0 (cadrage)** : ✅ fait — périmètre, taxonomie, schéma Prisma
+- **Phase 1 (audit data)** : ✅ fait — capture fonctionnelle, sessions collectées, champs mappés
+- **Phase 2 (design modèle post)** : 🔶 partiel — `PostSemantic` existe mais ne couvre pas tout le spec `post_enriched`
+- **Phase 3 (implémentation post)** : 🔶 partiel — catégorisation regex (16 catégories), pas de LLM/scoring politique/polarisation
+- **Phase 4-8** : ❌ à faire
 
 ## Stack
 
@@ -55,7 +71,18 @@ echa/
 │   ├── adb.ts                    # Wrapper ADB commands
 │   ├── adb-path.ts               # Résolution chemin ADB
 │   ├── logcat-listener.ts        # Écoute logcat AccessibilityService
-│   └── listen.ts                 # Entry point listener
+│   ├── logcat-tap.ts             # EventEmitter logcat (ECHA_DATA + ECHA_MLKIT)
+│   ├── listen.ts                 # Entry point listener
+│   ├── ingest-all.ts             # Ingestion batch sessions → SQLite
+│   ├── db/
+│   │   ├── client.ts             # Prisma client (better-sqlite3 adapter)
+│   │   └── ingest.ts             # Pipeline _analysis.json → SQLite
+│   └── visualizer/
+│       ├── server.ts             # HTTP + WebSocket + live ingest
+│       ├── api.ts                # REST API (sessions, posts, stats)
+│       └── public/
+│           ├── index.html        # Dashboard debug (6 panneaux)
+│           └── dashboard.js      # Client WS + rendu DOM
 ├── echa-android/                 # APK AccessibilityService (Java)
 │   └── app/src/main/java/com/lab/echa/
 │       ├── InstagramAccessibilityService.java  # Service principal
