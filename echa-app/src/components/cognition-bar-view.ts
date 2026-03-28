@@ -132,6 +132,14 @@ export class CognitionBarView extends LitElement {
   @property({ type: String }) secondaryMetric: CognitiveMetricKey = 'engagement';
   @property({ type: Number }) chromaPower = 65;
 
+  private selectTheme(themeId: string) {
+    this.dispatchEvent(new CustomEvent<{ themeId: string }>('theme-selected', {
+      detail: { themeId },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   private metricLabel(key: CognitiveMetricKey): string {
     return COGNITIVE_METRICS.find(metric => metric.key === key)?.label ?? key;
   }
@@ -185,7 +193,7 @@ export class CognitionBarView extends LitElement {
             const primary = theme.normalizedMetrics?.[this.primaryMetric] ?? 0;
             const secondary = theme.normalizedMetrics?.[this.secondaryMetric] ?? 0;
             return html`
-              <article class="bar-card">
+              <article class="bar-card" role="button" tabindex="0" @click=${() => this.selectTheme(theme.themeId)}>
                 <div class="bar-head">
                   <div class="bar-name">${theme.themeLabel}</div>
                   <div class="bar-meta">

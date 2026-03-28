@@ -14,6 +14,7 @@ import '../components/cognition-controls.js';
 import '../components/cognition-bubble-view.js';
 import '../components/cognition-bar-view.js';
 import '../components/cognition-radar-view.js';
+import '../components/cognition-theme-detail.js';
 
 @customElement('screen-cognition')
 export class ScreenCognition extends LitElement {
@@ -249,6 +250,7 @@ export class ScreenCognition extends LitElement {
   @state() private primaryMetric: CognitiveMetricKey = 'durationTotalMs';
   @state() private secondaryMetric: CognitiveMetricKey = 'engagement';
   @state() private chromaPower = 65;
+  @state() private selectedThemeId = '';
 
   connectedCallback() {
     super.connectedCallback();
@@ -270,9 +272,20 @@ export class ScreenCognition extends LitElement {
   }
 
   private async loadDataset() {
-      this.bubbleData = await loadCognitiveBubbleData({
+    this.bubbleData = await loadCognitiveBubbleData({
       sessionId: this.selectedSessionId || undefined,
     });
+
+    const themes = this.bubbleData.themes ?? [];
+    if (themes.length === 0) {
+      this.selectedThemeId = '';
+      return;
+    }
+
+    const selectedThemeExists = themes.some(theme => theme.themeId === this.selectedThemeId);
+    if (!selectedThemeExists) {
+      this.selectedThemeId = themes[0]?.themeId ?? '';
+    }
   }
 
   private onControlsChange = async (event: CustomEvent<CognitionControlsChangeDetail>) => {
@@ -296,6 +309,10 @@ export class ScreenCognition extends LitElement {
     if (chromaPower !== undefined) this.chromaPower = chromaPower;
   };
 
+  private onThemeSelected = (event: CustomEvent<{ themeId: string }>) => {
+    this.selectedThemeId = event.detail.themeId;
+  };
+
   private refresh = async () => {
     this.loading = true;
     this.error = '';
@@ -303,10 +320,14 @@ export class ScreenCognition extends LitElement {
       await this.loadDataset();
     } catch (e: any) {
       this.error = e?.message || 'Erreur de chargement';
-      } finally {
-        this.loading = false;
-      }
+    } finally {
+      this.loading = false;
+    }
   };
+
+  private get selectedTheme() {
+    return this.bubbleData?.themes.find(theme => theme.themeId === this.selectedThemeId) ?? null;
+  }
 
   private renderThemePreview() {
     const themes = this.bubbleData?.themes ?? [];
@@ -397,6 +418,7 @@ export class ScreenCognition extends LitElement {
                     .primaryMetric=${this.primaryMetric}
                     .secondaryMetric=${this.secondaryMetric}
                     .chromaPower=${this.chromaPower}
+                    @theme-selected=${this.onThemeSelected}
                   ></cognition-bubble-view>
                 `
               : this.mode === 'bar'
@@ -406,6 +428,7 @@ export class ScreenCognition extends LitElement {
                       .primaryMetric=${this.primaryMetric}
                       .secondaryMetric=${this.secondaryMetric}
                       .chromaPower=${this.chromaPower}
+                      @theme-selected=${this.onThemeSelected}
                     ></cognition-bar-view>
                   `
               : html`
@@ -427,6 +450,11 @@ export class ScreenCognition extends LitElement {
             <div class="state" style="margin-top:12px">
               <div class="label">Aperçu des thèmes</div>
               ${this.renderThemePreview()}
+            </div>
+
+            <div class="state" style="margin-top:12px">
+              <div class="label">Détail du thème</div>
+              <cognition-theme-detail .themeData=${this.selectedTheme}></cognition-theme-detail>
             </div>
           </aside>
         </div>

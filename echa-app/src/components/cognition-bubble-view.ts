@@ -152,6 +152,14 @@ export class CognitionBubbleView extends LitElement {
   @property({ type: String }) secondaryMetric: CognitiveMetricKey = 'engagement';
   @property({ type: Number }) chromaPower = 65;
 
+  private selectTheme(themeId: string) {
+    this.dispatchEvent(new CustomEvent<{ themeId: string }>('theme-selected', {
+      detail: { themeId },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   private metricLabel(key: CognitiveMetricKey): string {
     return COGNITIVE_METRICS.find(metric => metric.key === key)?.label ?? key;
   }
@@ -213,9 +221,11 @@ export class CognitionBubbleView extends LitElement {
               const secondary = theme.normalizedMetrics?.[this.secondaryMetric] ?? 0;
               return html`
                 <button
+                  type="button"
                   class="bubble"
                   style="width:${size}px;height:${size}px;background:${this.colorFor(theme)}"
                   title="${theme.themeLabel}"
+                  @click=${() => this.selectTheme(theme.themeId)}
                 >
                   <div class="bubble-inner">
                     <div class="bubble-name">${theme.themeLabel}</div>
