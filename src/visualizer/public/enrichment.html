@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECHA — Enrichment Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d1117; --surface: #161b22; --surface2: #1c2333;
+      --border: #30363d; --text: #e6edf3; --text-dim: #8b949e;
+      --accent: #58a6ff; --green: #3fb950; --yellow: #d29922;
+      --red: #f85149; --orange: #db6d28; --purple: #bc8cff;
+    }
+    body { font-family: 'SF Mono','Cascadia Code','Consolas',monospace; font-size: 13px; background: var(--bg); color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Layout */
+    .header { padding: 16px 24px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+    .header h1 { font-size: 16px; font-weight: 700; }
+    .header .nav { margin-left: auto; display: flex; gap: 12px; font-size: 12px; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px 24px; }
+
+    /* Stats cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .stat-card .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px; }
+    .stat-card .value { font-size: 24px; font-weight: 700; }
+    .stat-card .value.accent { color: var(--accent); }
+    .stat-card .value.green { color: var(--green); }
+    .stat-card .value.yellow { color: var(--yellow); }
+    .stat-card .value.red { color: var(--red); }
+    .stat-card .value.purple { color: var(--purple); }
+
+    /* Charts section */
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+    .chart-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .chart-panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 12px; }
+
+    /* Bar chart */
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .bar-label { width: 140px; font-size: 11px; color: var(--text); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { flex: 1; height: 18px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; min-width: 2px; }
+    .bar-count { width: 36px; font-size: 11px; color: var(--text-dim); text-align: right; }
+
+    /* Political scale */
+    .pol-0 { background: var(--text-dim); } .pol-1 { background: #4a9e5c; }
+    .pol-2 { background: var(--yellow); } .pol-3 { background: var(--orange); } .pol-4 { background: var(--red); }
+    .pol-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+
+    /* Post list */
+    .post-table { width: 100%; border-collapse: collapse; }
+    .post-table th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); }
+    .post-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: top; }
+    .post-table tr:hover { background: var(--surface2); }
+    .post-table .username { color: var(--accent); font-weight: 600; }
+    .post-table .summary { color: var(--text); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .post-table .topics { display: flex; gap: 4px; flex-wrap: wrap; }
+
+    .tag { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+    .tag-topic { background: #1a2a4a; color: var(--accent); }
+    .tag-narrative { background: #2d1a4a; color: var(--purple); }
+    .tag-political { padding: 1px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; color: #fff; }
+
+    .score-bar { display: inline-block; width: 50px; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; vertical-align: middle; }
+    .score-bar-fill { height: 100%; border-radius: 4px; }
+
+    .filters { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+    .filters select, .filters input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-family: inherit; font-size: 12px; }
+    .filters label { font-size: 11px; color: var(--text-dim); }
+
+    .badge-review { background: #4a3a1a; color: var(--yellow); padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: 700; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .loading { color: var(--text-dim); text-align: center; padding: 40px; }
+
+    /* Post detail modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; }
+    .modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 700px; max-width: 90vw; max-height: 85vh; overflow-y: auto; padding: 24px; }
+    .modal h2 { font-size: 15px; margin-bottom: 16px; }
+    .modal .close { float: right; cursor: pointer; color: var(--text-dim); font-size: 18px; }
+    .modal .close:hover { color: var(--text); }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .detail-field { margin-bottom: 10px; }
+    .detail-field .dl { font-size: 10px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 2px; }
+    .detail-field .dv { font-size: 12px; color: var(--text); word-break: break-word; }
+    .signals { display: flex; gap: 8px; flex-wrap: wrap; }
+    .signal { padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+    .signal-on { background: #3a1a1a; color: var(--red); }
+    .signal-off { background: var(--surface2); color: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ECHA — Enrichment Dashboard</h1>
+  <div class="nav">
+    <a href="/">Debug</a>
+    <a href="/enrichment.html"><b>Enrichment</b></a>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Stats -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card"><div class="label">Total posts</div><div class="value accent" id="s-total">—</div></div>
+    <div class="stat-card"><div class="label">Enrichis</div><div class="value green" id="s-enriched">—</div></div>
+    <div class="stat-card"><div class="label">Taux enrichissement</div><div class="value green" id="s-rate">—</div></div>
+    <div class="stat-card"><div class="label">Polarisation moy.</div><div class="value yellow" id="s-polar">—</div></div>
+    <div class="stat-card"><div class="label">Confiance moy.</div><div class="value accent" id="s-conf">—</div></div>
+    <div class="stat-card"><div class="label">À reviewer</div><div class="value red" id="s-review">—</div></div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts">
+    <div class="chart-panel">
+      <h3>Distribution politique (0-4)</h3>
+      <div id="chart-political"></div>
+      <div class="pol-labels">
+        <span>0 apolitique</span><span>1 social</span><span>2 indirect</span><span>3 explicite</span><span>4 militant</span>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <h3>Top thèmes</h3>
+      <div id="chart-topics"></div>
+    </div>
+    <div class="chart-panel">
+      <h3>Narratifs détectés</h3>
+      <div id="chart-narratives"></div>
+    </div>
+    <div class="chart-panel">
+      <h3>Distribution polarisation</h3>
+      <div id="chart-polar"></div>
+    </div>
+  </div>
+
+  <!-- Post list -->
+  <div class="chart-panel" style="margin-bottom: 24px;">
+    <h3>Posts enrichis</h3>
+    <div class="filters">
+      <label>Politique min: <select id="f-pol-min"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+      <label>Politique max: <select id="f-pol-max"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option></select></label>
+      <label>Narratif: <select id="f-narrative"><option value="">Tous</option></select></label>
+      <label><input type="checkbox" id="f-review"> Review only</label>
+      <button onclick="loadPosts()" style="background:var(--accent);color:#000;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-family:inherit;font-weight:600;">Filtrer</button>
+    </div>
+    <div style="max-height: 600px; overflow-y: auto;">
+      <table class="post-table">
+        <thead>
+          <tr>
+            <th>Auteur</th>
+            <th>Résumé</th>
+            <th>Thèmes</th>
+            <th>Pol.</th>
+            <th>Polar.</th>
+            <th>Narratif</th>
+            <th>Conf.</th>
+          </tr>
+        </thead>
+        <tbody id="post-tbody">
+          <tr><td colspan="7" class="loading">Chargement...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+
+const POL_COLORS = ['#8b949e','#4a9e5c','#d29922','#db6d28','#f85149'];
+const POL_LABELS = ['Apolitique','Social','Indirect','Explicite','Militant'];
+const TOPIC_COLORS = { politique:'#f85149', geopolitique:'#db6d28', immigration:'#d29922', securite:'#f85149', ecologie:'#3fb950', feminisme:'#bc8cff', identite:'#bc8cff', societe:'#58a6ff' };
+
+let allPosts = [];
+
+async function loadStats() {
+  try {
+    const res = await fetch('/api/enrichment/stats');
+    const d = await res.json();
+    $('s-total').textContent = d.totalPosts;
+    $('s-enriched').textContent = d.totalEnriched;
+    $('s-rate').textContent = d.enrichmentRate + '%';
+    $('s-polar').textContent = d.avgPolarization;
+    $('s-conf').textContent = d.avgConfidence;
+    $('s-review').textContent = d.reviewFlagged;
+
+    // Political chart
+    const maxPol = Math.max(...d.byPolitical.map(b => b._count), 1);
+    $('chart-political').innerHTML = d.byPolitical.map(b => {
+      const pct = Math.round(b._count / maxPol * 100);
+      return barRow(POL_LABELS[b.politicalExplicitnessScore], b._count, pct, `pol-${b.politicalExplicitnessScore}`);
+    }).join('');
+
+    // Topics chart
+    const maxTopic = d.topTopics.length > 0 ? d.topTopics[0][1] : 1;
+    $('chart-topics').innerHTML = d.topTopics.map(([topic, count]) => {
+      const pct = Math.round(count / maxTopic * 100);
+      const color = TOPIC_COLORS[topic] || 'var(--accent)';
+      return barRow(topic, count, pct, '', color);
+    }).join('');
+
+    // Narratives chart
+    const maxNar = d.byNarrative.length > 0 ? d.byNarrative[0]._count : 1;
+    $('chart-narratives').innerHTML = d.byNarrative.slice(0, 10).map(n => {
+      const pct = Math.round(n._count / maxNar * 100);
+      return barRow(n.narrativeFrame || '(aucun)', n._count, pct, '', 'var(--purple)');
+    }).join('') || '<div class="loading">Aucun narratif</div>';
+
+    // Polar chart
+    const totalPolar = Object.values(d.polarBuckets).reduce((a,b) => a+b, 0) || 1;
+    const polarLabels = { low: '< 0.2 (faible)', medium: '0.2–0.5 (modéré)', high: '0.5–0.8 (fort)', extreme: '> 0.8 (extrême)' };
+    const polarColors = { low: 'var(--green)', medium: 'var(--yellow)', high: 'var(--orange)', extreme: 'var(--red)' };
+    $('chart-polar').innerHTML = Object.entries(d.polarBuckets).map(([k, v]) => {
+      const pct = Math.round(v / totalPolar * 100);
+      return barRow(polarLabels[k], v, pct, '', polarColors[k]);
+    }).join('');
+
+    // Populate narrative filter
+    const sel = $('f-narrative');
+    d.byNarrative.forEach(n => {
+      if (n.narrativeFrame) { const o = document.createElement('option'); o.value = n.narrativeFrame; o.textContent = n.narrativeFrame; sel.appendChild(o); }
+    });
+  } catch (e) { console.error('Stats error:', e); }
+}
+
+function barRow(label, count, pct, cssClass, color) {
+  const style = color ? `background:${color}` : '';
+  return `<div class="bar-row">
+    <span class="bar-label">${esc(label)}</span>
+    <div class="bar-track"><div class="bar-fill ${cssClass}" style="width:${pct}%;${style}"></div></div>
+    <span class="bar-count">${count}</span>
+  </div>`;
+}
+
+async function loadPosts() {
+  const polMin = $('f-pol-min').value;
+  const polMax = $('f-pol-max').value;
+  const narrative = $('f-narrative').value;
+  const review = $('f-review').checked ? '1' : '0';
+  const params = new URLSearchParams({ political_min: polMin, political_max: polMax, review, limit: '100' });
+  if (narrative) params.set('narrative', narrative);
+
+  try {
+    const res = await fetch('/api/enrichment/posts?' + params);
+    allPosts = await res.json();
+    renderPosts();
+  } catch (e) { console.error('Posts error:', e); }
+}
+
+function renderPosts() {
+  const tbody = $('post-tbody');
+  if (allPosts.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucun post trouvé</td></tr>'; return; }
+
+  tbody.innerHTML = allPosts.map((p, i) => {
+    const topics = safeParse(p.mainTopics).map(t => `<span class="tag tag-topic">${esc(t)}</span>`).join('');
+    const polScore = p.politicalExplicitnessScore;
+    const polColor = POL_COLORS[polScore];
+    const polarPct = Math.round(p.polarizationScore * 100);
+    const confPct = Math.round(p.confidenceScore * 100);
+    const review = p.reviewFlag ? ' <span class="badge-review">REVIEW</span>' : '';
+
+    return `<tr onclick="showDetail(${i})" style="cursor:pointer">
+      <td class="username">@${esc(p.post?.username || '?')}</td>
+      <td class="summary" title="${esc(p.semanticSummary)}">${esc(p.semanticSummary || '—')}</td>
+      <td class="topics">${topics}</td>
+      <td><span class="tag-political" style="background:${polColor}">${polScore}</span></td>
+      <td><span class="score-bar"><span class="score-bar-fill" style="width:${polarPct}%;background:${polarPct > 60 ? 'var(--red)' : polarPct > 30 ? 'var(--yellow)' : 'var(--green)'}"></span></span> ${p.polarizationScore}</td>
+      <td>${p.narrativeFrame ? `<span class="tag tag-narrative">${esc(p.narrativeFrame)}</span>` : '—'}</td>
+      <td>${confPct}%${review}</td>
+    </tr>`;
+  }).join('');
+}
+
+function showDetail(idx) {
+  const p = allPosts[idx];
+  if (!p) return;
+
+  const topics = [...safeParse(p.mainTopics), ...safeParse(p.secondaryTopics)];
+  const persons = safeParse(p.persons).filter(x => x && !x.startsWith('aucun'));
+  const orgs = safeParse(p.organizations).filter(x => x && !x.startsWith('aucun'));
+  const institutions = safeParse(p.institutions).filter(x => x && !x.startsWith('aucun'));
+  const countries = safeParse(p.countries);
+  const polIssues = safeParse(p.politicalIssueTags);
+  const polActors = safeParse(p.politicalActors).filter(x => x && !x.startsWith('aucun'));
+  const polColor = POL_COLORS[p.politicalExplicitnessScore];
+
+  $('modal-body').innerHTML = `
+    <span class="close" onclick="closeModal()">✕</span>
+    <h2>@${esc(p.post?.username || '?')} — Fiche enrichie</h2>
+
+    <div class="detail-field"><div class="dl">Résumé sémantique</div><div class="dv">${esc(p.semanticSummary || '—')}</div></div>
+    <div class="detail-field"><div class="dl">Texte normalisé</div><div class="dv" style="max-height:120px;overflow-y:auto;background:var(--surface2);padding:8px;border-radius:4px;font-size:11px">${esc(p.normalizedText || '—')}</div></div>
+
+    <div class="detail-grid">
+      <div>
+        <div class="detail-field"><div class="dl">Thèmes</div><div class="dv topics">${topics.map(t => `<span class="tag tag-topic">${esc(t)}</span>`).join(' ') || '—'}</div></div>
+        <div class="detail-field"><div class="dl">Domaine</div><div class="dv">${esc(p.contentDomain || '—')}</div></div>
+        <div class="detail-field"><div class="dl">Audience cible</div><div class="dv">${esc(p.audienceTarget || '—')}</div></div>
+        <div class="detail-field"><div class="dl">Tonalité</div><div class="dv">${esc(p.tone || '—')}</div></div>
+        <div class="detail-field"><div class="dl">Émotion</div><div class="dv">${esc(p.primaryEmotion || '—')} (intensité: ${p.emotionIntensity})</div></div>
+      </div>
+      <div>
+        <div class="detail-field"><div class="dl">Personnes</div><div class="dv">${persons.map(x => esc(x)).join(', ') || '—'}</div></div>
+        <div class="detail-field"><div class="dl">Organisations</div><div class="dv">${orgs.map(x => esc(x)).join(', ') || '—'}</div></div>
+        <div class="detail-field"><div class="dl">Institutions</div><div class="dv">${institutions.map(x => esc(x)).join(', ') || '—'}</div></div>
+        <div class="detail-field"><div class="dl">Pays</div><div class="dv">${countries.map(x => esc(x)).join(', ') || '—'}</div></div>
+        <div class="detail-field"><div class="dl">Acteurs politiques</div><div class="dv">${polActors.map(x => esc(x)).join(', ') || '—'}</div></div>
+      </div>
+    </div>
+
+    <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--text-dim)">Scoring</h3>
+    <div class="detail-grid">
+      <div>
+        <div class="detail-field"><div class="dl">Portée politique</div><div class="dv"><span class="tag-political" style="background:${polColor}">${p.politicalExplicitnessScore}</span> ${POL_LABELS[p.politicalExplicitnessScore]}</div></div>
+        <div class="detail-field"><div class="dl">Enjeux politiques</div><div class="dv">${polIssues.map(x => esc(x)).join(', ') || '—'}</div></div>
+        <div class="detail-field"><div class="dl">Activisme</div><div class="dv">${p.activismSignal ? '🔴 Oui' : '—'}</div></div>
+      </div>
+      <div>
+        <div class="detail-field"><div class="dl">Polarisation</div><div class="dv"><span class="score-bar" style="width:80px"><span class="score-bar-fill" style="width:${Math.round(p.polarizationScore*100)}%;background:${p.polarizationScore > 0.6 ? 'var(--red)' : p.polarizationScore > 0.3 ? 'var(--yellow)' : 'var(--green)'}"></span></span> ${p.polarizationScore}</div></div>
+        <div class="detail-field"><div class="dl">Signaux de polarisation</div><div class="dv signals">
+          <span class="signal ${p.ingroupOutgroupSignal ? 'signal-on' : 'signal-off'}">ingroup/outgroup</span>
+          <span class="signal ${p.conflictSignal ? 'signal-on' : 'signal-off'}">conflit</span>
+          <span class="signal ${p.moralAbsoluteSignal ? 'signal-on' : 'signal-off'}">moral absolu</span>
+          <span class="signal ${p.enemyDesignationSignal ? 'signal-on' : 'signal-off'}">ennemi désigné</span>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="detail-grid" style="margin-top:12px">
+      <div>
+        <div class="detail-field"><div class="dl">Narratif</div><div class="dv">${p.narrativeFrame ? `<span class="tag tag-narrative">${esc(p.narrativeFrame)}</span>` : '—'}</div></div>
+        <div class="detail-field"><div class="dl">Appel à l'action</div><div class="dv">${esc(p.callToActionType || '—')}</div></div>
+        <div class="detail-field"><div class="dl">Schéma problème/solution</div><div class="dv">${esc(p.problemSolutionPattern || '—')}</div></div>
+      </div>
+      <div>
+        <div class="detail-field"><div class="dl">Confiance</div><div class="dv">${Math.round(p.confidenceScore * 100)}%</div></div>
+        <div class="detail-field"><div class="dl">Provider</div><div class="dv">${esc(p.provider)} / ${esc(p.model)}</div></div>
+        ${p.reviewFlag ? `<div class="detail-field"><div class="dl">Review flag</div><div class="dv" style="color:var(--yellow)">${esc(p.reviewReason)}</div></div>` : ''}
+      </div>
+    </div>
+  `;
+
+  $('modal-overlay').classList.add('active');
+}
+
+function closeModal() { $('modal-overlay').classList.remove('active'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function safeParse(json) { try { return JSON.parse(json || '[]'); } catch { return []; } }
+
+// Boot
+loadStats();
+loadPosts();
+</script>
+</body>
+</html>

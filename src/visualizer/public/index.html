@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ECHA Debug Visualizer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1c2333;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-dim: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --orange: #db6d28;
+      --purple: #bc8cff;
+    }
+
+    body {
+      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+    }
+
+    /* ─── Stats Bar ──────────────────────────── */
+    #stats-bar {
+      display: flex;
+      gap: 24px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stat-label { color: var(--text-dim); font-size: 11px; }
+
+    #adb-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+    }
+    .dot.connected { background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ─── Main Grid ──────────────────────────── */
+    #main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+    }
+
+    /* ─── Focused Post ───────────────────────── */
+    #focused-post .post-card {
+      padding: 12px;
+      background: var(--surface2);
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .post-username {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .post-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .badge-photo { background: #1a4a2e; color: var(--green); }
+    .badge-video { background: #3b2510; color: var(--orange); }
+    .badge-carousel { background: #1a2a4a; color: var(--accent); }
+    .badge-reel { background: #2d1a4a; color: var(--purple); }
+    .badge-sponsored { background: #4a1a1a; color: var(--red); }
+    .badge-suggested { background: #4a3a1a; color: var(--yellow); }
+
+    .post-field { margin-bottom: 6px; }
+    .post-field-label {
+      color: var(--text-dim);
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .post-field-value {
+      color: var(--text);
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .dwell-timer {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      padding: 8px;
+      margin-top: 8px;
+    }
+    .dwell-skipped { color: var(--text-dim); }
+    .dwell-glanced { color: var(--yellow); }
+    .dwell-viewed { color: var(--accent); }
+    .dwell-engaged { color: var(--green); }
+
+    /* ─── Live Stream ────────────────────────── */
+    #live-stream .panel-body { padding: 0; }
+
+    .stream-entry {
+      padding: 4px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .stream-entry:hover { background: var(--surface2); }
+
+    .stream-time { color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+    .stream-type {
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .type-event { background: #1a3a2a; color: var(--green); }
+    .type-mlkit { background: #2d1a4a; color: var(--purple); }
+    .type-summary { background: #1a2a4a; color: var(--accent); }
+    .type-error { background: #4a1a1a; color: var(--red); }
+    .type-raw { background: #2a2a2a; color: var(--text-dim); }
+    .type-enrich { background: #1a3a4a; color: #7ec8e3; }
+
+    .stream-msg {
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ─── Enrichment Panel ────────────────────── */
+    .enrich-card {
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+    .enrich-section { margin-bottom: 10px; }
+    .enrich-section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .score-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .score-label { width: 100px; color: var(--text); font-size: 12px; }
+    .score-track {
+      flex: 1;
+      height: 14px;
+      background: var(--bg);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+    .score-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+    .score-value { width: 36px; text-align: right; color: var(--text-dim); font-size: 11px; }
+
+    .topic-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      margin: 2px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .topic-main { background: #1a3a2a; color: var(--green); }
+    .topic-secondary { background: #1a2a3a; color: var(--accent); }
+    .topic-political { background: #4a1a2a; color: var(--red); }
+
+    .signal-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      margin: 2px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .signal-on { background: #4a2a1a; color: var(--orange); }
+    .signal-off { background: var(--bg); color: var(--text-dim); opacity: 0.4; }
+
+    .entity-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      margin: 2px;
+      border-radius: 10px;
+      font-size: 10px;
+      background: #2d1a4a;
+      color: var(--purple);
+    }
+
+    .normalized-text {
+      background: var(--bg);
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 120px;
+      overflow-y: auto;
+      line-height: 1.4;
+    }
+
+    /* ─── MLKit Panel (compact) ──────────────── */
+    .mlkit-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .mlkit-label-text { width: 100px; color: var(--text); font-size: 11px; }
+    .mlkit-bar {
+      flex: 1;
+      height: 12px;
+      background: var(--bg);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .mlkit-bar-fill {
+      height: 100%;
+      background: var(--purple);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .mlkit-conf { width: 36px; text-align: right; color: var(--text-dim); font-size: 10px; }
+
+    /* ─── Quality Bar ────────────────────────── */
+    #quality-bar {
+      display: flex;
+      gap: 20px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      align-items: center;
+    }
+
+    .quality-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .quality-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+    .q-good { background: var(--green); }
+    .q-warn { background: var(--yellow); }
+    .q-bad { background: var(--red); }
+
+    /* ─── Empty state ────────────────────────── */
+    .empty-state {
+      color: var(--text-dim);
+      text-align: center;
+      padding: 40px 20px;
+      font-size: 12px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+  <!-- Stats Bar -->
+  <div id="stats-bar">
+    <div class="stat">
+      <span class="stat-value" id="stat-posts">0</span>
+      <span class="stat-label">posts</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value" id="stat-events">0</span>
+      <span class="stat-label">events</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value" id="stat-duration">0:00</span>
+      <span class="stat-label">duration</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value" id="stat-eps">0</span>
+      <span class="stat-label">evt/s</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value" id="stat-mlkit">0</span>
+      <span class="stat-label">MLKit</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value" id="stat-errors">0</span>
+      <span class="stat-label">errors</span>
+    </div>
+    <div id="adb-status">
+      <div class="dot" id="adb-dot"></div>
+      <span class="stat-label" id="adb-label">disconnected</span>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div id="main">
+
+    <!-- Focused Post -->
+    <div class="panel" id="focused-post">
+      <div class="panel-header">
+        <span>Focused Post</span>
+        <span id="focused-post-count"></span>
+      </div>
+      <div class="panel-body" id="focused-post-body">
+        <div class="empty-state">Waiting for events...</div>
+      </div>
+    </div>
+
+    <!-- Live Stream -->
+    <div class="panel" id="live-stream">
+      <div class="panel-header">
+        <span>Live Event Stream</span>
+        <span id="stream-count">0</span>
+      </div>
+      <div class="panel-body" id="stream-body"></div>
+    </div>
+
+    <!-- Enrichment Panel -->
+    <div class="panel" id="enrichment-panel">
+      <div class="panel-header">
+        <span>Enrichissement</span>
+        <span id="enrichment-count">0</span>
+      </div>
+      <div class="panel-body" id="enrichment-body">
+        <div class="empty-state">En attente d'analyse...</div>
+      </div>
+    </div>
+
+    <!-- Analysis Detail Panel -->
+    <div class="panel" id="analysis-panel">
+      <div class="panel-header">
+        <span>Analyse Detail</span>
+        <span id="analysis-post-id"></span>
+      </div>
+      <div class="panel-body" id="analysis-body">
+        <div class="empty-state">Selectionner un post pour voir l'analyse</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Quality Bar -->
+  <div id="quality-bar">
+    <div class="quality-item">
+      <div class="quality-dot q-good" id="q-parse-dot"></div>
+      <span>Parse: <span id="q-parse">100%</span></span>
+    </div>
+    <div class="quality-item">
+      <div class="quality-dot q-good" id="q-chunk-dot"></div>
+      <span>Chunks: <span id="q-chunks">0/0</span></span>
+    </div>
+    <div class="quality-item">
+      <div class="quality-dot q-good" id="q-fields-dot"></div>
+      <span>Fields: <span id="q-fields">OK</span></span>
+    </div>
+    <div class="quality-item">
+      <div class="quality-dot q-good" id="q-mlkit-dot"></div>
+      <span>MLKit: <span id="q-mlkit">0</span></span>
+    </div>
+    <div class="quality-item">
+      <div class="quality-dot q-good" id="q-enrich-dot"></div>
+      <span>Enriched: <span id="q-enrich">0</span></span>
+    </div>
+    <div class="quality-item" style="margin-left: auto;">
+      <a href="/enrichment.html" style="color: var(--accent); text-decoration: none; font-weight: 600;">Enrichment Dashboard →</a>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
