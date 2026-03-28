@@ -207,10 +207,7 @@ pages:
   stage: pages
   tags: [docker]
   image: ${NODE_IMAGE}
-  needs:
-    - job: build:apk
-      artifacts: true
-      optional: true
+  needs: []
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
@@ -218,17 +215,6 @@ pages:
     - npm ci
     - npx astro build
     - mv dist ../public
-    - cd ..
-    # Copier l'APK dans le site si disponible (fallback local)
-    - |
-      if [ -f "${APK_NAME}" ]; then
-        mkdir -p public/download
-        cp "${APK_NAME}" "public/download/${APK_NAME}"
-        cp "${APK_NAME}" "public/download/scrollout-latest.apk"
-        echo "APK copied to pages: ${APK_NAME}"
-      else
-        echo "No APK artifact found — site will use registry link"
-      fi
   artifacts:
     paths:
       - public
