@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit';
+import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { customElement, state } from 'lit/decorators.js';
 import { getStats, type DbStats } from '../services/db-bridge.js';
 
@@ -26,6 +27,28 @@ function domainLabel(d: string): string {
   return map[d] || d;
 }
 
+/** Inline Lucide-style SVG icons (24x24, stroke) */
+const icon = (path: string, size = 20) => html`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex-shrink:0;">${unsafeSVG(path)}</svg>`;
+
+const ICONS = {
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  map: '<path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/>',
+  alertTriangle: '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  zap: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>',
+  barChart: '<path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>',
+  compass: '<circle cx="12" cy="12" r="10"/><path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  bookOpen: '<path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>',
+  users: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+  shuffle: '<path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/>',
+  trophy: '<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 1012 0V2z"/>',
+  ruler: '<path d="M21.3 15.3a2.4 2.4 0 010 3.4l-2.6 2.6a2.4 2.4 0 01-3.4 0L2.7 8.7a2.4 2.4 0 010-3.4l2.6-2.6a2.4 2.4 0 013.4 0z"/><path d="M14.5 12.5l2-2"/><path d="M11.5 9.5l2-2"/><path d="M8.5 6.5l2-2"/><path d="M17.5 15.5l2-2"/>',
+  gauge: '<path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14 0-5.5 3-7 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.15.5-2.5 1.5-3.5z"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+};
+
 function pct(n: number, total: number): number {
   return total ? Math.round((n / total) * 100) : 0;
 }
@@ -50,20 +73,20 @@ export class ScreenWrapped extends LitElement {
 
     .slides {
       display: flex;
-      width: 600%;
+      width: 700%;
       height: 100%;
       transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
       touch-action: pan-y;
     }
 
     .slide {
-      width: calc(100% / 6);
+      width: calc(100% / 7);
       height: 100%;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       display: flex;
       flex-direction: column;
-      padding: 32px 22px env(safe-area-inset-bottom, 24px);
+      padding: 32px 20px calc(env(safe-area-inset-bottom, 16px) + 24px);
       box-sizing: border-box;
     }
 
@@ -73,7 +96,8 @@ export class ScreenWrapped extends LitElement {
     .slide-3 { background: linear-gradient(180deg, #fdf9f2 0%, #f4efe5 100%); }
     .slide-4 { background: linear-gradient(180deg, #1a1a1a 0%, #111 100%); color: #f0f0f0; }
     .slide-5 { background: linear-gradient(180deg, #f5f7f2 0%, #ecefe6 100%); }
-    .slide-6 { background: linear-gradient(180deg, #f8f4ec 0%, #eee7db 100%); }
+    .slide-6 { background: linear-gradient(180deg, #0f0f1a 0%, #1a1025 100%); color: #f0f0f0; }
+    .slide-7 { background: linear-gradient(180deg, #f8f4ec 0%, #eee7db 100%); }
 
     /* ── Typography ── */
     .eyebrow {
@@ -90,18 +114,18 @@ export class ScreenWrapped extends LitElement {
     .title {
       font-family: 'Outfit', sans-serif;
       font-weight: 900;
-      font-size: 36px;
-      line-height: 0.96;
+      font-size: 28px;
+      line-height: 1;
       color: #111;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
     .slide-4 .title { color: #f0f0f0; }
 
     .body-text {
-      font-size: 15px;
-      line-height: 1.45;
+      font-size: 13px;
+      line-height: 1.4;
       color: #555;
-      margin-bottom: 20px;
+      margin-bottom: 14px;
     }
     .slide-4 .body-text { color: #aaa; }
 
@@ -214,10 +238,16 @@ export class ScreenWrapped extends LitElement {
       margin-bottom: 6px;
     }
     .info-card .card-text {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
-      line-height: 1.15;
+      line-height: 1.2;
     }
+    .info-card .card-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .info-card .card-row svg { margin-top: 1px; }
 
     /* ── Metric blocks (slide 5) ── */
     .metric-block {
@@ -245,9 +275,9 @@ export class ScreenWrapped extends LitElement {
       margin-bottom: 10px;
     }
     .action-card .a-text {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
-      line-height: 1.15;
+      line-height: 1.2;
     }
 
     /* ── Domain bars ── */
@@ -295,7 +325,7 @@ export class ScreenWrapped extends LitElement {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding-top: 12px;
+      padding: 16px 0 8px;
     }
     .dots {
       display: flex;
@@ -315,6 +345,11 @@ export class ScreenWrapped extends LitElement {
     }
     .slide-4 .dot { background: #444; }
     .slide-4 .dot.active { background: #6B6BFF; }
+    .slide-6 .dot { background: #444; }
+    .slide-6 .dot.active { background: #6B6BFF; }
+    .slide-6 .eyebrow { color: #88aacc; }
+    .slide-6 .title { color: #f0f0f0; }
+    .slide-6 .body-text { color: #aaa; }
 
     .btn-next {
       display: flex;
@@ -334,6 +369,10 @@ export class ScreenWrapped extends LitElement {
     }
     .btn-next:active { opacity: 0.7; }
     .slide-4 .btn-next { background: #f0f0f0; color: #111; }
+    .slide-6 .btn-next { background: #f0f0f0; color: #111; }
+    .slide-6 .btn-back { color: #666; }
+    .slide-6 .close-btn { background: rgba(255,255,255,0.15); }
+    .slide-6 .close-btn svg { stroke: #aaa; }
     .btn-next.finish { background: #6B6BFF; color: #fff; }
 
     .btn-back {
@@ -352,11 +391,11 @@ export class ScreenWrapped extends LitElement {
     .close-btn {
       position: absolute;
       top: max(env(safe-area-inset-top, 12px), 12px);
-      right: 16px;
-      width: 32px;
-      height: 32px;
+      right: 14px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      background: rgba(0,0,0,0.06);
+      background: rgba(0,0,0,0.1);
       border: none;
       display: flex;
       align-items: center;
@@ -365,10 +404,10 @@ export class ScreenWrapped extends LitElement {
       z-index: 10;
       -webkit-tap-highlight-color: transparent;
     }
-    .close-btn svg { width: 16px; height: 16px; stroke: #888; stroke-width: 2; }
+    .close-btn svg { width: 20px; height: 20px; stroke: #555; stroke-width: 2.5; }
     .close-btn:active { opacity: 0.5; }
-    .slide-4 .close-btn { background: rgba(255,255,255,0.1); }
-    .slide-4 .close-btn svg { stroke: #888; }
+    .slide-4 .close-btn { background: rgba(255,255,255,0.15); }
+    .slide-4 .close-btn svg { stroke: #aaa; }
   `;
 
   @state() private currentSlide = 0;
@@ -414,7 +453,7 @@ export class ScreenWrapped extends LitElement {
   }
 
   private go(slide: number) {
-    this.currentSlide = Math.max(0, Math.min(5, slide));
+    this.currentSlide = Math.max(0, Math.min(6, slide));
   }
 
   private onTouchStart(e: TouchEvent) {
@@ -450,7 +489,7 @@ export class ScreenWrapped extends LitElement {
 
     return html`
       <div class="slides"
-        style="transform: translateX(-${this.currentSlide * (100 / 6)}%)"
+        style="transform: translateX(-${this.currentSlide * (100 / 7)}%)"
         @touchstart=${this.onTouchStart}
         @touchmove=${this.onTouchMove}
         @touchend=${this.onTouchEnd}
@@ -460,7 +499,8 @@ export class ScreenWrapped extends LitElement {
         ${this.renderSlide3(s)}
         ${this.renderSlide4(s)}
         ${this.renderSlide5(s)}
-        ${this.renderSlide6(s)}
+        ${this.renderSlide6Records(s)}
+        ${this.renderSlide7(s)}
       </div>
     `;
   }
@@ -474,9 +514,9 @@ export class ScreenWrapped extends LitElement {
           : html`<span></span>`
         }
         <div class="dots">
-          ${[0, 1, 2, 3, 4, 5].map(i => html`<div class="dot ${i === slide ? 'active' : ''}"></div>`)}
+          ${[0, 1, 2, 3, 4, 5, 6].map(i => html`<div class="dot ${i === slide ? 'active' : ''}"></div>`)}
         </div>
-        ${slide < 5
+        ${slide < 6
           ? html`<button class="btn-next" @click=${() => this.go(slide + 1)}>Suivant <span>→</span></button>`
           : html`<button class="btn-next finish" @click=${this.close}>Fermer</button>`
         }
@@ -495,9 +535,9 @@ export class ScreenWrapped extends LitElement {
         <button class="close-btn" @click=${this.close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-        <div class="eyebrow">Scrollout Wrapped / 2026</div>
+        <div class="eyebrow">${icon(ICONS.target, 14)} Scrollout Wrapped / 2026</div>
         <div class="title">Ton feed n'etait pas neutre. Il avait un centre de gravite.</div>
-        <div class="body-text">Sur ${this.totalPosts} posts observes (${this.totalEnriched} enrichis), ton attention gravitait autour de ${domainLabel(top.domain).toLowerCase()}. La bulle n'etait pas fermee, mais clairement orientee.</div>
+        <div class="body-text">${this.totalPosts} posts, ${this.totalEnriched} enrichis. Ton attention gravitait autour de ${domainLabel(top.domain).toLowerCase()}.</div>
 
         <div class="hero">
           <div class="hero-big">${top.pct}%</div>
@@ -541,9 +581,9 @@ export class ScreenWrapped extends LitElement {
         <button class="close-btn" @click=${this.close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-        <div class="eyebrow">02 / La carte de ta bulle</div>
+        <div class="eyebrow">${icon(ICONS.map, 14)} 02 / La carte de ta bulle</div>
         <div class="title">Voici a quoi ressemble ta bulle mise a plat.</div>
-        <div class="body-text">Les formes denses et colorees marquent les sujets ou tu reviens. Les zones pales montrent les angles morts.</div>
+        <div class="body-text">Dense = recurrent. Pale = angle mort.</div>
 
         <div class="bubble-map">
           ${domains.map((d, i) => {
@@ -591,16 +631,16 @@ export class ScreenWrapped extends LitElement {
         <button class="close-btn" @click=${this.close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-        <div class="eyebrow">03 / Tes biais</div>
+        <div class="eyebrow">${icon(ICONS.alertTriangle, 14)} 03 / Tes biais</div>
         <div class="title">Le biais ici ressemble moins a de l'extremisme qu'a une surexposition selective.</div>
 
         <div class="info-card dark">
           <div class="card-eyebrow">Biais de renforcement</div>
-          <div class="card-text">Le feed valide toujours le meme cadre culturel (${topPct}% concentre) au lieu de le challenger.</div>
+          <div class="card-text">Le feed valide le meme cadre (${topPct}% concentre).</div>
         </div>
 
         <div class="info-card accent">
-          <div class="card-text">Le contenu politique apparait, mais plutot en contact peripherique qu'en habitude centrale.</div>
+          <div class="card-text">Le politique reste peripherique, pas central.</div>
         </div>
 
         <div class="info-card surface">
@@ -641,25 +681,25 @@ export class ScreenWrapped extends LitElement {
         <button class="close-btn" @click=${this.close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-        <div class="eyebrow">04 / Contradictions</div>
+        <div class="eyebrow">${icon(ICONS.zap, 14)} 04 / Contradictions</div>
         <div class="title">Ton feed n'est pas juste biaise. Il est coherent contre toi.</div>
 
         <div class="info-card" style="background:#222;color:#f0f0f0;">
-          <div class="card-text">Perspective Gap : ton cluster principal reste loin de ${100 - (diversity * 14)}% des clusters d'opinion. Tu vois surtout une version locale du monde.</div>
+          <div class="card-text">Perspective Gap : tu vois surtout une version locale du monde.</div>
         </div>
 
         <div class="info-card" style="background:#FF7B33;color:#fff;">
-          <div class="card-text">Algorithm Dependency : repetition elevee + engagement eleve. L'algo te sert ce qui te garde, pas ce qui t'ouvre.</div>
+          <div class="card-text">L'algo te sert ce qui te garde, pas ce qui t'ouvre.</div>
         </div>
 
         <div class="info-card accent">
-          <div class="card-text">Engagement Bias : ${formatDwell(s.totalDwellMs)} passes au total. Le temps long part sur le contenu emotionnel, pas informatif.</div>
+          <div class="card-text">${formatDwell(s.totalDwellMs)} de scroll, le temps long part sur l'emotionnel.</div>
         </div>
 
         ${sponsored?.sponsored ? html`
           <div class="info-card" style="background:#333;color:#ccc;">
             <div class="card-eyebrow">Sponsored vs Organic</div>
-            <div class="card-text">${sponsored.sponsored.count} posts sponsorises detectes — en moyenne ${Math.round(sponsored.sponsored.avgDwellMs / 1000)}s de dwell time.</div>
+            <div class="card-text">${sponsored.sponsored.count} posts sponsorises, ${Math.round(sponsored.sponsored.avgDwellMs / 1000)}s de dwell moyen.</div>
           </div>
         ` : ''}
 
@@ -691,13 +731,13 @@ export class ScreenWrapped extends LitElement {
         <button class="close-btn" @click=${this.close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-        <div class="eyebrow">05 / Ego metrics</div>
+        <div class="eyebrow">${icon(ICONS.barChart, 14)} 05 / Ego metrics</div>
         <div class="title">Les chiffres qui piquent (et qui se partagent).</div>
 
         <div class="cards-row">
           <div class="metric-block" style="background:#111;color:#f0f0f0;flex:1;">
             <div class="m-val" style="color:#6B6BFF;">${bubbleScore}%</div>
-            <div class="m-desc" style="color:#aaa;">Bubble Score — ton feed est compose a ${bubbleScore}% de contenus similaires.</div>
+            <div class="m-desc" style="color:#aaa;">Bubble Score</div>
           </div>
           <div class="metric-block" style="background:#FFE94A;color:#111;flex:1;">
             <div class="m-val">${engaged}</div>
@@ -706,13 +746,13 @@ export class ScreenWrapped extends LitElement {
         </div>
 
         <div class="metric-block" style="background:#6B6BFF;color:#fff;">
-          <div class="m-desc" style="color:#fff;">${skipRate}% de skip rate — tu as zappe ${skipped} posts sans les regarder. Le feed decide plus vite que toi.</div>
+          <div class="m-desc" style="color:#fff;">${skipRate}% skip rate, ${skipped} posts zappes.</div>
         </div>
 
         ${totalSignals > 0 ? html`
           <div class="metric-block" style="background:#FF2222;color:#fff;">
             <div class="m-val">${totalSignals}</div>
-            <div class="m-desc" style="color:rgba(255,255,255,0.9);">signaux de polarisation detectes (conflit, ennemi designe, absolus moraux).</div>
+            <div class="m-desc" style="color:rgba(255,255,255,0.9);">signaux de polarisation detectes.</div>
           </div>
         ` : ''}
 
@@ -725,8 +765,105 @@ export class ScreenWrapped extends LitElement {
     `;
   }
 
-  // ── Slide 6: Escape Routes ────────────────────────────────
-  private renderSlide6(s: DbStats) {
+  // ── Slide 6: Records de Scroll ─────────────────────────────
+  private renderSlide6Records(s: DbStats) {
+    const scrollMeters = s.totalPosts * 0.15;
+    const scrollKm = scrollMeters / 1000;
+    const dwellHours = (s.totalDwellMs || 1) / 3600000;
+    const scrollSpeed = scrollMeters / dwellHours;
+    const totalMin = Math.round((s.totalDwellMs || 0) / 60000);
+    const postsPerSession = s.totalSessions > 0 ? Math.round(s.totalPosts / s.totalSessions) : s.totalPosts;
+
+    const distanceText = scrollKm >= 1 ? `${scrollKm.toFixed(1)} km` : `${Math.round(scrollMeters)} m`;
+
+    const distanceMetaphor = scrollMeters < 50
+      ? 'une piscine olympique du pouce'
+      : scrollMeters < 100
+      ? 'un terrain de foot, parcouru au pouce'
+      : scrollMeters < 324
+      ? `encore ${Math.round(324 - scrollMeters)}m avant la Tour Eiffel`
+      : scrollMeters < 1000
+      ? 'tu as depasse la Tour Eiffel. En scrollant.'
+      : `plus loin qu'un jogging matinal`;
+
+    const speedAnimal = scrollSpeed < 53
+      ? { name: 'escargot', speed: '53 m/h', verdict: 'Il te bat.' }
+      : scrollSpeed < 270
+      ? { name: 'tortue de mer', speed: '270 m/h', verdict: 'Tu te rapproches.' }
+      : scrollSpeed < 1000
+      ? { name: 'canard', speed: '1 km/h', verdict: 'Presque.' }
+      : scrollSpeed < 5000
+      ? { name: 'hirondelle', speed: '5 km/h', verdict: 'Depasse.' }
+      : { name: 'guepard', speed: '120 km/h', verdict: 'Ton pouce est une legende.' };
+
+    const timeEquiv = totalMin < 5 ? 'un espresso'
+      : totalMin < 15 ? 'un episode de podcast'
+      : totalMin < 30 ? 'une sieste royale'
+      : totalMin < 60 ? 'un episode de serie'
+      : totalMin < 120 ? 'un film complet'
+      : `${Math.round(totalMin / 60)} films`;
+
+    return html`
+      <div class="slide slide-6">
+        <button class="close-btn" @click=${this.close}>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="eyebrow">${icon(ICONS.trophy, 14)} 06 / Tes records</div>
+        <div class="title">Tu scrolles. L'algorithme compte.</div>
+        <div class="body-text">Tes stats de pouce traduites en chiffres reels.</div>
+
+        <!-- Distance hero -->
+        <div class="hero" style="background:linear-gradient(135deg, #6B6BFF 0%, #8B44E8 100%);">
+          <div style="display:flex;align-items:center;gap:12px;">
+            ${icon(ICONS.ruler, 28)}
+            <div class="hero-big" style="font-size:64px;">${distanceText}</div>
+          </div>
+          <div class="hero-sub" style="color:rgba(255,255,255,0.8);">scrolles — ${distanceMetaphor}</div>
+        </div>
+
+        <!-- Speed vs animal -->
+        <div class="cards-row">
+          <div class="metric-block" style="background:#111;color:#f0f0f0;flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${icon(ICONS.gauge, 20)}
+              <div class="m-val" style="color:#FFE94A;font-size:36px;">${Math.round(scrollSpeed)}</div>
+            </div>
+            <div class="m-desc" style="color:#aaa;">m/h — vitesse de scroll</div>
+            <div class="m-desc" style="color:#FFE94A;margin-top:4px;">vs ${speedAnimal.name} (${speedAnimal.speed}). ${speedAnimal.verdict}</div>
+          </div>
+        </div>
+
+        <div class="cards-row">
+          <div class="stat-card" style="background:#FF7B33;color:#fff;flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${icon(ICONS.flame, 16)}
+              <div class="val">${s.totalPosts}</div>
+            </div>
+            <div class="lbl">contenus engloutis</div>
+          </div>
+          <div class="stat-card" style="background:#6BE88B;color:#111;flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${icon(ICONS.zap, 16)}
+              <div class="val">${postsPerSession}</div>
+            </div>
+            <div class="lbl">posts / session</div>
+          </div>
+        </div>
+
+        <div class="info-card" style="background:#222;color:#f0f0f0;">
+          <div class="card-row">
+            ${icon(ICONS.clock, 16)}
+            <div class="card-text">${totalMin > 0 ? `${totalMin} min` : '<1 min'} de scroll cumule — l'equivalent de ${timeEquiv}.</div>
+          </div>
+        </div>
+
+        ${this.renderFooter(5, true)}
+      </div>
+    `;
+  }
+
+  // ── Slide 7: Escape Routes ────────────────────────────────
+  private renderSlide7(s: DbStats) {
     // Find missing/weak domains
     const domains = s.topDomains || [];
     const present = new Set(domains.map(d => d.domain));
@@ -735,24 +872,24 @@ export class ScreenWrapped extends LitElement {
     const weak = domains.filter(d => d.count <= 3).map(d => domainLabel(d.domain));
 
     return html`
-      <div class="slide slide-6">
+      <div class="slide slide-7">
         <button class="close-btn" @click=${this.close}>
           <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
         </button>
-        <div class="eyebrow">06 / Sorties de bulle</div>
+        <div class="eyebrow">${icon(ICONS.shuffle, 14)} 07 / Sorties de bulle</div>
         <div class="title">Sortir de bulle = ajouter des mondes, pas juste des opposants.</div>
-        <div class="body-text">Plan concret : ajouter 3 types de contenus absents + 3 comptes hors-cluster pendant 14 jours.</div>
+        <div class="body-text">3 contenus absents + 3 comptes hors-cluster, pendant 14 jours.</div>
 
         <div class="action-card" style="background:#111;color:#f0f0f0;">
-          <div class="a-text">1. Format long factuel — reduit l'Attention Sink du drama court et casse la boucle emotionnelle.</div>
+          <div class="a-text">1. Format long factuel. Casse la boucle du drama court.</div>
         </div>
 
         <div class="action-card" style="background:#6B6BFF;color:#fff;">
-          <div class="a-text">2. Comptes hors-cluster — ferme le Perspective Gap en exposant des cadres narratifs incompatibles avec ton feed actuel.</div>
+          <div class="a-text">2. Comptes hors-cluster. Expose des cadres narratifs incompatibles.</div>
         </div>
 
         <div class="action-card" style="background:#FFE94A;color:#111;">
-          <div class="a-text">3. Sources anti-confirmation — cible tes biais (confirmation + disponibilite) avec des contenus qui contredisent tes automatismes.</div>
+          <div class="a-text">3. Sources anti-confirmation. Contredis tes automatismes.</div>
         </div>
 
         ${weak.length > 0 || missing.length > 0 ? html`
@@ -765,7 +902,7 @@ export class ScreenWrapped extends LitElement {
           </div>
         ` : ''}
 
-        ${this.renderFooter(5)}
+        ${this.renderFooter(6)}
       </div>
     `;
   }

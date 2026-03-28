@@ -101,6 +101,10 @@ export interface DbStats {
   topTones?: Array<{ tone: string; count: number }>;
   topEmotions?: Array<{ emotion: string; count: number }>;
   topActors?: Array<{ topic: string; count: number }>;
+  topSubjects?: Array<{ topic: string; count: number }>;
+  topPreciseSubjects?: Array<{ topic: string; count: number }>;
+  topDomainsReal?: Array<{ domain: string; count: number }>;
+  mediaTypes?: Array<{ type: string; count: number; totalDwellMs: number }>;
   dwellByTopic?: Array<{ topic: string; totalDwellMs: number; avgDwellMs: number; count: number }>;
   attentionPolitical?: Record<string, { avgPolitical: number; avgPolarization: number; count: number }>;
   polarizingAccounts?: Array<{ username: string; avgPolarization: number; avgPolitical: number; count: number; totalDwellMs: number }>;
@@ -186,6 +190,10 @@ export async function getStats(): Promise<DbStats> {
   const parseField = (f: any) => typeof f === 'string' ? JSON.parse(f) : (f || undefined);
   if (result.topEmotions) stats.topEmotions = parseField(result.topEmotions);
   if (result.topActors) stats.topActors = parseField(result.topActors);
+  if (result.topSubjects) stats.topSubjects = parseField(result.topSubjects);
+  if (result.topPreciseSubjects) stats.topPreciseSubjects = parseField(result.topPreciseSubjects);
+  if (result.topDomainsReal) stats.topDomainsReal = parseField(result.topDomainsReal);
+  if (result.mediaTypes) stats.mediaTypes = parseField(result.mediaTypes);
   if (result.dwellByTopic) stats.dwellByTopic = parseField(result.dwellByTopic);
   if (result.attentionPolitical) stats.attentionPolitical = parseField(result.attentionPolitical);
   if (result.polarizingAccounts) stats.polarizingAccounts = parseField(result.polarizingAccounts);

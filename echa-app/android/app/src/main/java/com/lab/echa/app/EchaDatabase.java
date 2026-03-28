@@ -31,7 +31,7 @@ public class EchaDatabase extends SQLiteOpenHelper {
 
     private static final String TAG = "EchaDB";
     private static final String DB_NAME = "echa.db";
-    private static final int DB_VERSION = 3;
+    private static final int DB_VERSION = 4;
 
     private static EchaDatabase instance;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -124,6 +124,9 @@ public class EchaDatabase extends SQLiteOpenHelper {
                 "semanticSummary TEXT DEFAULT ''," +
                 "primaryEmotion TEXT DEFAULT ''," +
                 "narrativeFrame TEXT DEFAULT ''," +
+                "domains TEXT DEFAULT '[]'," +
+                "subjects TEXT DEFAULT '[]'," +
+                "preciseSubjects TEXT DEFAULT '[]'," +
                 "createdAt INTEGER NOT NULL," +
                 "updatedAt INTEGER NOT NULL," +
                 "FOREIGN KEY (postId) REFERENCES posts(id)" +
@@ -161,6 +164,12 @@ public class EchaDatabase extends SQLiteOpenHelper {
             safeAddColumn(db, "post_enriched", "audioTranscription", "TEXT DEFAULT ''");
             safeAddColumn(db, "post_enriched", "reviewFlag", "INTEGER DEFAULT 0");
             safeAddColumn(db, "post_enriched", "reviewReason", "TEXT DEFAULT ''");
+        }
+        if (oldVersion < 4) {
+            // Add deeper taxonomy columns (domains, subjects, preciseSubjects)
+            safeAddColumn(db, "post_enriched", "domains", "TEXT DEFAULT '[]'");
+            safeAddColumn(db, "post_enriched", "subjects", "TEXT DEFAULT '[]'");
+            safeAddColumn(db, "post_enriched", "preciseSubjects", "TEXT DEFAULT '[]'");
         }
     }
 
@@ -303,6 +312,9 @@ public class EchaDatabase extends SQLiteOpenHelper {
         cv.put("mediaCategory", enrichment.optString("mediaCategory", ""));
         cv.put("mediaQuality", enrichment.optString("mediaQuality", ""));
         cv.put("confidenceScore", enrichment.optDouble("confidenceScore", 0));
+        cv.put("domains", jsonArrayToString(enrichment, "domains"));
+        cv.put("subjects", jsonArrayToString(enrichment, "subjects"));
+        cv.put("preciseSubjects", jsonArrayToString(enrichment, "preciseSubjects"));
         cv.put("createdAt", now);
         cv.put("updatedAt", now);
 
@@ -895,6 +907,9 @@ public class EchaDatabase extends SQLiteOpenHelper {
         cv.put("semanticSummary", enrichment.optString("semanticSummary", ""));
         cv.put("primaryEmotion", enrichment.optString("primaryEmotion", ""));
         cv.put("narrativeFrame", enrichment.optString("narrativeFrame", ""));
+        cv.put("domains", jsonArrayToString(enrichment, "domains"));
+        cv.put("subjects", jsonArrayToString(enrichment, "subjects"));
+        cv.put("preciseSubjects", jsonArrayToString(enrichment, "preciseSubjects"));
         cv.put("updatedAt", now);
 
         // Try update first, insert if not found
