@@ -62,6 +62,23 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
       json(res, { totalSessions, totalPosts, categories, attention, topUsers });
     },
   },
+  // ── Full post detail (with enrichment + MLKit) ────────────────────
+  {
+    method: 'GET',
+    pattern: /^\/api\/post-detail/,
+    handler: async (req, res) => {
+      const url = new URL(req.url || '', `http://${req.headers.host}`);
+      const postId = url.searchParams.get('id');
+      if (!postId) { json(res, { error: 'Missing id param' }, 400); return; }
+
+      const post = await prisma.post.findUnique({
+        where: { id: postId },
+        include: { enrichment: true },
+      });
+      if (!post) { json(res, { error: 'Not found' }, 404); return; }
+      json(res, post);
+    },
+  },
   // ── Enrichment endpoints ──────────────────────────────────────────
   {
     method: 'GET',
@@ -76,11 +93,25 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
       ]);
 
       // Aggregate polarization buckets
-      const allEnriched = await prisma.postEnriched.findMany({ select: { polarizationScore: true, mainTopics: true, confidenceScore: true } });
+      const allEnriched = await prisma.postEnriched.findMany({
+        select: {
+          polarizationScore: true, mainTopics: true, confidenceScore: true,
+          domains: true, tone: true, mediaCategory: true, mediaQuality: true,
+          mediaIntent: true, provider: true, contentDomain: true,
+          subjects: true, preciseSubjects: true,
+        },
+      });
       const polarBuckets = { low: 0, medium: 0, high: 0, extreme: 0 };
       let polarSum = 0;
       let confSum = 0;
       const topicCounts: Record<string, number> = {};
+      const domainCounts: Record<string, number> = {};
+      const toneCounts: Record<string, number> = {};
+      const mediaCatCounts: Record<string, number> = {};
+      const mediaIntentCounts: Record<string, number> = {};
+      const providerCounts: Record<string, number> = {};
+      let totalSubjects = 0;
+      let totalPreciseSubjects = 0;
 
       for (const e of allEnriched) {
         const p = e.polarizationScore;
@@ -95,10 +126,28 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
           const topics = JSON.parse(e.mainTopics) as string[];
           for (const t of topics) { topicCounts[t] = (topicCounts[t] || 0) + 1; }
         } catch { /* ignore */ }
+
+        try {
+          const domains = JSON.parse(e.domains) as string[];
+          for (const d of domains) { domainCounts[d] = (domainCounts[d] || 0) + 1; }
+        } catch { /* ignore */ }
+
+        if (e.tone) toneCounts[e.tone] = (toneCounts[e.tone] || 0) + 1;
+        if (e.mediaCategory) mediaCatCounts[e.mediaCategory] = (mediaCatCounts[e.mediaCategory] || 0) + 1;
+        if (e.mediaIntent) mediaIntentCounts[e.mediaIntent] = (mediaIntentCounts[e.mediaIntent] || 0) + 1;
+        providerCounts[e.provider] = (providerCounts[e.provider] || 0) + 1;
+
+        try { const s = JSON.parse(e.subjects) as unknown[]; totalSubjects += s.length; } catch { /* ignore */ }
+        try { const ps = JSON.parse(e.preciseSubjects) as unknown[]; totalPreciseSubjects += ps.length; } catch { /* ignore */ }
       }
 
       const n = allEnriched.length || 1;
       const topTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]).slice(0, 15);
+      const sortedDomains = Object.entries(domainCounts).sort((a, b) => b[1] - a[1]);
+      const sortedTones = Object.entries(toneCounts).sort((a, b) => b[1] - a[1]);
+      const sortedMediaCat = Object.entries(mediaCatCounts).sort((a, b) => b[1] - a[1]);
+      const sortedMediaIntent = Object.entries(mediaIntentCounts).sort((a, b) => b[1] - a[1]);
+      const sortedProviders = Object.entries(providerCounts).sort((a, b) => b[1] - a[1]);
 
       json(res, {
         totalPosts,
@@ -111,6 +160,13 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
         byNarrative: byNarrative.filter(n => n.narrativeFrame !== ''),
         polarBuckets,
         topTopics,
+        byDomain: sortedDomains,
+        byTone: sortedTones,
+        byMediaCategory: sortedMediaCat,
+        byMediaIntent: sortedMediaIntent,
+        byProvider: sortedProviders,
+        totalSubjects,
+        totalPreciseSubjects,
       });
     },
   },
@@ -135,7 +191,7 @@ const routes: Array<{ method: string; pattern: RegExp; handler: Handler }> = [
         where,
         take: limit,
         orderBy: { polarizationScore: 'desc' },
-        include: { post: { select: { username: true, caption: true, mediaType: true, attentionLevel: true, dwellTimeMs: true, isSponsored: true } } },
+        include: { post: { select: { username: true, caption: true, mediaType: true, attentionLevel: true, dwellTimeMs: true, isSponsored: true, ocrText: true, mlkitLabels: true, subtitles: true, hashtags: true, imageDesc: true } } },
       });
 
       json(res, posts);

@@ -142,6 +142,8 @@
     <div class="stat-card"><div class="label">Polarisation moy.</div><div class="value yellow" id="s-polar">—</div></div>
     <div class="stat-card"><div class="label">Confiance moy.</div><div class="value accent" id="s-conf">—</div></div>
     <div class="stat-card"><div class="label">À reviewer</div><div class="value red" id="s-review">—</div></div>
+    <div class="stat-card"><div class="label">Sujets détectés</div><div class="value purple" id="s-subjects">—</div></div>
+    <div class="stat-card"><div class="label">Sujets précis</div><div class="value purple" id="s-precise">—</div></div>
   </div>
 
   <!-- Charts -->
@@ -154,8 +156,24 @@
       </div>
     </div>
     <div class="chart-panel">
-      <h3>Top thèmes</h3>
+      <h3>Top thèmes (niveau 2)</h3>
       <div id="chart-topics"></div>
+    </div>
+    <div class="chart-panel">
+      <h3>Domaines (niveau 1)</h3>
+      <div id="chart-domains"></div>
+    </div>
+    <div class="chart-panel">
+      <h3>Tonalité</h3>
+      <div id="chart-tones"></div>
+    </div>
+    <div class="chart-panel">
+      <h3>Catégorie média</h3>
+      <div id="chart-media-cat"></div>
+    </div>
+    <div class="chart-panel">
+      <h3>Intention média</h3>
+      <div id="chart-media-intent"></div>
     </div>
     <div class="chart-panel">
       <h3>Narratifs détectés</h3>
@@ -164,6 +182,10 @@
     <div class="chart-panel">
       <h3>Distribution polarisation</h3>
       <div id="chart-polar"></div>
+    </div>
+    <div class="chart-panel">
+      <h3>Providers</h3>
+      <div id="chart-providers"></div>
     </div>
   </div>
 
@@ -184,6 +206,8 @@
             <th>Auteur</th>
             <th>Résumé</th>
             <th>Thèmes</th>
+            <th>Tone</th>
+            <th>Média</th>
             <th>Pol.</th>
             <th>Polar.</th>
             <th>Narratif</th>
@@ -191,7 +215,7 @@
           </tr>
         </thead>
         <tbody id="post-tbody">
-          <tr><td colspan="7" class="loading">Chargement...</td></tr>
+          <tr><td colspan="9" class="loading">Chargement...</td></tr>
         </tbody>
       </table>
     </div>
@@ -235,6 +259,8 @@ async function loadStats() {
     $('s-polar').textContent = d.avgPolarization;
     $('s-conf').textContent = d.avgConfidence;
     $('s-review').textContent = d.reviewFlagged;
+    $('s-subjects').textContent = d.totalSubjects || 0;
+    $('s-precise').textContent = d.totalPreciseSubjects || 0;
 
     // Political chart
     const maxPol = Math.max(...d.byPolitical.map(b => b._count), 1);
@@ -250,6 +276,20 @@ async function loadStats() {
       const color = TOPIC_COLORS[topic] || 'var(--accent)';
       return barRow(topic, count, pct, '', color);
     }).join('');
+
+    // Domains chart
+    renderSimpleChart('chart-domains', d.byDomain || [], 'var(--green)');
+
+    // Tones chart
+    const TONE_COLORS = { neutre: 'var(--text-dim)', informatif: 'var(--accent)', sarcastique: 'var(--yellow)', militant: 'var(--red)', inspirant: 'var(--green)', alarmiste: 'var(--orange)', émotionnel: 'var(--purple)' };
+    renderSimpleChart('chart-tones', d.byTone || [], null, TONE_COLORS);
+
+    // Media category chart
+    const MCAT_COLORS = { divertissement: 'var(--accent)', information: 'var(--green)', opinion: 'var(--yellow)', intox: 'var(--red)', pub: 'var(--orange)', education: 'var(--purple)' };
+    renderSimpleChart('chart-media-cat', d.byMediaCategory || [], null, MCAT_COLORS);
+
+    // Media intent chart
+    renderSimpleChart('chart-media-intent', d.byMediaIntent || [], 'var(--purple)');
 
     // Narratives chart
     const maxNar = d.byNarrative.length > 0 ? d.byNarrative[0]._count : 1;
@@ -267,6 +307,9 @@ async function loadStats() {
       return barRow(polarLabels[k], v, pct, '', polarColors[k]);
     }).join('');
 
+    // Providers chart
+    renderSimpleChart('chart-providers', d.byProvider || [], 'var(--accent)');
+
     // Populate narrative filter
     const sel = $('f-narrative');
     d.byNarrative.forEach(n => {
@@ -282,6 +325,18 @@ function barRow(label, count, pct, cssClass, color) {
     <div class="bar-track"><div class="bar-fill ${cssClass}" style="width:${pct}%;${style}"></div></div>
     <span class="bar-count">${count}</span>
   </div>`;
+}
+
+function renderSimpleChart(elId, data, defaultColor, colorMap) {
+  const el = $(elId);
+  if (!el) return;
+  if (!data || data.length === 0) { el.innerHTML = '<div class="loading">Aucune donnée</div>'; return; }
+  const maxVal = data[0][1] || 1;
+  el.innerHTML = data.map(([label, count]) => {
+    const pct = Math.round(count / maxVal * 100);
+    const color = (colorMap && colorMap[label]) || defaultColor || 'var(--accent)';
+    return barRow(label || '(vide)', count, pct, '', color);
+  }).join('');
 }
 
 async function loadPosts() {
@@ -301,7 +356,7 @@ async function loadPosts() {
 
 function renderPosts() {
   const tbody = $('post-tbody');
-  if (allPosts.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="loading">Aucun post trouvé</td></tr>'; return; }
+  if (allPosts.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="loading">Aucun post trouvé</td></tr>'; return; }
 
   tbody.innerHTML = allPosts.map((p, i) => {
     const topics = safeParse(p.mainTopics).map(t => `<span class="tag tag-topic">${esc(t)}</span>`).join('');
@@ -315,6 +370,8 @@ function renderPosts() {
       <td class="username">@${esc(p.post?.username || '?')}</td>
       <td class="summary" title="${esc(p.semanticSummary)}">${esc(p.semanticSummary || '—')}</td>
       <td class="topics">${topics}</td>
+      <td><span class="tag" style="background:#1a2a3a;color:var(--text)">${esc(p.tone || '—')}</span></td>
+      <td><span class="tag" style="background:#1a3a2a;color:var(--green)">${esc(p.mediaIntent || p.mediaCategory || '—')}</span></td>
       <td><span class="tag-political" style="background:${polColor}">${polScore}</span></td>
       <td><span class="score-bar"><span class="score-bar-fill" style="width:${polarPct}%;background:${polarPct > 60 ? 'var(--red)' : polarPct > 30 ? 'var(--yellow)' : 'var(--green)'}"></span></span> ${p.polarizationScore}</td>
       <td>${p.narrativeFrame ? `<span class="tag tag-narrative">${esc(p.narrativeFrame)}</span>` : '—'}</td>
@@ -328,6 +385,9 @@ function showDetail(idx) {
   if (!p) return;
 
   const topics = [...safeParse(p.mainTopics), ...safeParse(p.secondaryTopics)];
+  const domains = safeParse(p.domains);
+  const subjects = safeParse(p.subjects);
+  const preciseSubjects = safeParse(p.preciseSubjects);
   const persons = safeParse(p.persons).filter(x => x && !x.startsWith('aucun'));
   const orgs = safeParse(p.organizations).filter(x => x && !x.startsWith('aucun'));
   const institutions = safeParse(p.institutions).filter(x => x && !x.startsWith('aucun'));
@@ -336,31 +396,68 @@ function showDetail(idx) {
   const polActors = safeParse(p.politicalActors).filter(x => x && !x.startsWith('aucun'));
   const polColor = POL_COLORS[p.politicalExplicitnessScore];
 
+  // Axes politiques
+  const axes = [
+    { label: 'Économique', val: p.axisEconomic, neg: 'Gauche', pos: 'Droite' },
+    { label: 'Sociétal', val: p.axisSocietal, neg: 'Progressiste', pos: 'Conservateur' },
+    { label: 'Autorité', val: p.axisAuthority, neg: 'Libertaire', pos: 'Autoritaire' },
+    { label: 'Système', val: p.axisSystem, neg: 'Anti-système', pos: 'Institutionnel' },
+  ];
+  const hasAxes = axes.some(a => a.val !== 0);
+
   $('modal-body').innerHTML = `
     <span class="close" onclick="closeModal()">✕</span>
     <h2>@${esc(p.post?.username || '?')} — Fiche enrichie</h2>
 
     <div class="detail-field"><div class="dl">Résumé sémantique</div><div class="dv">${esc(p.semanticSummary || '—')}</div></div>
+    ${p.mediaMessage ? `<div class="detail-field"><div class="dl">Message média</div><div class="dv" style="color:var(--accent)">${esc(p.mediaMessage)}</div></div>` : ''}
     <div class="detail-field"><div class="dl">Texte normalisé</div><div class="dv" style="max-height:120px;overflow-y:auto;background:var(--surface2);padding:8px;border-radius:4px;font-size:11px">${esc(p.normalizedText || '—')}</div></div>
 
+    <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--text-dim)">Taxonomie</h3>
     <div class="detail-grid">
       <div>
-        <div class="detail-field"><div class="dl">Thèmes</div><div class="dv topics">${topics.map(t => `<span class="tag tag-topic">${esc(t)}</span>`).join(' ') || '—'}</div></div>
-        <div class="detail-field"><div class="dl">Domaine</div><div class="dv">${esc(p.contentDomain || '—')}</div></div>
+        <div class="detail-field"><div class="dl">Domaines (niveau 1)</div><div class="dv topics">${domains.map(d => `<span class="tag" style="background:#1a3a2a;color:var(--green)">${esc(d)}</span>`).join(' ') || '—'}</div></div>
+        <div class="detail-field"><div class="dl">Thèmes (niveau 2)</div><div class="dv topics">${topics.map(t => `<span class="tag tag-topic">${esc(t)}</span>`).join(' ') || '—'}</div></div>
+        <div class="detail-field"><div class="dl">Sujets (niveau 3)</div><div class="dv topics">${subjects.map(s => `<span class="tag" style="background:#2a2a1a;color:var(--yellow)">${esc(typeof s === 'string' ? s : s.label || s.id)}</span>`).join(' ') || '—'}</div></div>
+        ${preciseSubjects.length > 0 ? `<div class="detail-field"><div class="dl">Sujets précis (niveau 4)</div><div class="dv">${preciseSubjects.map(ps => {
+          const posColor = ps.position === 'pour' ? 'var(--green)' : ps.position === 'contre' ? 'var(--red)' : 'var(--text-dim)';
+          return `<div style="margin-bottom:4px"><span class="tag" style="background:#1a1a3a;color:var(--purple)">${esc(ps.id)}</span> <span style="color:${posColor};font-weight:600">${esc(ps.position)}</span> <span style="color:var(--text-dim)">(${Math.round((ps.confidence||0)*100)}%)</span>${ps.statement ? `<br><span style="font-size:10px;color:var(--text-dim)">${esc(ps.statement)}</span>` : ''}</div>`;
+        }).join('')}</div></div>` : ''}
+      </div>
+      <div>
+        <div class="detail-field"><div class="dl">Domaine (legacy)</div><div class="dv">${esc(p.contentDomain || '—')}</div></div>
         <div class="detail-field"><div class="dl">Audience cible</div><div class="dv">${esc(p.audienceTarget || '—')}</div></div>
         <div class="detail-field"><div class="dl">Tonalité</div><div class="dv">${esc(p.tone || '—')}</div></div>
         <div class="detail-field"><div class="dl">Émotion</div><div class="dv">${esc(p.primaryEmotion || '—')} (intensité: ${p.emotionIntensity})</div></div>
       </div>
+    </div>
+
+    <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--text-dim)">Média</h3>
+    <div class="detail-grid">
+      <div>
+        <div class="detail-field"><div class="dl">Catégorie média</div><div class="dv">${esc(p.mediaCategory || '—')}</div></div>
+        <div class="detail-field"><div class="dl">Qualité média</div><div class="dv">${esc(p.mediaQuality || '—')}</div></div>
+      </div>
+      <div>
+        <div class="detail-field"><div class="dl">Intention média</div><div class="dv">${esc(p.mediaIntent || '—')}</div></div>
+        ${p.audioTranscription ? `<div class="detail-field"><div class="dl">Transcription audio</div><div class="dv" style="max-height:80px;overflow-y:auto;background:var(--surface2);padding:6px;border-radius:4px;font-size:10px">${esc(p.audioTranscription)}</div></div>` : ''}
+      </div>
+    </div>
+
+    <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--text-dim)">Entités</h3>
+    <div class="detail-grid">
       <div>
         <div class="detail-field"><div class="dl">Personnes</div><div class="dv">${persons.map(x => esc(x)).join(', ') || '—'}</div></div>
         <div class="detail-field"><div class="dl">Organisations</div><div class="dv">${orgs.map(x => esc(x)).join(', ') || '—'}</div></div>
         <div class="detail-field"><div class="dl">Institutions</div><div class="dv">${institutions.map(x => esc(x)).join(', ') || '—'}</div></div>
+      </div>
+      <div>
         <div class="detail-field"><div class="dl">Pays</div><div class="dv">${countries.map(x => esc(x)).join(', ') || '—'}</div></div>
         <div class="detail-field"><div class="dl">Acteurs politiques</div><div class="dv">${polActors.map(x => esc(x)).join(', ') || '—'}</div></div>
       </div>
     </div>
 
-    <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--text-dim)">Scoring</h3>
+    <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--text-dim)">Scoring politique</h3>
     <div class="detail-grid">
       <div>
         <div class="detail-field"><div class="dl">Portée politique</div><div class="dv"><span class="tag-political" style="background:${polColor}">${p.politicalExplicitnessScore}</span> ${POL_LABELS[p.politicalExplicitnessScore]}</div></div>
@@ -377,6 +474,17 @@ function showDetail(idx) {
         </div></div>
       </div>
     </div>
+
+    ${hasAxes ? `
+    <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--text-dim)">Axes politiques${p.dominantAxis ? ` (dominant: ${esc(p.dominantAxis)})` : ''}</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${axes.map(a => {
+        const pct = Math.round((a.val + 1) / 2 * 100); // -1..+1 → 0..100%
+        const color = a.val < -0.1 ? 'var(--accent)' : a.val > 0.1 ? 'var(--orange)' : 'var(--text-dim)';
+        return `<div class="detail-field"><div class="dl">${esc(a.label)} <span style="float:right;color:var(--text-dim)">${a.neg} ← → ${a.pos}</span></div>
+          <div class="dv"><span class="score-bar" style="width:100%"><span class="score-bar-fill" style="width:${pct}%;background:${color}"></span></span> ${a.val}</div></div>`;
+      }).join('')}
+    </div>` : ''}
 
     <div class="detail-grid" style="margin-top:12px">
       <div>
