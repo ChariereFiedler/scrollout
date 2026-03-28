@@ -201,10 +201,7 @@ pages:
   stage: pages
   tags: [docker]
   image: ${NODE_IMAGE}
-  needs:
-    - job: build:apk
-      artifacts: true
-      optional: true
+  needs: []
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
