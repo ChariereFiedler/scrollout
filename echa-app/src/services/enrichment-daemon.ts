@@ -34,6 +34,8 @@ interface UnenrichedPost {
   mediaType: string;
   isSponsored: boolean;
   isSuggested: boolean;
+  imageUrls: string;    // JSON array of CDN URLs
+  videoUrl: string;     // CDN URL for video/reel
 }
 
 interface LLMEnrichmentResult {
@@ -62,6 +64,10 @@ export interface DaemonConfig {
   model?: string;
   /** Mode rules-only (pas de LLM) */
   rulesOnly?: boolean;
+  /** Active la transcription Whisper API pour vidéos sans texte */
+  enableTranscription?: boolean;
+  /** Active l'analyse vision pour posts visuels à faible signal */
+  enableVision?: boolean;
 }
 
 export interface DaemonStatus {
@@ -161,30 +167,86 @@ async function saveEnrichment(dbPostId: string, enrichment: Record<string, any>)
   });
 }
 
-async function enrichPost(
+// ── Enrichment level selection ───────────────────────────────
+
+type EnrichmentLevel = 'rules-only' | 'text-llm' | 'vision';
+
+function selectEnrichmentLevel(
+  rulesConfidence: number,
   post: UnenrichedPost,
   llmConfig: LLMConfig | null,
-): Promise<'success' | 'skipped' | 'failed'> {
-  // 1. Rules (shared module — même dictionnaires et logique que le PC)
-  const rulesResult = applyRulesFromShared(post);
-  if (!rulesResult) {
-    log(`skip @${post.username} — rules engine error`);
-    return 'skipped';
+  hasExtraVideoText: boolean,
+): EnrichmentLevel {
+  if (!llmConfig) return 'rules-only';
+  if (rulesConfidence >= 0.65) return 'rules-only';
+  if (rulesConfidence >= 0.35 || hasExtraVideoText) return 'text-llm';
+
+  // Low confidence — use vision if images available
+  const images = safeParseArray(post.imageUrls);
+  if (images.length > 0 && config?.enableVision) return 'vision';
+
+  return 'text-llm';
+}
+
+/**
+ * Tente d'enrichir le signal vidéo : OCR existant puis Whisper API si nécessaire.
+ * Retourne le texte additionnel à injecter, ou '' si rien de plus.
+ */
+async function enrichVideoSignal(
+  post: UnenrichedPost,
+  normalizedText: string,
+  llmConfig: LLMConfig | null,
+): Promise<{ text: string; source: 'ocr' | 'whisper' | 'none' }> {
+  // L'OCR est déjà intégré dans normalizedText via rules-engine-shared.
+  // Vérifier si le texte normalisé contient assez de signal.
+  const words = normalizedText.split(/\s+/).filter(w => w.length > 2);
+  if (words.length >= 20) {
+    return { text: '', source: 'ocr' }; // OCR/subtitles suffisent
   }
 
-  // Check minimal text
-  const normalizedText = rulesResult.normalizedText || '';
-  const words = normalizedText.split(/\s+/).filter((w: string) => w.length > 2);
-  if (normalizedText.length < 10 || words.length < 3) {
-    log(`skip @${post.username} — texte insuffisant`);
-    return 'skipped';
+  // Pas assez de texte — tenter Whisper API si activé et videoUrl dispo
+  if (!config?.enableTranscription || !llmConfig?.apiKey || !post.videoUrl) {
+    return { text: '', source: 'none' };
   }
 
-  // Fallback: if rules found no topics, infer from username/mediaType
-  const rulesTopics = rulesResult.mainTopics?.length ? rulesResult.mainTopics
+  try {
+    const { callWhisperAPI, evaluateTranscriptionQuality } = await import('./llm-mobile');
+    const transcription = await callWhisperAPI(post.videoUrl, llmConfig.apiKey);
+
+    if (!transcription) {
+      log(`whisper @${post.username} — pas de réponse`);
+      return { text: '', source: 'none' };
+    }
+
+    const quality = evaluateTranscriptionQuality(transcription);
+    if (!quality.acceptable) {
+      log(`whisper @${post.username} — qualité insuffisante: ${quality.reason}`);
+      return { text: '', source: 'none' };
+    }
+
+    log(`whisper @${post.username} — ${transcription.length} chars, qualité OK`);
+    return { text: `[AUDIO_TRANSCRIPT] ${transcription}`, source: 'whisper' };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`whisper error @${post.username}: ${msg}`);
+    return { text: '', source: 'none' };
+  }
+}
+
+// ── Build enrichment data from rules ────────────────────────
+
+function buildRulesEnrichment(
+  rulesResult: ReturnType<typeof applyRulesShared>,
+  normalizedText: string,
+  post: UnenrichedPost,
+  reviewFlag = false,
+  reviewReason = '',
+): Record<string, any> {
+  const rulesTopics = rulesResult.mainTopics?.length
+    ? rulesResult.mainTopics
     : [inferFallbackTopic(post.username, post.mediaType)];
 
-  let enrichment: Record<string, any> = {
+  return {
     provider: 'rules',
     model: 'rules-v1',
     normalizedText,
@@ -209,83 +271,161 @@ async function enrichPost(
     mediaCategory: rulesResult.mediaCategory || '',
     mediaQuality: rulesResult.mediaQuality || '',
     confidenceScore: (rulesResult.confidenceScore || 0.3) * 0.6,
+    reviewFlag: reviewFlag ? 1 : 0,
+    reviewReason,
   };
+}
 
-  // 2. LLM (si configuré)
-  if (llmConfig) {
+// ── Merge rules + LLM ───────────────────────────────────────
+
+function mergeLLMResult(
+  enrichment: Record<string, any>,
+  llm: LLMEnrichmentResult,
+  rulesResult: ReturnType<typeof applyRulesShared>,
+  post: UnenrichedPost,
+  model: string,
+): Record<string, any> {
+  const polScore = Math.max(
+    rulesResult.politicalExplicitnessScore || 0,
+    llm.political_explicitness_score || 0,
+  );
+  const polarScore = Math.round(
+    ((rulesResult.polarizationScore || 0) * 0.3 + (llm.polarization_score || 0) * 0.7) * 100,
+  ) / 100;
+  const conf = Math.round(
+    ((rulesResult.confidenceScore || 0.3) * 0.3 + (llm.confidence_score || 0.5) * 0.7) * 100,
+  ) / 100;
+
+  const mergedTopics = llm.main_topics?.length ? llm.main_topics
+    : rulesResult.mainTopics?.length ? rulesResult.mainTopics
+    : [inferFallbackTopic(post.username, post.mediaType)];
+
+  // Divergence detection → review flag
+  const polDiv = Math.abs((rulesResult.politicalExplicitnessScore || 0) - (llm.political_explicitness_score || 0));
+  const polarDiv = Math.abs((rulesResult.polarizationScore || 0) - (llm.polarization_score || 0));
+  const needsReview = polDiv >= 2 || polarDiv > 0.4 || conf < 0.4;
+
+  return {
+    ...enrichment,
+    provider: 'openai',
+    model,
+    mainTopics: JSON.stringify(mergedTopics),
+    secondaryTopics: JSON.stringify(llm.secondary_topics || []),
+    politicalExplicitnessScore: polScore,
+    polarizationScore: polarScore,
+    confidenceScore: conf,
+    tone: llm.tone || '',
+    semanticSummary: llm.semantic_summary || '',
+    primaryEmotion: llm.primary_emotion || '',
+    narrativeFrame: llm.narrative_frame || '',
+    ingroupOutgroupSignal: (llm as any).ingroup_outgroup_signal || enrichment.ingroupOutgroupSignal,
+    conflictSignal: (llm as any).conflict_signal || enrichment.conflictSignal,
+    moralAbsoluteSignal: (llm as any).moral_absolute_signal || enrichment.moralAbsoluteSignal,
+    enemyDesignationSignal: (llm as any).enemy_designation_signal || enrichment.enemyDesignationSignal,
+    activismSignal: (llm as any).activism_signal || enrichment.activismSignal,
+    reviewFlag: needsReview ? 1 : 0,
+    reviewReason: needsReview ? `divergence: pol=${polDiv}, polar=${polarDiv.toFixed(2)}` : '',
+  };
+}
+
+// ── Main enrichment function with cascade ───────────────────
+
+async function enrichPost(
+  post: UnenrichedPost,
+  llmConfig: LLMConfig | null,
+): Promise<'success' | 'skipped' | 'failed'> {
+  // ━━ Phase 1 — Rules (toujours, gratuit) ━━
+  const rulesResult = applyRulesFromShared(post);
+  if (!rulesResult) {
+    log(`skip @${post.username} — rules engine error`);
+    return 'skipped';
+  }
+
+  let normalizedText = rulesResult.normalizedText || '';
+  const words = normalizedText.split(/\s+/).filter((w: string) => w.length > 2);
+  if (normalizedText.length < 10 || words.length < 3) {
+    log(`skip @${post.username} — texte insuffisant`);
+    return 'skipped';
+  }
+
+  // ━━ Phase 2 — Signal vidéo (si video/reel + confiance basse) ━━
+  let videoSource: 'ocr' | 'whisper' | 'none' = 'none';
+  if (['video', 'reel'].includes(post.mediaType) && rulesResult.confidenceScore < 0.65) {
+    const videoSignal = await enrichVideoSignal(post, normalizedText, llmConfig);
+    if (videoSignal.text) {
+      normalizedText = normalizedText + '\n\n' + videoSignal.text;
+      videoSource = videoSignal.source;
+    }
+  }
+
+  // ━━ Phase 3 — Décision : quel niveau d'enrichissement ? ━━
+  const level = selectEnrichmentLevel(
+    rulesResult.confidenceScore,
+    post,
+    llmConfig,
+    videoSource !== 'none',
+  );
+
+  let enrichment = buildRulesEnrichment(rulesResult, normalizedText, post);
+
+  if (level === 'rules-only') {
+    log(`@${post.username} — rules-only conf=${enrichment.confidenceScore} [${rulesResult.mainTopics}]`);
+    // Add audio transcription if captured
+    if (videoSource === 'whisper') {
+      enrichment.audioTranscription = normalizedText.split('[AUDIO_TRANSCRIPT] ')[1] || '';
+    }
+  } else if (level === 'text-llm' || level === 'vision') {
     try {
       const hashtags = safeParseArray(post.hashtags);
-      const prompt = buildEnrichmentPrompt({
-        normalizedText,
-        username: post.username,
-        hashtags,
-        mediaType: post.mediaType,
-        rulesHints: {
-          mainTopics: rulesResult.mainTopics,
-          politicalScore: rulesResult.politicalExplicitnessScore,
-          polarizationScore: rulesResult.polarizationScore,
-          detectedActors: rulesResult.politicalActors,
-        },
-      });
+      let llmResponse;
 
-      const messages: LLMMessage[] = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: prompt },
-      ];
+      if (level === 'vision') {
+        // Vision mode — image + texte
+        const images = safeParseArray(post.imageUrls);
+        const { callOpenAIVision } = await import('./llm-mobile');
+        llmResponse = await callOpenAIVision(
+          images[0],
+          { normalizedText, username: post.username, hashtags, mediaType: post.mediaType },
+          llmConfig!,
+        );
+        log(`@${post.username} — vision used`);
+      } else {
+        // Text-only LLM
+        const prompt = buildEnrichmentPrompt({
+          normalizedText,
+          username: post.username,
+          hashtags,
+          mediaType: post.mediaType,
+          rulesHints: {
+            mainTopics: rulesResult.mainTopics,
+            politicalScore: rulesResult.politicalExplicitnessScore,
+            polarizationScore: rulesResult.polarizationScore,
+            detectedActors: rulesResult.politicalActors,
+          },
+        });
 
-      const llmResponse = await callOpenAI(messages, llmConfig);
+        const messages: LLMMessage[] = [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: prompt },
+        ];
+        llmResponse = await callOpenAI(messages, llmConfig!);
+      }
+
       const llm: LLMEnrichmentResult = JSON.parse(llmResponse.content);
+      enrichment = mergeLLMResult(enrichment, llm, rulesResult, post, llmResponse.model);
 
-      // Merge rules + LLM (LLM prend le lead)
-      const polScore = Math.max(
-        rulesResult.politicalExplicitnessScore || 0,
-        llm.political_explicitness_score || 0,
-      );
-      const polarScore = Math.round(
-        ((rulesResult.polarizationScore || 0) * 0.3 + (llm.polarization_score || 0) * 0.7) * 100,
-      ) / 100;
-      const conf = Math.round(
-        ((rulesResult.confidenceScore || 0.3) * 0.3 + (llm.confidence_score || 0.5) * 0.7) * 100,
-      ) / 100;
+      if (videoSource === 'whisper') {
+        enrichment.audioTranscription = normalizedText.split('[AUDIO_TRANSCRIPT] ')[1] || '';
+      }
 
-      // Merge topics: prefer LLM, fallback rules, fallback inferFallbackTopic
-      log(`LLM raw topics @${post.username}: ${JSON.stringify(llm.main_topics)} rules: ${JSON.stringify(rulesResult.mainTopics)}`);
-      let mergedTopics = llm.main_topics?.length ? llm.main_topics
-        : rulesTopics.length ? rulesTopics
-        : [inferFallbackTopic(post.username, post.mediaType)];
-
-      enrichment = {
-        ...enrichment,
-        provider: 'openai',
-        model: llmResponse.model,
-        mainTopics: JSON.stringify(mergedTopics),
-        secondaryTopics: JSON.stringify(llm.secondary_topics || []),
-        politicalExplicitnessScore: polScore,
-        polarizationScore: polarScore,
-        confidenceScore: conf,
-        tone: llm.tone || '',
-        semanticSummary: llm.semantic_summary || '',
-        primaryEmotion: llm.primary_emotion || '',
-        narrativeFrame: llm.narrative_frame || '',
-        // Signaux de polarisation du LLM (override rules si LLM les détecte)
-        ingroupOutgroupSignal: (llm as any).ingroup_outgroup_signal || enrichment.ingroupOutgroupSignal,
-        conflictSignal: (llm as any).conflict_signal || enrichment.conflictSignal,
-        moralAbsoluteSignal: (llm as any).moral_absolute_signal || enrichment.moralAbsoluteSignal,
-        enemyDesignationSignal: (llm as any).enemy_designation_signal || enrichment.enemyDesignationSignal,
-        activismSignal: (llm as any).activism_signal || enrichment.activismSignal,
-      };
-
-      log(`@${post.username} — pol=${polScore} polar=${polarScore} conf=${conf} (LLM)`);
+      log(`@${post.username} — ${level} pol=${enrichment.politicalExplicitnessScore} conf=${enrichment.confidenceScore}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log(`LLM error @${post.username}: ${msg} — fallback rules`);
-      // On garde l'enrichissement rules-only
     }
-  } else {
-    log(`@${post.username} — pol=${enrichment.politicalExplicitnessScore} (rules-only)`);
   }
 
-  // 3. Persist
+  // ━━ Persist ━━
   try {
     await saveEnrichment(post.id, enrichment);
     return 'success';
@@ -326,7 +466,7 @@ async function tick() {
       else if (result === 'failed') stats.totalFailed++;
       else stats.totalSkipped++;
 
-      // Rate limiting entre appels LLM
+      // Rate limiting entre appels (seulement si LLM actif)
       if (llmConfig) await sleep(300);
     }
 

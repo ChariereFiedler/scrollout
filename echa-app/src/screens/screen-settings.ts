@@ -300,6 +300,8 @@ export class ScreenSettings extends LitElement {
   @state() private daemonInterval = parseInt(localStorage.getItem('scrollout-daemon-interval') || '120');
   @state() private daemonStatus: DaemonStatus = getDaemonStatus();
   @state() private rulesOnly = localStorage.getItem('scrollout-rules-only') === 'true';
+  @state() private enableTranscription = localStorage.getItem('scrollout-enable-transcription') === 'true';
+  @state() private enableVision = localStorage.getItem('scrollout-enable-vision') === 'true';
   @state() private stats: DbStats | null = null;
 
   private unsubDaemon?: () => void;
@@ -331,12 +333,16 @@ export class ScreenSettings extends LitElement {
       localStorage.setItem('scrollout-openai-key', this.openaiKey);
       localStorage.setItem('scrollout-daemon-interval', String(this.daemonInterval));
       localStorage.setItem('scrollout-rules-only', String(this.rulesOnly));
+      localStorage.setItem('scrollout-enable-transcription', String(this.enableTranscription));
+      localStorage.setItem('scrollout-enable-vision', String(this.enableVision));
       startDaemon({
         intervalSec: this.daemonInterval,
         batchSize: 10,
         threshold: 2,
         apiKey: this.openaiKey,
         rulesOnly: this.rulesOnly,
+        enableTranscription: this.enableTranscription,
+        enableVision: this.enableVision,
       });
     }
   }
@@ -355,6 +361,8 @@ export class ScreenSettings extends LitElement {
         threshold: 1,
         apiKey: this.openaiKey,
         rulesOnly: this.rulesOnly,
+        enableTranscription: this.enableTranscription,
+        enableVision: this.enableVision,
       });
       return;
     }
@@ -475,6 +483,38 @@ export class ScreenSettings extends LitElement {
               type="checkbox"
               .checked=${this.rulesOnly}
               @change=${(e: Event) => { this.rulesOnly = (e.target as HTMLInputElement).checked; }}
+            />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Transcription video</div>
+            <div class="toggle-desc">Whisper API pour reels sans texte (~$0.006/min)</div>
+          </div>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              .checked=${this.enableTranscription}
+              ?disabled=${this.rulesOnly}
+              @change=${(e: Event) => { this.enableTranscription = (e.target as HTMLInputElement).checked; }}
+            />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Analyse visuelle</div>
+            <div class="toggle-desc">Vision GPT-4o pour posts sans texte (+85 tokens)</div>
+          </div>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              .checked=${this.enableVision}
+              ?disabled=${this.rulesOnly}
+              @change=${(e: Event) => { this.enableVision = (e.target as HTMLInputElement).checked; }}
             />
             <span class="toggle-track"></span>
           </label>

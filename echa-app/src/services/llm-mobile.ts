@@ -159,3 +159,163 @@ Réponds UNIQUEMENT avec le JSON.`;
 }
 
 export { SYSTEM_PROMPT };
+
+// ── Whisper API — transcription audio pour vidéos ───────────
+
+/**
+ * Télécharge une vidéo depuis son URL CDN et envoie l'audio à Whisper API.
+ * Retourne le texte transcrit ou null en cas d'erreur.
+ */
+export async function callWhisperAPI(
+  videoUrl: string,
+  apiKey: string,
+): Promise<string | null> {
+  try {
+    // 1. Télécharger la vidéo (les CDN Instagram renvoient du mp4)
+    const videoResponse = await fetch(videoUrl);
+    if (!videoResponse.ok) {
+      console.log(`[whisper] Download failed: ${videoResponse.status}`);
+      return null;
+    }
+
+    const videoBlob = await videoResponse.blob();
+
+    // Vérifier la taille (skip si > 25MB — limite Whisper API)
+    if (videoBlob.size > 25 * 1024 * 1024) {
+      console.log(`[whisper] Video too large: ${(videoBlob.size / 1024 / 1024).toFixed(1)}MB`);
+      return null;
+    }
+
+    // 2. Envoyer à Whisper API (accepte directement le mp4)
+    const formData = new FormData();
+    formData.append('file', videoBlob, 'video.mp4');
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'fr'); // priorité français
+    formData.append('response_format', 'json');
+
+    const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!whisperResponse.ok) {
+      const errorText = await whisperResponse.text();
+      console.log(`[whisper] API error ${whisperResponse.status}: ${errorText.substring(0, 200)}`);
+      return null;
+    }
+
+    const result = await whisperResponse.json();
+    return result.text || null;
+  } catch (err) {
+    console.log(`[whisper] Error: ${err instanceof Error ? err.message : err}`);
+    return null;
+  }
+}
+
+/**
+ * Évalue la qualité d'une transcription Whisper.
+ * Détecte le charabia, les répétitions, et le contenu trop court.
+ */
+export function evaluateTranscriptionQuality(text: string): {
+  acceptable: boolean;
+  reason: string;
+} {
+  if (!text || text.trim().length === 0) {
+    return { acceptable: false, reason: 'empty' };
+  }
+
+  const words = text.trim().split(/\s+/);
+
+  // Trop court
+  if (words.length < 5) {
+    return { acceptable: false, reason: `too_short: ${words.length} words` };
+  }
+
+  // Détection de répétitions excessives (Whisper hallucine parfois en boucle)
+  const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+  const uniqueRatio = uniqueWords.size / words.length;
+  if (words.length > 10 && uniqueRatio < 0.3) {
+    return { acceptable: false, reason: `repetitive: ${(uniqueRatio * 100).toFixed(0)}% unique` };
+  }
+
+  // Détection de "musique only" (Whisper transcrit souvent "[Musique]" en boucle)
+  const musicPatterns = /^\[?(musique|music|applause|rires|laughter)\]?$/i;
+  const musicWords = words.filter(w => musicPatterns.test(w));
+  if (musicWords.length > words.length * 0.5) {
+    return { acceptable: false, reason: 'music_only' };
+  }
+
+  return { acceptable: true, reason: 'ok' };
+}
+
+// ── Vision LLM — analyse d'image pour posts visuels ─────────
+
+/**
+ * Appelle GPT-4o avec une image pour enrichir un post visuel.
+ * Utilisé quand le texte est trop pauvre pour classifier.
+ */
+export async function callOpenAIVision(
+  imageUrl: string,
+  post: { normalizedText: string; username: string; hashtags: string[]; mediaType?: string },
+  config: LLMConfig,
+): Promise<LLMResponse> {
+  const model = 'gpt-4o-mini'; // supporte vision nativement
+
+  const userContent = [
+    {
+      type: 'image_url',
+      image_url: { url: imageUrl, detail: 'low' }, // 85 tokens, économe
+    },
+    {
+      type: 'text',
+      text: `Analyse ce post Instagram en utilisant L'IMAGE et le texte.
+L'image est le contenu principal — le texte peut être pauvre.
+
+Auteur: @${post.username}
+Type: ${post.mediaType || 'photo'}
+Hashtags: ${post.hashtags.join(', ') || 'aucun'}
+Texte: ${post.normalizedText.substring(0, 800)}
+
+Produis un JSON avec: semantic_summary, main_topics (1-3, JAMAIS vide), secondary_topics, tone, primary_emotion, emotion_intensity, political_explicitness_score (0-4), polarization_score (0-1), ingroup_outgroup_signal, conflict_signal, moral_absolute_signal, enemy_designation_signal, activism_signal, narrative_frame, media_intent, confidence_score.
+
+Topics: actualite, politique, geopolitique, economie, ecologie, immigration, securite, justice, sante, religion, education, culture, humour, divertissement, lifestyle, beaute, sport, business, developpement_personnel, technologie, feminisme, masculinite, identite, societe.
+
+JSON uniquement.`,
+    },
+  ];
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ],
+      max_tokens: 1500,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI Vision ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const choice = data.choices?.[0];
+
+  return {
+    content: choice?.message?.content || '{}',
+    model: data.model || model,
+    usage: data.usage,
+  };
+}

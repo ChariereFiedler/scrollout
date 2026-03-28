@@ -31,7 +31,7 @@ public class EchaDatabase extends SQLiteOpenHelper {
 
     private static final String TAG = "EchaDB";
     private static final String DB_NAME = "echa.db";
-    private static final int DB_VERSION = 2;
+    private static final int DB_VERSION = 3;
 
     private static EchaDatabase instance;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -137,6 +137,8 @@ public class EchaDatabase extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX idx_enriched_postId ON post_enriched(postId)");
         db.execSQL("CREATE INDEX idx_enriched_politicalScore ON post_enriched(politicalExplicitnessScore)");
         db.execSQL("CREATE INDEX idx_enriched_polarization ON post_enriched(polarizationScore)");
+        db.execSQL("CREATE INDEX idx_enriched_confidence ON post_enriched(confidenceScore)");
+        db.execSQL("CREATE INDEX idx_enriched_provider ON post_enriched(provider)");
 
         Log.i(TAG, "Database created (v" + DB_VERSION + ")");
     }
@@ -151,6 +153,19 @@ public class EchaDatabase extends SQLiteOpenHelper {
             safeAddColumn(db, "post_enriched", "primaryEmotion", "TEXT DEFAULT ''");
             safeAddColumn(db, "post_enriched", "narrativeFrame", "TEXT DEFAULT ''");
         }
+        if (oldVersion < 3) {
+            // Add confidence + provider indexes for smart enrichment cascade
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_enriched_confidence ON post_enriched(confidenceScore)");
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_enriched_provider ON post_enriched(provider)");
+            // Add audioTranscription + reviewFlag if missing
+            safeAddColumn(db, "post_enriched", "audioTranscription", "TEXT DEFAULT ''");
+            safeAddColumn(db, "post_enriched", "reviewFlag", "INTEGER DEFAULT 0");
+            safeAddColumn(db, "post_enriched", "reviewReason", "TEXT DEFAULT ''");
+        }
+    }
+
+    private void safeExecSQL(SQLiteDatabase db, String sql) {
+        try { db.execSQL(sql); } catch (Exception e) { /* already exists */ }
     }
 
     private void safeAddColumn(SQLiteDatabase db, String table, String column, String type) {
@@ -605,6 +620,13 @@ public class EchaDatabase extends SQLiteOpenHelper {
         // Top political actors
         stats.put("topActors", aggregateJsonArrayField(db, "politicalActors", 10));
 
+        // Top subjects & precise subjects (deeper taxonomy)
+        stats.put("topSubjects", aggregateJsonArrayField(db, "subjects", 15));
+        stats.put("topPreciseSubjects", aggregateJsonArrayField(db, "preciseSubjects", 15));
+
+        // Top domains (from domains field)
+        stats.put("topDomainsReal", aggregateJsonArrayField(db, "domains", 10));
+
         // ── Cross-analyses avancées ──────────────────────────────
 
         // Attention × Politique: est-ce que tu t'arrêtes plus sur le contenu politique ?
@@ -798,7 +820,7 @@ public class EchaDatabase extends SQLiteOpenHelper {
         Cursor c = getReadableDatabase().rawQuery(
                 "SELECT p.id, p.postId, p.username, p.caption, p.fullCaption, " +
                 "p.hashtags, p.imageAlts, p.allText, p.ocrText, p.mlkitLabels, " +
-                "p.mediaType, p.isSponsored, p.isSuggested " +
+                "p.mediaType, p.isSponsored, p.isSuggested, p.imageUrls, p.videoUrl " +
                 "FROM posts p LEFT JOIN post_enriched e ON e.postId = p.id " +
                 "WHERE e.id IS NULL AND length(p.allText) > 10 " +
                 "ORDER BY p.createdAt DESC LIMIT ?",
@@ -818,6 +840,8 @@ public class EchaDatabase extends SQLiteOpenHelper {
             post.put("mediaType", c.getString(c.getColumnIndexOrThrow("mediaType")));
             post.put("isSponsored", c.getInt(c.getColumnIndexOrThrow("isSponsored")) == 1);
             post.put("isSuggested", c.getInt(c.getColumnIndexOrThrow("isSuggested")) == 1);
+            post.put("imageUrls", c.getString(c.getColumnIndexOrThrow("imageUrls")));
+            post.put("videoUrl", c.getString(c.getColumnIndexOrThrow("videoUrl")));
             result.put(post);
         }
         c.close();
