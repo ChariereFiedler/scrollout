@@ -12,6 +12,7 @@ import {
 import type { CognitionControlsChangeDetail } from '../components/cognition-controls.js';
 import '../components/cognition-controls.js';
 import '../components/cognition-bubble-view.js';
+import '../components/cognition-bar-view.js';
 
 @customElement('screen-cognition')
 export class ScreenCognition extends LitElement {
@@ -397,12 +398,21 @@ export class ScreenCognition extends LitElement {
                     .chromaPower=${this.chromaPower}
                   ></cognition-bubble-view>
                 `
+              : this.mode === 'bar'
+                ? html`
+                    <cognition-bar-view
+                      .themes=${this.bubbleData?.themes ?? []}
+                      .primaryMetric=${this.primaryMetric}
+                      .secondaryMetric=${this.secondaryMetric}
+                      .chromaPower=${this.chromaPower}
+                    ></cognition-bar-view>
+                  `
               : html`
                   <div class="placeholder">
                     <div>
-                      <strong>${this.mode === 'bar' ? 'Barres prêtes' : 'Radar prêt'}</strong>
+                      <strong>Radar prêt</strong>
                       <p>
-                        Le shell est prêt à afficher ${this.mode === 'bar' ? 'une distribution en barres' : 'un profil radar'} dans la prochaine tâche.
+                        Le shell est prêt à afficher un profil radar dans la prochaine tâche.
                       </p>
                     </div>
                   </div>
