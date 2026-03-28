@@ -4,8 +4,7 @@
  * et compare avec l'enrichissement stocké.
  */
 import prisma from './db/client';
-import { classifyMultiLevel, getTaxonomyStats, getAllPreciseSubjects, getPreciseSubjectsForTheme } from './enrichment/dictionaries';
-import { classifyTopicsEnriched } from './enrichment/dictionaries/topics-keywords';
+import { getTaxonomyStats, getAllPreciseSubjects, getPreciseSubjectsForTheme } from './enrichment/dictionaries';
 import { applyRules } from './enrichment/rules-engine';
 
 interface AnalysisRow {

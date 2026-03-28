@@ -17,6 +17,15 @@ data/
 *.db
 *.db-journal
 
+# CI artifacts
+ci-logs/
+public/
+
+# Keystore (ne JAMAIS commit)
+*.keystore
+*.keystore.b64
+*.jks
+
 # Android build artifacts
 .gradle/
 **/build/

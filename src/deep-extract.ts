@@ -6,7 +6,6 @@ import {
   getCurrentPackage,
   scrollDown,
   adbShell,
-  tapScreen,
 } from './adb';
 import { parseXmlDump } from './parser';
 

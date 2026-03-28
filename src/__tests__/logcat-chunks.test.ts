@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { LogcatTap, MLKitResult } from '../logcat-tap';
 
 // We test the chunk parsing logic by calling processLine directly

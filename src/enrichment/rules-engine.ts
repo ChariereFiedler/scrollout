@@ -3,7 +3,7 @@
  * Scoring rule-based à partir des dictionnaires.
  * Produit un enrichissement partiel qui sera complété par le LLM.
  */
-import { detectPoliticalActors, analyzeHashtags, detectPolarization, classifyTopics, classifyTopicsEnriched, detectPoliticalAxes, classifyMedia, detectPoliticalAccount, getDomainsFromThemes, getPreciseSubjectsForTheme } from './dictionaries';
+import { detectPoliticalActors, analyzeHashtags, detectPolarization, classifyTopicsEnriched, detectPoliticalAxes, classifyMedia, detectPoliticalAccount, getDomainsFromThemes, getPreciseSubjectsForTheme } from './dictionaries';
 import type { AxisScore } from './dictionaries';
 
 export interface SubjectMatch {

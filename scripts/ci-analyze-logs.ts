@@ -154,8 +154,8 @@ function main() {
   if (file) {
     raw = readFileSync(file, "utf-8");
   } else {
-    // read from stdin
-    raw = readFileSync("/dev/stdin", "utf-8");
+    // read from stdin (cross-platform)
+    raw = readFileSync(process.stdin.fd, "utf-8");
   }
 
   const result = analyzeLog(raw);

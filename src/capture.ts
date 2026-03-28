@@ -3,7 +3,7 @@
  * Usage: npx tsx src/capture.ts [seconds=30]
  */
 import { spawn, execSync } from 'child_process';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync } from 'fs';
 import path from 'path';
 import { findAdbPath } from './adb-path';
 

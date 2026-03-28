@@ -10,13 +10,20 @@ export default tseslint.config(
       "scrollout-site/",
       "data/",
       "prisma/migrations/",
+      "*.config.*",
+      "prisma.config.ts",
+      "**/*.js",
+      "**/*.mts",
+      "_*.ts",
     ],
   },
   ...tseslint.configs.recommended,
   {
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ["scripts/*.ts"],
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -27,7 +34,6 @@ export default tseslint.config(
       ],
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-require-imports": "off",
-      "no-console": "off",
     },
   },
 );

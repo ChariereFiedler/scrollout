@@ -6,7 +6,7 @@
  * Les keywords de chaque thème sont l'union des keywords de tous ses sujets.
  */
 
-import { THEMES, classifyMultiLevel, getDomainForTheme, matchKeyword } from './taxonomy';
+import { THEMES, classifyMultiLevel, matchKeyword } from './taxonomy';
 import type { MultiLevelMatch } from './taxonomy';
 
 export interface TopicDefinition {

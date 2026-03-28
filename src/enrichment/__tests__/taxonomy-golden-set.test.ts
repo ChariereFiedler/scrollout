@@ -10,7 +10,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { classifyMultiLevel, getPreciseSubjectsForTheme } from '../dictionaries/taxonomy';
-import { classifyTopicsEnriched, classifyTopics } from '../dictionaries/topics-keywords';
+import { classifyTopicsEnriched } from '../dictionaries/topics-keywords';
 import { applyRules } from '../rules-engine';
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -23,11 +23,7 @@ function subjects(text: string): string[] {
   return classifyMultiLevel(text).map(m => m.subject?.id).filter((s): s is string => !!s);
 }
 
-function domains(text: string): string[] {
-  return classifyTopicsEnriched(text).domains.map(d => d.id);
-}
-
-function rulesThemes(text: string): string[] {
+function _rulesThemes(text: string): string[] {
   const r = applyRules({ normalizedText: text, hashtags: [], username: 'test' });
   return [...r.mainTopics, ...r.secondaryTopics];
 }

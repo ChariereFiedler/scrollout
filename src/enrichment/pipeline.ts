@@ -8,7 +8,6 @@ import { applyRules } from './rules-engine';
 import { normalizeTopics, getPreciseSubjectById, getDomainsFromThemes } from './dictionaries';
 import type { LLMProvider } from './llm/provider';
 import { ENRICHMENT_SYSTEM_PROMPT, buildEnrichmentPrompt } from './llm/prompts';
-import type { EnrichmentPromptInput } from './llm/prompts';
 import type { TranscriptionProvider } from '../media/transcribe';
 import { processVideoMedia } from '../media/pipeline';
 

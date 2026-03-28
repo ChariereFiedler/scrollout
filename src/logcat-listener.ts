@@ -30,7 +30,7 @@ function log(msg: string): void {
 export async function startLogcatListener(): Promise<void> {
   const adbPath = findAdbPath();
   const events: EchaEvent[] = [];
-  let chunkBuffer: Map<string, string[]> = new Map();
+  const chunkBuffer: Map<string, string[]> = new Map();
 
   log('=== ECHA v2 — AccessibilityService Logcat Listener ===');
   log('Listening for Instagram accessibility events...');
@@ -117,7 +117,7 @@ function processLine(
     try {
       const event = JSON.parse(json) as EchaEvent;
       handleEvent(event, events);
-    } catch (e) {
+    } catch {
       // Might be truncated, ignore
     }
     return;
@@ -143,13 +143,13 @@ function processLine(
 
   // End marker — reconstruct chunked data
   if (line.startsWith('END|')) {
-    for (const [key, chunks] of chunkBuffer.entries()) {
+    for (const [_key, chunks] of chunkBuffer.entries()) {
       if (chunks.every(c => c !== '')) {
         const json = chunks.join('');
         try {
           const event = JSON.parse(json) as EchaEvent;
           handleEvent(event, events);
-        } catch (e) {
+        } catch {
           log(`Failed to parse chunked JSON (${json.length} chars)`);
         }
       }

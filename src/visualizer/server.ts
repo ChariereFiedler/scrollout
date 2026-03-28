@@ -21,7 +21,6 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 
 let liveSessionId: string | null = null;
 let liveSessionStart = 0;
-let livePostCount = 0;
 let liveEventCount = 0;
 let liveBridgeEvents = 0;
 let liveBridgeErrors = 0;
@@ -78,7 +77,6 @@ async function ingestEvent(event: EchaEvent): Promise<void> {
     });
 
     if (!existing) {
-      livePostCount++;
       try {
         await prisma.post.create({
           data: {
@@ -392,9 +390,9 @@ function broadcast(message: object): void {
 // ─── Mobile WebSocket tracking ──────────────────────────────────────
 
 let mobileWs: WebSocket | null = null;
-let mobileConnectedAt = 0;
+let _mobileConnectedAt = 0;
 
-function isMobileSource(ws: WebSocket, req: { headers: Record<string, string | string[] | undefined> }): boolean {
+function _isMobileSource(ws: WebSocket, req: { headers: Record<string, string | string[] | undefined> }): boolean {
   return req.headers['x-echa-source'] === 'mobile';
 }
 
@@ -500,8 +498,8 @@ async function handleMobileMessage(raw: string): Promise<void> {
       await ensureMobileSession(d.sessionId);
 
       // Parse hashtags
-      let hashtags: string[] = [];
-      try { hashtags = JSON.parse(post.hashtags || '[]'); } catch { /* ignore */ }
+      let _hashtags: string[] = [];
+      try { _hashtags = JSON.parse(post.hashtags || '[]'); } catch { /* ignore */ }
 
       // Upsert post in Prisma
       try {
@@ -632,7 +630,7 @@ wss.on('connection', (ws, req) => {
 
   if (isMobile) {
     mobileWs = ws;
-    mobileConnectedAt = Date.now();
+    _mobileConnectedAt = Date.now();
     console.log(`[visualizer] Mobile device connected via WebSocket`);
     broadcast({ type: 'status', mobile: 'connected' });
   } else {

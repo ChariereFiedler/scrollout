@@ -2,8 +2,7 @@
  * ECHA Audio Extract — Extrait l'audio d'une vidéo via ffmpeg.
  */
 import { execSync } from 'child_process';
-import { existsSync, unlinkSync } from 'fs';
-import path from 'path';
+import { existsSync } from 'fs';
 
 export interface AudioExtractResult {
   audioPath: string;

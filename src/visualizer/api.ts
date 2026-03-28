@@ -291,7 +291,7 @@ async function proxyToMobile(path: string, res: ServerResponse): Promise<boolean
     res.writeHead(mobileRes.status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(data);
     return true;
-  } catch (e) {
+  } catch {
     json(res, { error: 'Mobile unreachable' }, 502);
     return true;
   }

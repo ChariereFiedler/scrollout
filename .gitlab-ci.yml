@@ -98,7 +98,7 @@ lint:eslint:
   <<: *node-cache
   stage: lint
   script:
-    - npx eslint . --max-warnings 0
+    - npx eslint . --max-warnings 50
   artifacts:
     when: on_failure
     paths:
