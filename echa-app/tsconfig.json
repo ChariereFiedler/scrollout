@@ -13,7 +13,10 @@
     "sourceMap": true,
     "outDir": "www",
     "rootDir": "src",
-    "lib": ["ES2021", "DOM", "DOM.Iterable"]
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@shared/*": ["../src/enrichment/*"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../src/enrichment/**/*.ts"]
 }

@@ -64,16 +64,80 @@ export async function callOpenAI(
 
 // ── Enrichment prompt (version mobile, identique au PC) ──────
 
-const SYSTEM_PROMPT = `Tu es un analyseur de contenu Instagram. Tu reçois le texte normalisé d'un post et tu dois le classifier selon plusieurs dimensions.
+const SYSTEM_PROMPT = `Tu es un analyste de contenu spécialisé dans l'analyse de posts Instagram francophones.
+Tu dois produire une analyse structurée en JSON, rigoureuse et factuelle.
 
-IMPORTANT : Le @username est un signal sémantique fort. Utilise-le pour inférer le domaine du compte (ex: @boardgamegeek → jeux de société, @mediapart → actualité/politique).
+IMPORTANT :
+- Tu mesures le CONTENU du post, pas l'opinion de l'auteur ni du lecteur.
+- Tu évalues l'EXPOSITION à un type de contenu, pas l'adhésion.
+- Sois conservateur dans tes scores : en cas de doute, score bas.
+- main_topics ne doit JAMAIS être vide []. Même un post très pauvre a un domaine identifiable via le username ou le type de média.
 
-Réponds UNIQUEMENT en JSON valide avec exactement ces champs:
+Réponds UNIQUEMENT en JSON valide.`;
+
+export function buildEnrichmentPrompt(post: {
+  normalizedText: string;
+  username: string;
+  hashtags: string[];
+  mediaType?: string;
+  rulesHints?: {
+    mainTopics: string[];
+    politicalScore: number;
+    polarizationScore: number;
+    detectedActors: string[];
+  };
+}): string {
+  const rulesContext = post.rulesHints?.mainTopics.length
+    ? `\nIndices pré-calculés (règles) : topics=[${post.rulesHints.mainTopics.join(',')}], political_score=${post.rulesHints.politicalScore}, polarization=${post.rulesHints.polarizationScore}, actors=[${post.rulesHints.detectedActors.join(',')}]`
+    : '';
+
+  return `Analyse ce post Instagram et produis un JSON structuré.
+
+IMPORTANT — RÈGLES CRITIQUES :
+1. Le @username est un signal sémantique fort (ex: @boardgamegeek → jeux de société, @franceculture → culture/média).
+2. main_topics ne doit JAMAIS être vide []. En dernier recours, utilise "divertissement" ou "lifestyle".
+
+--- POST ---
+Auteur : @${post.username}
+Type : ${post.mediaType || 'photo'}
+Hashtags : ${post.hashtags.join(', ') || '(aucun)'}
+Texte :
+${post.normalizedText.substring(0, 1500)}
+${rulesContext}
+--- FIN POST ---
+
+LISTE DES 24 THÈMES (utilise UNIQUEMENT ces identifiants) :
+- actualite : info, breaking news, faits divers
+- politique : élections, partis, lois, institutions FR
+- geopolitique : conflits internationaux, diplomatie
+- economie : emploi, inflation, pouvoir d'achat
+- ecologie : climat, biodiversité, pollution
+- immigration : migration, intégration, frontières
+- securite : police, délinquance, terrorisme
+- justice : droit, procès, réformes judiciaires
+- sante : médecine, bien-être physique
+- religion : islam, christianisme, laïcité, spiritualité
+- education : école, université, formation
+- culture : cinéma, musique, séries, littérature, art
+- humour : memes, satire, parodie
+- divertissement : gaming, jeux de société, people, anime, contenus viraux
+- lifestyle : food, voyage, déco, animaux
+- beaute : skincare, maquillage, coiffure, mode
+- sport : football, fitness, MMA, JO (PAS jeux de société)
+- business : entrepreneuriat, crypto, coaching, investissement
+- developpement_personnel : méditation, motivation, astrologie
+- technologie : IA, dev, gadgets, apps
+- feminisme : droits des femmes, patriarcat
+- masculinite : manosphère, redpill, masculinité positive
+- identite : racisme, LGBTQ+, diaspora
+- societe : inégalités, vivre-ensemble
+
+Produis un JSON avec ces champs :
 {
   "semantic_summary": "résumé en 1-2 phrases",
-  "main_topics": ["1-3 thèmes principaux"],
+  "main_topics": ["1-3 thèmes. JAMAIS vide."],
   "secondary_topics": ["0-3 thèmes secondaires"],
-  "tone": "informatif|émotionnel|sarcastique|militant|neutre|inspirant|alarmiste|humoristique",
+  "tone": "informatif|émotionnel|sarcastique|militant|neutre|inspirant|alarmiste",
   "primary_emotion": "colère|joie|peur|tristesse|dégoût|surprise|fierté|espoir|neutre",
   "emotion_intensity": 0.0-1.0,
   "political_explicitness_score": 0-4,
@@ -88,56 +152,10 @@ Réponds UNIQUEMENT en JSON valide avec exactement ces champs:
   "confidence_score": 0.0-1.0
 }
 
-Échelle political_explicitness_score:
-0 = aucun contenu politique
-1 = mention implicite (contexte social sans prise de position)
-2 = référence explicite (acteurs, institutions, lois nommés)
-3 = contenu clairement politique (prise de position, angle orienté)
-4 = contenu militant/engagé (appel à l'action, propagande)
+ÉCHELLE POLITIQUE : 0=apolitique, 1=social sans enjeu, 2=enjeu public indirect, 3=politique explicite, 4=militant
+ÉCHELLE POLARISATION : 0=neutre, 0.1-0.3=orienté, 0.3-0.6=position nette, 0.6-0.8=opposition binaire, 0.8-1.0=hautement polarisant
 
-Échelle polarization_score — CRITIQUE, ne laisse PAS à 0 si un signal est présent:
-0.0 = contenu factuel neutre, aucun clivage
-0.1-0.3 = présence légère de cadrage orienté ou ton émotionnel
-0.3-0.5 = opposition binaire (nous/eux), vocabulaire de conflit, indignation
-0.5-0.7 = désignation d'ennemis, absolus moraux, simplification causale
-0.7-1.0 = propagande, déshumanisation, appel à la haine ou au rejet
-
-Signaux à détecter pour la polarisation:
-- ingroup_outgroup_signal: "nous vs eux", "les élites", "le peuple"
-- conflict_signal: vocabulaire de guerre, combat, ennemi, menace
-- moral_absolute_signal: "fascisme", "génocide", "monstrueux", "inacceptable"
-- enemy_designation_signal: "dehors", "dégagez", rejet d'un groupe
-- activism_signal: appel à manifester, boycotter, voter, signer
-
-Topics valides: actualite, politique, geopolitique, economie, ecologie, immigration, securite, justice, sante, religion, education, culture, humour, divertissement, lifestyle, beaute, sport, business, dev_personnel, technologie, feminisme, masculinite, identite, societe`;
-
-export function buildEnrichmentPrompt(post: {
-  normalizedText: string;
-  username: string;
-  hashtags: string[];
-  rulesHints?: {
-    mainTopics: string[];
-    politicalScore: number;
-    polarizationScore: number;
-    detectedActors: string[];
-  };
-}): string {
-  let prompt = `Analyse ce post Instagram:
-
-Auteur: @${post.username}
-Hashtags: ${post.hashtags.join(', ') || 'aucun'}
-Texte:
-${post.normalizedText.substring(0, 1500)}`;
-
-  if (post.rulesHints) {
-    prompt += `\n\nIndices du moteur de règles (à vérifier/affiner):
-- Topics détectés: ${post.rulesHints.mainTopics.join(', ') || 'aucun'}
-- Score politique rules: ${post.rulesHints.politicalScore}
-- Polarisation rules: ${post.rulesHints.polarizationScore}
-- Acteurs détectés: ${post.rulesHints.detectedActors.join(', ') || 'aucun'}`;
-  }
-
-  return prompt;
+Réponds UNIQUEMENT avec le JSON.`;
 }
 
 export { SYSTEM_PROMPT };

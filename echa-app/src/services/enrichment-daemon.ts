@@ -16,6 +16,7 @@ import {
   type LLMConfig,
   type LLMMessage,
 } from './llm-mobile';
+import { applyRulesShared, inferFallbackTopic, type RulesInput } from './rules-engine-shared';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -83,22 +84,26 @@ function getPlugin(): any {
   return (window as any).Capacitor?.Plugins?.InstaWebView;
 }
 
-// ── Rules engine (réutilise enrichment.js déjà chargé) ───────
+// ── Rules engine (shared module — même code que le PC) ───────
 
-function applyRulesFromJS(post: UnenrichedPost): any {
-  const enrich = (window as any).__echaEnrich;
-  if (!enrich) return null;
-
-  const hashtags = safeParseArray(post.hashtags);
-  return enrich({
-    username: post.username,
-    caption: post.caption,
-    fullCaption: post.fullCaption,
-    imageAlts: post.imageAlts,
-    allText: post.allText,
-    hashtags,
-    isSponsored: post.isSponsored,
-  });
+function applyRulesFromShared(post: UnenrichedPost): ReturnType<typeof applyRulesShared> | null {
+  try {
+    const hashtags = safeParseArray(post.hashtags);
+    return applyRulesShared({
+      username: post.username,
+      caption: post.caption,
+      fullCaption: post.fullCaption,
+      imageAlts: post.imageAlts,
+      allText: post.allText,
+      hashtags,
+      ocrText: post.ocrText,
+      mlkitLabelsText: safeParseArray(post.mlkitLabels).length > 0 ? post.mlkitLabels : undefined,
+      isSponsored: post.isSponsored,
+    });
+  } catch (err) {
+    log(`rules error: ${err instanceof Error ? err.message : err}`);
+    return null;
+  }
 }
 
 function safeParseArray(json: string): string[] {
@@ -160,10 +165,10 @@ async function enrichPost(
   post: UnenrichedPost,
   llmConfig: LLMConfig | null,
 ): Promise<'success' | 'skipped' | 'failed'> {
-  // 1. Rules
-  const rulesResult = applyRulesFromJS(post);
+  // 1. Rules (shared module — même dictionnaires et logique que le PC)
+  const rulesResult = applyRulesFromShared(post);
   if (!rulesResult) {
-    log(`skip @${post.username} — rules engine non disponible`);
+    log(`skip @${post.username} — rules engine error`);
     return 'skipped';
   }
 
@@ -175,14 +180,15 @@ async function enrichPost(
     return 'skipped';
   }
 
-  // Fallback: if rules found no topics, use mediaCategory as topic
+  // Fallback: if rules found no topics, infer from username/mediaType
   const rulesTopics = rulesResult.mainTopics?.length ? rulesResult.mainTopics
-    : rulesResult.mediaCategory ? [rulesResult.mediaCategory] : [];
+    : [inferFallbackTopic(post.username, post.mediaType)];
 
   let enrichment: Record<string, any> = {
     provider: 'rules',
     model: 'rules-v1',
     normalizedText,
+    domains: JSON.stringify(rulesResult.domains || []),
     mainTopics: JSON.stringify(rulesTopics),
     secondaryTopics: JSON.stringify(rulesResult.secondaryTopics || []),
     politicalActors: JSON.stringify(rulesResult.politicalActors || []),
@@ -213,6 +219,7 @@ async function enrichPost(
         normalizedText,
         username: post.username,
         hashtags,
+        mediaType: post.mediaType,
         rulesHints: {
           mainTopics: rulesResult.mainTopics,
           politicalScore: rulesResult.politicalExplicitnessScore,
@@ -241,12 +248,11 @@ async function enrichPost(
         ((rulesResult.confidenceScore || 0.3) * 0.3 + (llm.confidence_score || 0.5) * 0.7) * 100,
       ) / 100;
 
-      // Merge topics: prefer LLM, fallback rules, fallback mediaCategory
-      log(`LLM raw topics @${post.username}: ${JSON.stringify(llm.main_topics)} rules: ${JSON.stringify(rulesResult.mainTopics)} cat: ${rulesResult.mediaCategory}`);
+      // Merge topics: prefer LLM, fallback rules, fallback inferFallbackTopic
+      log(`LLM raw topics @${post.username}: ${JSON.stringify(llm.main_topics)} rules: ${JSON.stringify(rulesResult.mainTopics)}`);
       let mergedTopics = llm.main_topics?.length ? llm.main_topics
-        : rulesResult.mainTopics?.length ? rulesResult.mainTopics
-        : rulesResult.mediaCategory ? [rulesResult.mediaCategory]
-        : [];
+        : rulesTopics.length ? rulesTopics
+        : [inferFallbackTopic(post.username, post.mediaType)];
 
       enrichment = {
         ...enrichment,

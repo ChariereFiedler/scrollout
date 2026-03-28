@@ -27,8 +27,7 @@
 </head>
 <body>
   <app-shell></app-shell>
-  <!-- Rules engine (expose window.__echaEnrich pour le daemon d'enrichissement) -->
-  <script src="/enrichment.js"></script>
+  <!-- Rules engine importé via module shared (plus de enrichment.js séparé) -->
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
