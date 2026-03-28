@@ -1,7 +1,15 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { theme, scrolloutDots, scrolloutIconSvg } from '../styles/theme.js';
-import { getPosts, getStats, safeParse, type DbStats, type PostEntry } from '../services/db-bridge.js';
+import {
+  getCognitiveThemes,
+  getPosts,
+  getStats,
+  safeParse,
+  type CognitiveThemeRow,
+  type DbStats,
+  type PostEntry,
+} from '../services/db-bridge.js';
 
 type SortMode = 'dwell' | 'engagement';
 
@@ -289,9 +297,13 @@ export class ScreenScrollout extends LitElement {
   private async load() {
     this.loading = true;
     try {
-      const [stats, posts] = await Promise.all([getStats(), getPosts('', 0, 400)]);
+      const [stats, posts, cognitive] = await Promise.all([
+        getStats(),
+        getPosts('', 0, 400),
+        getCognitiveThemes(),
+      ]);
       this.stats = stats;
-      this.topics = this.buildTopicCards(posts);
+      this.topics = this.buildTopicCards(posts, cognitive.themes);
     } finally {
       this.loading = false;
     }
@@ -301,14 +313,41 @@ export class ScreenScrollout extends LitElement {
     this.dispatchEvent(new CustomEvent(name, { detail, bubbles: true, composed: true }));
   }
 
-  private buildTopicCards(posts: PostEntry[]): TopicCard[] {
-    const topics = new Map<string, {
-      label: string;
-      dwellMs: number;
-      postCount: number;
-      engagedPosts: number;
-      accounts: Map<string, number>;
-    }>();
+  private buildTopicCards(posts: PostEntry[], cognitiveThemes: CognitiveThemeRow[]): TopicCard[] {
+    const topics = new Map<string, TopicCard>();
+
+    const taxonomyThemes = cognitiveThemes.filter(theme => theme.source === 'mainTopics');
+
+    for (const theme of taxonomyThemes) {
+      const id = theme.themeId || theme.themeLabel.toLowerCase();
+      const sampleUsers = (theme.sampleUsers || []).filter(Boolean);
+      topics.set(id, {
+        id,
+        label: theme.themeLabel,
+        dwellMs: theme.totalDwellTimeMs,
+        engagedPosts: Math.round(theme.engagedShare * theme.postCount),
+        postCount: theme.postCount,
+        engagementRate: theme.engagedShare,
+        playlistSeed: sampleUsers.length > 0 ? { username: sampleUsers[0], score: theme.engagementScore } : null,
+        radioQueries: this.buildRadioQueries(theme.themeLabel),
+      });
+    }
+
+    if (topics.size === 0 && this.stats?.topTopics?.length) {
+      for (const topic of this.stats.topTopics) {
+        const id = topic.topic.toLowerCase();
+        topics.set(id, {
+          id,
+          label: topic.topic,
+          dwellMs: 0,
+          engagedPosts: 0,
+          postCount: topic.count,
+          engagementRate: 0,
+          playlistSeed: null,
+          radioQueries: this.buildRadioQueries(topic.topic),
+        });
+      }
+    }
 
     for (const post of posts) {
       const labels = safeParse(post.enrichment?.mainTopics).filter(Boolean);
@@ -326,11 +365,14 @@ export class ScreenScrollout extends LitElement {
 
         if (!topics.has(key)) {
           topics.set(key, {
+            id: key,
             label,
             dwellMs: 0,
-            postCount: 0,
             engagedPosts: 0,
-            accounts: new Map<string, number>(),
+            postCount: 0,
+            engagementRate: 0,
+            playlistSeed: null,
+            radioQueries: this.buildRadioQueries(label),
           });
         }
 
@@ -338,27 +380,16 @@ export class ScreenScrollout extends LitElement {
         topic.dwellMs += dwellMs;
         topic.postCount += 1;
         if (engaged) topic.engagedPosts += 1;
-        if (username) {
-          topic.accounts.set(username, (topic.accounts.get(username) || 0) + accountContribution);
+        topic.engagementRate = topic.postCount > 0 ? topic.engagedPosts / topic.postCount : 0;
+        if (username && (!topic.playlistSeed || accountContribution > topic.playlistSeed.score)) {
+          topic.playlistSeed = { username, score: accountContribution };
         }
       }
     }
 
-    return Array.from(topics.entries()).map(([id, topic]) => {
-      const playlistSeed = Array.from(topic.accounts.entries())
-        .sort((a, b) => b[1] - a[1])[0];
-
-      return {
-        id,
-        label: topic.label,
-        dwellMs: topic.dwellMs,
-        engagedPosts: topic.engagedPosts,
-        postCount: topic.postCount,
-        engagementRate: topic.postCount > 0 ? topic.engagedPosts / topic.postCount : 0,
-        playlistSeed: playlistSeed ? { username: playlistSeed[0], score: playlistSeed[1] } : null,
-        radioQueries: this.buildRadioQueries(topic.label),
-      };
-    }).sort((a, b) => b.dwellMs - a.dwellMs);
+    return Array.from(topics.values())
+      .filter(topic => topic.postCount > 0 || topic.dwellMs > 0)
+      .sort((a, b) => b.dwellMs - a.dwellMs);
   }
 
   private buildRadioQueries(label: string): string[] {

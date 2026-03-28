@@ -31,7 +31,7 @@ public class EchaDatabase extends SQLiteOpenHelper {
 
     private static final String TAG = "EchaDB";
     private static final String DB_NAME = "echa.db";
-    private static final int DB_VERSION = 4;
+    private static final int DB_VERSION = 5;
 
     private static EchaDatabase instance;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -74,6 +74,7 @@ public class EchaDatabase extends SQLiteOpenHelper {
                 "hashtags TEXT DEFAULT '[]'," +
                 "imageAlts TEXT DEFAULT '[]'," +
                 "imageUrls TEXT DEFAULT '[]'," +
+                "videoUrl TEXT DEFAULT ''," +
                 "mediaType TEXT DEFAULT 'photo'," +
                 "likeCount INTEGER DEFAULT 0," +
                 "commentCount INTEGER DEFAULT 0," +
@@ -171,6 +172,10 @@ public class EchaDatabase extends SQLiteOpenHelper {
             safeAddColumn(db, "post_enriched", "subjects", "TEXT DEFAULT '[]'");
             safeAddColumn(db, "post_enriched", "preciseSubjects", "TEXT DEFAULT '[]'");
         }
+        if (oldVersion < 5) {
+            // Add missing videoUrl column used by mobile enrichment pipeline
+            safeAddColumn(db, "posts", "videoUrl", "TEXT DEFAULT ''");
+        }
     }
 
     private void safeExecSQL(SQLiteDatabase db, String sql) {
@@ -231,6 +236,7 @@ public class EchaDatabase extends SQLiteOpenHelper {
         cv.put("hashtags", post.optString("hashtags", "[]"));
         cv.put("imageAlts", post.optString("imageAlts", "[]"));
         cv.put("imageUrls", post.optString("imageUrls", "[]"));
+        cv.put("videoUrl", post.optString("videoUrl", ""));
         cv.put("mediaType", post.optString("mediaType", "photo"));
         cv.put("likeCount", parseLikeCount(post.optString("likeCount", "0")));
         cv.put("commentCount", parseLikeCount(post.optString("commentCount", "0")));

@@ -58,6 +58,7 @@ public class InstaWebViewPlugin extends Plugin {
     private WebView instaWebView;
     private String trackerScript = "";
     private String enrichmentScript = "";
+    private String scrolloutUiScript = "";
     private final List<String> collectedData = new ArrayList<>();
     private boolean instagramVisible = false;
 
@@ -106,6 +107,22 @@ public class InstaWebViewPlugin extends Plugin {
             Log.i(TAG, "Enrichment script loaded: " + enrichmentScript.length() + " chars");
         } catch (Exception e) {
             Log.e(TAG, "Failed to load enrichment.js: " + e.getMessage());
+        }
+
+        // Load scrollout-ui.js from assets
+        try {
+            InputStream is3 = getContext().getAssets().open("public/scrollout-ui.js");
+            BufferedReader reader3 = new BufferedReader(new InputStreamReader(is3));
+            StringBuilder sb3 = new StringBuilder();
+            String line3;
+            while ((line3 = reader3.readLine()) != null) {
+                sb3.append(line3).append("\n");
+            }
+            scrolloutUiScript = sb3.toString();
+            reader3.close();
+            Log.i(TAG, "Scrollout UI script loaded: " + scrolloutUiScript.length() + " chars");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to load scrollout-ui.js: " + e.getMessage());
         }
 
         // Init Database
@@ -226,6 +243,10 @@ public class InstaWebViewPlugin extends Plugin {
                                 }
                                 view.evaluateJavascript(trackerScript, null);
                                 Log.i(TAG, "Tracker injected into: " + url);
+                                if (!scrolloutUiScript.isEmpty()) {
+                                    view.evaluateJavascript(scrolloutUiScript, null);
+                                    Log.i(TAG, "Scrollout UI injected into: " + url);
+                                }
                             }, 2000);
                         }
                     }
