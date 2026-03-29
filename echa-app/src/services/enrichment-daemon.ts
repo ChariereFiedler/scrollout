@@ -59,6 +59,7 @@ interface LLMEnrichmentResult {
   polarization_score: number;
   narrative_frame: string;
   call_to_action_type: string;
+  media_hook: string;
   media_message: string;
   media_intent: string;
   confidence_score: number;
@@ -399,6 +400,7 @@ function mergeLLMResult(
     primaryEmotion: llm.primary_emotion || '',
     narrativeFrame: llm.narrative_frame || '',
     callToActionType: llm.call_to_action_type || '',
+    mediaHook: llm.media_hook || '',
     mediaMessage: llm.media_message || '',
     mediaIntent: llm.media_intent || '',
     ingroupOutgroupSignal: (llm as any).ingroup_outgroup_signal || enrichment.ingroupOutgroupSignal,
@@ -744,10 +746,11 @@ async function tick() {
                 polarization_score: r.result.polarization_score || 0,
                 narrative_frame: r.result.narrative_frame || '',
                 call_to_action_type: r.result.call_to_action_type || '',
+                media_hook: r.result.media_hook || '',
                 media_message: r.result.media_message || '',
                 media_intent: r.result.media_intent || '',
                 confidence_score: r.result.confidence_score || 0.5,
-              }, c.rulesResult, c.post, 'gpt-4.1-nano-batch');
+              }, c.rulesResult, c.post, 'gpt-4o-mini-batch');
               await saveEnrichment(c.post.id, enrichment);
               // Graph ingest after LLM refinement
               try { await graphIngestMobile(c.post.id, enrichment as MobileEnrichment); } catch { /* non-blocking */ }

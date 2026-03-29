@@ -70,12 +70,16 @@ Tu dois produire une analyse structurée en JSON, rigoureuse et factuelle.
 RÈGLE FONDAMENTALE — SÉMIOLOGIE, PAS DESCRIPTION :
 Tu ne décris PAS le post. Tu identifies son SUJET FACTUEL et son ANGLE.
 
-- semantic_summary = observation sémiologique FACTUELLE en 15 mots. Quel sujet, quel angle, quelle vision du monde.
-- Mauvais : "Promotion de la littérature via des publications d'éditeurs" (trop vague, descriptif)
-- Mauvais : "Tu devrais lire pour être cultivé" (trop prescriptif)
-- Bon : "Nouveautés SF chez un éditeur indépendant — la littérature de genre comme culture légitime"
-- Bon : "Jeu de société Wingspan présenté par un passionné — le hobby ludique comme art de vivre"
-- Bon : "Recette de ramen artisanal — la cuisine japonaise authentique comme marqueur de bon goût"
+- semantic_summary = observation sémiologique FACTUELLE, SPÉCIFIQUE, VARIÉE (15 mots max). Nomme le sujet précis, pas une catégorie générique.
+- INTERDIT : les formules templates "X comme art de vivre", "X comme expression personnelle", "X comme moyen de Y". Sois CONCRET et UNIQUE.
+- Mauvais : "Promotion de la littérature via des publications d'éditeurs" (descriptif creux)
+- Mauvais : "L'esthétique comme expression personnelle et sociale" (template vide)
+- Bon : "Nouveau roman SF de Becky Chambers chez L'Atalante, niche littéraire feel-good"
+- Bon : "Partie de Wingspan entre amis, valorisation du jeu de plateau expert"
+- Bon : "Ramen tonkotsu fait maison, 12h de bouillon — cuisine japonaise puriste"
+- Bon : "Donald Duck nu dans les films Disney, absurdité pointée par Boulet en BD"
+- Bon : "Municipales annulées à Poitiers, recours juridique contre le maire sortant"
+- Chaque summary doit être UNIQUE et SPÉCIFIQUE au post. Si deux posts ont le même summary, c'est raté.
 
 - Le @username est le SIGNAL LE PLUS FORT. @labriqueludique = jeux de société, pas sport. @franceculture = culture, pas lifestyle.
 - Si les indices pré-calculés (règles) disent "divertissement/jeux de société", fais confiance sauf preuve contraire dans le texte.
@@ -169,7 +173,7 @@ LISTE DES 31 THÈMES (utilise UNIQUEMENT ces identifiants) :
 
 Produis un JSON avec ces champs :
 {
-  "semantic_summary": "Observation sémiologique FACTUELLE (15 mots max). Sujet précis + angle/vision du monde. Ni description ('Le post montre...'), ni prescription ('Tu devrais...'). Ex: 'Jeu Wingspan mis en scène — le hobby ludique comme art de vivre'.",
+  "semantic_summary": "Observation FACTUELLE et SPÉCIFIQUE (15 mots max). Nomme le sujet CONCRET, pas une catégorie. INTERDIT les formules 'X comme art de vivre/expression personnelle'. Chaque summary doit être UNIQUE.",
   "main_topics": ["1-3 thèmes. JAMAIS vide."],
   "secondary_topics": ["0-3 thèmes secondaires"],
   "subjects": ["Sujets CONCRETS du fond (niveau 3). Ex: 'cuisine japonaise', 'réforme retraites', 'nostalgie Disney'. Décris le FOND."],
@@ -190,7 +194,8 @@ Produis un JSON avec ces champs :
   "activism_signal": true/false,
   "narrative_frame": "declin|urgence|injustice|revelation|mobilisation|denonciation|empowerment|ordre|menace|aspiration|inspiration|derision|victimisation|heroisation|aucun",
   "call_to_action_type": "aucun|commenter|partager|sindigner|sinformer|voter|soutenir|boycotter|acheter|suivre_le_compte",
-  "media_message": "Le sous-texte que le spectateur retient, formulé factuellement. Ex: 'Le jeu de société est un loisir noble et social', 'La cuisine maison est supérieure au fast-food'.",
+  "media_hook": "Version FUN et EDITORIALE du summary, comme un titre de magazine. Court, percutant, avec de la personnalité. Ex: 'Ton feed sent le bouillon 12h', 'Disney a habillé tout le monde sauf Donald', 'La Terre brûle mais t'as liké'.",
+  "media_message": "Le sous-texte factuel que le spectateur retient.",
   "media_intent": "informer|divertir|vendre|convaincre|emouvoir|eduquer|provoquer|aucun",
   "confidence_score": 0.0-1.0
 }
@@ -242,7 +247,7 @@ Texte: ${p.normalizedText.substring(0, 600)}${hints}
 
   const prompt = `Analyse ces ${posts.length} posts Instagram et produis un JSON avec un tableau "posts".
 
-RÈGLE SÉMIOLOGIQUE : semantic_summary = observation FACTUELLE du sujet + angle/vision du monde (15 mots max). Ni description ("Le post montre..."), ni prescription ("Tu devrais..."). Le @username est le signal le plus fort pour identifier le domaine. Fais confiance aux indices pré-calculés (règles) sauf preuve contraire.
+RÈGLE SÉMIOLOGIQUE : semantic_summary = observation FACTUELLE et SPÉCIFIQUE (15 mots max). Nomme le sujet CONCRET (pas une catégorie). INTERDIT "X comme art de vivre/expression personnelle" — sois UNIQUE par post. Le @username est le signal le plus fort. Fais confiance aux indices règles sauf preuve contraire.
 
 ${postsBlock}
 
@@ -253,7 +258,7 @@ Réponds avec ce JSON :
   "posts": [
     {
       "index": 0,
-      "semantic_summary": "Observation sémiologique FACTUELLE (15 mots max). Sujet + angle. Ni 'Le post montre' ni 'Tu devrais'.",
+      "semantic_summary": "Observation FACTUELLE et SPÉCIFIQUE (15 mots max). Sujet CONCRET, pas de template. Chaque summary UNIQUE.",
       "main_topics": ["1-3 thèmes. JAMAIS vide."],
       "secondary_topics": ["0-2"],
       "subjects": ["sujets concrets du fond"],
@@ -267,6 +272,7 @@ Réponds avec ce JSON :
       "political_explicitness_score": 0-4,
       "polarization_score": 0.0-1.0,
       "narrative_frame": "aucun|declin|urgence|...",
+      "media_hook": "Titre de magazine FUN et percutant (court)",
       "media_message": "Sous-texte factuel retenu par le spectateur",
       "media_intent": "informer|divertir|vendre|...",
       "confidence_score": 0.0-1.0
