@@ -21,6 +21,7 @@ var ScrolloutUI = (function(exports) {
 	var currentProgress = 0;
 	var isCharged = false;
 	var lastKnownPostCount = 0;
+	var chargeBaseCount = 0;
 	var lastScrollY = 0;
 	var blobIntensity = 0;
 	var blobPhase = 0;
@@ -99,176 +100,102 @@ var ScrolloutUI = (function(exports) {
 			zIndex: "999999",
 			overflow: "visible"
 		});
-		spawnBurst(container, cx, cy, {
-			count: 30,
-			minDist: 60,
-			maxDist: 160,
-			minSize: 8,
-			maxSize: 14,
-			duration: 1200,
+		spawnBubbles(container, cx, cy, {
+			count: 12,
+			minDist: 50,
+			maxDist: 140,
+			minSize: 16,
+			maxSize: 28,
+			duration: 3e3,
 			delay: 0
 		});
-		spawnBurst(container, cx, cy, {
-			count: 20,
-			minDist: 30,
-			maxDist: 100,
+		spawnBubbles(container, cx, cy, {
+			count: 10,
+			minDist: 25,
+			maxDist: 90,
+			minSize: 10,
+			maxSize: 20,
+			duration: 2600,
+			delay: 300
+		});
+		spawnBubbles(container, cx, cy, {
+			count: 8,
+			minDist: 10,
+			maxDist: 50,
 			minSize: 6,
-			maxSize: 11,
-			duration: 1e3,
-			delay: 120
-		});
-		spawnBurst(container, cx, cy, {
-			count: 16,
-			minDist: 15,
-			maxDist: 55,
-			minSize: 4,
-			maxSize: 8,
-			duration: 800,
-			delay: 250
-		});
-		spawnFountain(container, cx, cy, {
-			count: 12,
-			minSize: 6,
-			maxSize: 12,
-			duration: 1400,
-			delay: 50
-		});
-		const flash = document.createElement("span");
-		Object.assign(flash.style, {
-			position: "fixed",
-			left: `${cx}px`,
-			top: `${cy}px`,
-			width: "0",
-			height: "0",
-			borderRadius: "50%",
-			background: "rgba(255,255,255,0.95)",
-			transform: "translate(-50%,-50%)",
-			pointerEvents: "none",
-			zIndex: "999999"
-		});
-		container.appendChild(flash);
-		requestAnimationFrame(() => {
-			flash.animate([
-				{
-					width: "0px",
-					height: "0px",
-					opacity: "1",
-					background: "rgba(255,255,255,0.95)"
-				},
-				{
-					width: "120px",
-					height: "120px",
-					opacity: "0.7",
-					background: "rgba(139,68,232,0.5)",
-					offset: .3
-				},
-				{
-					width: "180px",
-					height: "180px",
-					opacity: "0",
-					background: "rgba(107,107,255,0)"
-				}
-			], {
-				duration: 700,
-				easing: "cubic-bezier(0, 0.6, 0.3, 1)",
-				fill: "forwards"
-			});
+			maxSize: 14,
+			duration: 2200,
+			delay: 600
 		});
 		document.body.appendChild(container);
-		setTimeout(() => container.remove(), 2500);
+		setTimeout(() => container.remove(), 5e3);
 	}
-	function spawnBurst(container, cx, cy, opts) {
+	function spawnBubbles(container, cx, cy, opts) {
 		for (let i = 0; i < opts.count; i++) {
-			const particle = document.createElement("span");
-			particle.className = "echa-particle";
-			const angle = 360 / opts.count * i + (Math.random() - .5) * 25;
+			const bubble = document.createElement("span");
+			bubble.className = "echa-particle";
+			const angle = 360 / opts.count * i + (Math.random() - .5) * 30;
 			const distance = opts.minDist + Math.random() * (opts.maxDist - opts.minDist);
 			const rad = angle * Math.PI / 180;
 			const tx = Math.cos(rad) * distance;
-			const ty = Math.sin(rad) * distance;
-			const gravity = 20 + Math.random() * 30;
+			const ty = Math.sin(rad) * distance - (30 + Math.random() * 60);
 			const color = SCROLLOUT_COLORS[i % SCROLLOUT_COLORS.length];
 			const size = opts.minSize + Math.random() * (opts.maxSize - opts.minSize);
-			const delay = opts.delay + Math.random() * 150;
-			Object.assign(particle.style, {
+			const delay = opts.delay + Math.random() * 400;
+			const wobble = (Math.random() - .5) * 20;
+			Object.assign(bubble.style, {
 				position: "fixed",
 				width: `${size}px`,
 				height: `${size}px`,
 				background: color,
 				left: `${cx - size / 2}px`,
 				top: `${cy - size / 2}px`,
-				boxShadow: `0 0 ${size + 4}px ${size / 2}px ${color}`,
-				borderRadius: "50%"
+				borderRadius: "50%",
+				opacity: "0"
 			});
 			requestAnimationFrame(() => {
-				particle.animate([
+				bubble.animate([
+					{
+						transform: "translate(0, 0) scale(0)",
+						opacity: "0"
+					},
 					{
 						transform: "translate(0, 0) scale(1.5)",
-						opacity: "1"
+						opacity: "0.95",
+						offset: .08
 					},
 					{
-						transform: `translate(${tx * .6}px, ${ty * .6}px) scale(1.1)`,
-						opacity: "1",
-						offset: .3
+						transform: "translate(0, 0) scale(0.85)",
+						opacity: "0.9",
+						offset: .15
 					},
 					{
-						transform: `translate(${tx}px, ${ty + gravity}px) scale(0)`,
+						transform: `translate(${wobble}px, -5px) scale(1.1)`,
+						opacity: "0.9",
+						offset: .22
+					},
+					{
+						transform: `translate(${tx * .4 + wobble}px, ${ty * .4}px) scale(1)`,
+						opacity: "0.85",
+						offset: .5
+					},
+					{
+						transform: `translate(${tx * .8}px, ${ty * .8}px) scale(1.15)`,
+						opacity: "0.6",
+						offset: .8
+					},
+					{
+						transform: `translate(${tx}px, ${ty}px) scale(1.4)`,
 						opacity: "0"
 					}
 				], {
-					duration: opts.duration + Math.random() * 500,
+					duration: opts.duration + Math.random() * 800,
 					delay,
-					easing: "cubic-bezier(0.1, 0.7, 0.3, 1)",
+					easing: "ease-in-out",
 					fill: "forwards"
 				});
 			});
-			container.appendChild(particle);
-		}
-	}
-	/** Upward fountain arc — particles shoot up then fall with gravity */
-	function spawnFountain(container, cx, cy, opts) {
-		for (let i = 0; i < opts.count; i++) {
-			const particle = document.createElement("span");
-			particle.className = "echa-particle";
-			const spreadX = (Math.random() - .5) * 120;
-			const peakY = -(80 + Math.random() * 120);
-			const fallY = 40 + Math.random() * 60;
-			const color = SCROLLOUT_COLORS[i % SCROLLOUT_COLORS.length];
-			const size = opts.minSize + Math.random() * (opts.maxSize - opts.minSize);
-			const delay = opts.delay + Math.random() * 300;
-			Object.assign(particle.style, {
-				position: "fixed",
-				width: `${size}px`,
-				height: `${size}px`,
-				background: color,
-				left: `${cx - size / 2}px`,
-				top: `${cy - size / 2}px`,
-				boxShadow: `0 0 ${size + 4}px ${size / 2}px ${color}`,
-				borderRadius: "50%"
-			});
-			requestAnimationFrame(() => {
-				particle.animate([
-					{
-						transform: "translate(0, 0) scale(1.3)",
-						opacity: "1"
-					},
-					{
-						transform: `translate(${spreadX * .5}px, ${peakY}px) scale(1)`,
-						opacity: "1",
-						offset: .45
-					},
-					{
-						transform: `translate(${spreadX}px, ${fallY}px) scale(0.3)`,
-						opacity: "0"
-					}
-				], {
-					duration: opts.duration + Math.random() * 400,
-					delay,
-					easing: "cubic-bezier(0.2, 0.8, 0.3, 1)",
-					fill: "forwards"
-				});
-			});
-			container.appendChild(particle);
+			container.appendChild(bubble);
 		}
 	}
 	function createButton() {
@@ -309,13 +236,17 @@ var ScrolloutUI = (function(exports) {
 			e.preventDefault();
 			try {
 				if (isCharged) {
-					window.EchaBridge?.onData(JSON.stringify({ type: "open_wrapped" }));
-					resetCharge();
+					const b = document.getElementById(BTN_ID);
+					if (b) spawnFirework(b);
 				} else window.EchaBridge?.onData(JSON.stringify({ type: "open_sidebar" }));
 			} catch {}
 		});
 		return btn;
 	}
+	/** How many times to plop when threshold is reached */
+	var PLOP_COUNT = 3;
+	/** Delay between each plop (ms) */
+	var PLOP_INTERVAL = 5500;
 	function updateProgress(progress) {
 		const btn = document.getElementById(BTN_ID);
 		if (!btn) return;
@@ -325,8 +256,18 @@ var ScrolloutUI = (function(exports) {
 			isCharged = true;
 			btn.classList.add("echa-charged");
 			btn.setAttribute("aria-label", "Voir votre Wrapped Scrollout");
+			logDebug(`Charged! ${CHARGE_THRESHOLD} posts reached — plopping ${PLOP_COUNT}x`);
 			spawnFirework(btn);
-			logDebug(`Charged! ${CHARGE_THRESHOLD} posts reached`);
+			for (let i = 1; i < PLOP_COUNT; i++) setTimeout(() => {
+				const b = document.getElementById(BTN_ID);
+				if (b) spawnFirework(b);
+			}, PLOP_INTERVAL * i);
+			setTimeout(() => {
+				resetCharge();
+				lastKnownPostCount = window.__echaPostCount || 0;
+				chargeBaseCount = lastKnownPostCount;
+				logDebug(`Plop cycle done — next trigger at ${lastKnownPostCount + CHARGE_THRESHOLD} posts`);
+			}, PLOP_INTERVAL * PLOP_COUNT + 1e3);
 		}
 	}
 	/**
@@ -439,34 +380,18 @@ var ScrolloutUI = (function(exports) {
 	function resetCharge() {
 		isCharged = false;
 		currentProgress = 0;
-		lastKnownPostCount = 0;
+		scrollHeat = 0;
 		const btn = document.getElementById(BTN_ID);
 		if (btn) {
 			btn.classList.remove("echa-charged");
 			btn.setAttribute("aria-label", "Menu Scrollout");
 		}
-		updateProgress(0);
 	}
 	function pollPostCount() {
 		const count = window.__echaPostCount || 0;
 		if (count <= lastKnownPostCount) return;
 		lastKnownPostCount = count;
-		const progress = count / CHARGE_THRESHOLD;
-		updateProgress(progress);
-		if (progress >= 1 && isCharged) scheduleFireworkLoop();
-	}
-	var fireworkLoopId = null;
-	function scheduleFireworkLoop() {
-		if (fireworkLoopId) return;
-		fireworkLoopId = setInterval(() => {
-			if (!isCharged) {
-				if (fireworkLoopId) clearInterval(fireworkLoopId);
-				fireworkLoopId = null;
-				return;
-			}
-			const btn = document.getElementById(BTN_ID);
-			if (btn && btn.dataset.hidden !== "1") spawnFirework(btn);
-		}, 8e3);
+		updateProgress((count - chargeBaseCount) / CHARGE_THRESHOLD);
 	}
 	function injectScrolloutButton() {
 		const existing = document.getElementById(BTN_ID);

@@ -14,7 +14,7 @@ import {
 } from './services/native-bridge.js';
 import { startDaemon, getDaemonStatus } from './services/enrichment-daemon.js';
 
-type Tab = 'home' | 'instagram' | 'scrollout' | 'cognition' | 'knowledge' | 'posts' | 'settings';
+type Tab = 'home' | 'instagram' | 'scrollout' | 'cognition' | 'knowledge' | 'posts' | 'transparence' | 'settings';
 
 @customElement('app-shell')
 export class AppShell extends LitElement {
@@ -33,7 +33,7 @@ export class AppShell extends LitElement {
       /* ── FAB menu ── */
       .fab {
         position: fixed;
-        top: calc(env(safe-area-inset-top, 0px) + 8px);
+        top: 8px;
         left: 12px;
         width: 38px; height: 38px;
         border-radius: 10px;
@@ -71,7 +71,7 @@ export class AppShell extends LitElement {
         transform: translateX(-100%);
         transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex; flex-direction: column;
-        padding-top: env(safe-area-inset-top, 0px);
+        padding-top: 0;
       }
       .drawer.open { transform: translateX(0); }
 
@@ -139,7 +139,7 @@ export class AppShell extends LitElement {
       .screen {
         flex: 1; overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        padding-top: calc(env(safe-area-inset-top, 0px) + 48px);
+        padding-top: 48px;
       }
 
       /* ── Wrapped overlay ── */
@@ -360,8 +360,9 @@ export class AppShell extends LitElement {
         </div>
         <div class="drawer-nav">
           ${this.navItem('home', 'home', 'Profil')}
-          ${this.navItem('instagram', 'ig', 'Capture', this.igOpen)}
+          ${this.navItem('instagram', 'ig', 'Instagram', this.igOpen)}
           ${this.navItem('scrollout', 'radio', 'Comprends ma bulle')}
+          ${this.navItem('transparence', 'bubble', 'Transparence')}
           ${this.navItem('cognition', 'bubble', 'Bulle cognitive')}
           ${this.navItem('knowledge', 'graph', 'Univers')}
           ${this.navItem('posts', 'feed', 'Feed')}
@@ -381,7 +382,11 @@ export class AppShell extends LitElement {
           <screen-home
             @instagram-opened=${() => { this.igOpen = true; this.tab = 'instagram'; }}
             @open-wrapped=${() => { this.wrapped = true; }}
+            @open-transparence=${() => this.go('transparence')}
           ></screen-home>
+        ` : ''}
+        ${this.tab === 'transparence' ? html`
+          <screen-transparence @go-home=${() => this.go('home')}></screen-transparence>
           <screen-enrichment></screen-enrichment>
         ` : ''}
         ${this.tab === 'instagram' ? html`

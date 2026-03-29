@@ -37,6 +37,7 @@ declare global {
 let currentProgress = 0; // 0→1
 let isCharged = false;
 let lastKnownPostCount = 0;
+let chargeBaseCount = 0;  // post count at last charge reset (for repeating every 15)
 
 // Blob deformation state
 let scrollVelocity = 0;       // current velocity (px/frame)
@@ -120,15 +121,14 @@ function createLogoSVG(): string {
 
 // Ring removed — incandescent color replaces the progress indicator
 
-// ─── Firework particles ─────────────────────────────────────
-// Spawned on document.body (not inside btn) to avoid compositing-layer clipping
-// on Android WebViews where position:fixed elements clip overflow.
+// ─── Bubble burst ───────────────────────────────────────────
+// Spawned on document.body to avoid compositing-layer clipping.
+// Bubbles float up slowly with bouncy "blop" scale animation.
 
 function spawnFirework(btn: HTMLElement): void {
   const existing = document.getElementById(FIREWORK_ID);
   if (existing) existing.remove();
 
-  // Get button center in viewport coords
   const rect = btn.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
@@ -144,127 +144,67 @@ function spawnFirework(btn: HTMLElement): void {
     overflow: 'visible',
   });
 
-  // ── Wave 1: big burst (30 particles, wide spread) ──
-  spawnBurst(container, cx, cy, { count: 30, minDist: 60, maxDist: 160, minSize: 8, maxSize: 14, duration: 1200, delay: 0 });
+  // ── Wave 1: big bubbles (12, wide, slow) ──
+  spawnBubbles(container, cx, cy, { count: 12, minDist: 50, maxDist: 140, minSize: 16, maxSize: 28, duration: 3000, delay: 0 });
 
-  // ── Wave 2: secondary burst (20 particles, medium) ──
-  spawnBurst(container, cx, cy, { count: 20, minDist: 30, maxDist: 100, minSize: 6, maxSize: 11, duration: 1000, delay: 120 });
+  // ── Wave 2: medium bubbles (10, staggered) ──
+  spawnBubbles(container, cx, cy, { count: 10, minDist: 25, maxDist: 90, minSize: 10, maxSize: 20, duration: 2600, delay: 300 });
 
-  // ── Wave 3: sparkle trail (16 tiny particles, close) ──
-  spawnBurst(container, cx, cy, { count: 16, minDist: 15, maxDist: 55, minSize: 4, maxSize: 8, duration: 800, delay: 250 });
-
-  // ── Wave 4: upward fountain (12 particles, gravity arc) ──
-  spawnFountain(container, cx, cy, { count: 12, minSize: 6, maxSize: 12, duration: 1400, delay: 50 });
-
-  // ── Central flash ──
-  const flash = document.createElement('span');
-  Object.assign(flash.style, {
-    position: 'fixed',
-    left: `${cx}px`, top: `${cy}px`,
-    width: '0', height: '0',
-    borderRadius: '50%',
-    background: 'rgba(255,255,255,0.95)',
-    transform: 'translate(-50%,-50%)',
-    pointerEvents: 'none',
-    zIndex: '999999',
-  });
-  container.appendChild(flash);
-  requestAnimationFrame(() => {
-    flash.animate([
-      { width: '0px', height: '0px', opacity: '1', background: 'rgba(255,255,255,0.95)' },
-      { width: '120px', height: '120px', opacity: '0.7', background: 'rgba(139,68,232,0.5)', offset: 0.3 },
-      { width: '180px', height: '180px', opacity: '0', background: 'rgba(107,107,255,0)' },
-    ], { duration: 700, easing: 'cubic-bezier(0, 0.6, 0.3, 1)', fill: 'forwards' });
-  });
+  // ── Wave 3: tiny bubbles (8, close, fast blop) ──
+  spawnBubbles(container, cx, cy, { count: 8, minDist: 10, maxDist: 50, minSize: 6, maxSize: 14, duration: 2200, delay: 600 });
 
   document.body.appendChild(container);
-  setTimeout(() => container.remove(), 2500);
+  setTimeout(() => container.remove(), 5000);
 }
 
-function spawnBurst(
+function spawnBubbles(
   container: HTMLElement,
   cx: number, cy: number,
   opts: { count: number; minDist: number; maxDist: number; minSize: number; maxSize: number; duration: number; delay: number },
 ): void {
   for (let i = 0; i < opts.count; i++) {
-    const particle = document.createElement('span');
-    particle.className = 'echa-particle';
-    const angle = (360 / opts.count) * i + (Math.random() - 0.5) * 25;
+    const bubble = document.createElement('span');
+    bubble.className = 'echa-particle';
+    const angle = (360 / opts.count) * i + (Math.random() - 0.5) * 30;
     const distance = opts.minDist + Math.random() * (opts.maxDist - opts.minDist);
     const rad = (angle * Math.PI) / 180;
     const tx = Math.cos(rad) * distance;
-    const ty = Math.sin(rad) * distance;
-    // Add gravity: particles drift down slightly
-    const gravity = 20 + Math.random() * 30;
+    // Bubbles float upward: negative ty bias
+    const ty = Math.sin(rad) * distance - (30 + Math.random() * 60);
     const color = SCROLLOUT_COLORS[i % SCROLLOUT_COLORS.length];
     const size = opts.minSize + Math.random() * (opts.maxSize - opts.minSize);
-    const delay = opts.delay + Math.random() * 150;
+    const delay = opts.delay + Math.random() * 400;
+    // Slight horizontal wobble
+    const wobble = (Math.random() - 0.5) * 20;
 
-    Object.assign(particle.style, {
+    Object.assign(bubble.style, {
       position: 'fixed',
       width: `${size}px`, height: `${size}px`,
       background: color,
       left: `${cx - size / 2}px`, top: `${cy - size / 2}px`,
-      boxShadow: `0 0 ${size + 4}px ${size / 2}px ${color}`,
       borderRadius: '50%',
+      opacity: '0',
     });
 
     requestAnimationFrame(() => {
-      particle.animate([
-        { transform: 'translate(0, 0) scale(1.5)', opacity: '1' },
-        { transform: `translate(${tx * 0.6}px, ${ty * 0.6}px) scale(1.1)`, opacity: '1', offset: 0.3 },
-        { transform: `translate(${tx}px, ${ty + gravity}px) scale(0)`, opacity: '0' },
+      // Blop: scale 0 → overshoot 1.4 → settle 1 → float away → pop
+      bubble.animate([
+        { transform: 'translate(0, 0) scale(0)', opacity: '0' },
+        { transform: 'translate(0, 0) scale(1.5)', opacity: '0.95', offset: 0.08 },
+        { transform: 'translate(0, 0) scale(0.85)', opacity: '0.9', offset: 0.15 },
+        { transform: `translate(${wobble}px, -5px) scale(1.1)`, opacity: '0.9', offset: 0.22 },
+        { transform: `translate(${tx * 0.4 + wobble}px, ${ty * 0.4}px) scale(1)`, opacity: '0.85', offset: 0.5 },
+        { transform: `translate(${tx * 0.8}px, ${ty * 0.8}px) scale(1.15)`, opacity: '0.6', offset: 0.8 },
+        { transform: `translate(${tx}px, ${ty}px) scale(1.4)`, opacity: '0' },
       ], {
-        duration: opts.duration + Math.random() * 500,
+        duration: opts.duration + Math.random() * 800,
         delay,
-        easing: 'cubic-bezier(0.1, 0.7, 0.3, 1)',
+        easing: 'ease-in-out',
         fill: 'forwards',
       });
     });
 
-    container.appendChild(particle);
-  }
-}
-
-/** Upward fountain arc — particles shoot up then fall with gravity */
-function spawnFountain(
-  container: HTMLElement,
-  cx: number, cy: number,
-  opts: { count: number; minSize: number; maxSize: number; duration: number; delay: number },
-): void {
-  for (let i = 0; i < opts.count; i++) {
-    const particle = document.createElement('span');
-    particle.className = 'echa-particle';
-    const spreadX = (Math.random() - 0.5) * 120;
-    const peakY = -(80 + Math.random() * 120); // upward
-    const fallY = 40 + Math.random() * 60;      // gravity fall
-    const color = SCROLLOUT_COLORS[i % SCROLLOUT_COLORS.length];
-    const size = opts.minSize + Math.random() * (opts.maxSize - opts.minSize);
-    const delay = opts.delay + Math.random() * 300;
-
-    Object.assign(particle.style, {
-      position: 'fixed',
-      width: `${size}px`, height: `${size}px`,
-      background: color,
-      left: `${cx - size / 2}px`, top: `${cy - size / 2}px`,
-      boxShadow: `0 0 ${size + 4}px ${size / 2}px ${color}`,
-      borderRadius: '50%',
-    });
-
-    requestAnimationFrame(() => {
-      particle.animate([
-        { transform: 'translate(0, 0) scale(1.3)', opacity: '1' },
-        { transform: `translate(${spreadX * 0.5}px, ${peakY}px) scale(1)`, opacity: '1', offset: 0.45 },
-        { transform: `translate(${spreadX}px, ${fallY}px) scale(0.3)`, opacity: '0' },
-      ], {
-        duration: opts.duration + Math.random() * 400,
-        delay,
-        easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)',
-        fill: 'forwards',
-      });
-    });
-
-    container.appendChild(particle);
+    container.appendChild(bubble);
   }
 }
 
@@ -307,10 +247,9 @@ function createButton(): HTMLElement {
     e.preventDefault();
     try {
       if (isCharged) {
-        // Charged → open wrapped
-        window.EchaBridge?.onData(JSON.stringify({ type: 'open_wrapped' }));
-        // Reset charge state
-        resetCharge();
+        // Charged → replay bubble animation, don't navigate
+        const b = document.getElementById(BTN_ID);
+        if (b) spawnFirework(b);
       } else {
         // Normal → open sidebar
         window.EchaBridge?.onData(JSON.stringify({ type: 'open_sidebar' }));
@@ -323,6 +262,11 @@ function createButton(): HTMLElement {
 
 // ─── Update ring progress ───────────────────────────────────
 
+/** How many times to plop when threshold is reached */
+const PLOP_COUNT = 3;
+/** Delay between each plop (ms) */
+const PLOP_INTERVAL = 5500;
+
 function updateProgress(progress: number): void {
   const btn = document.getElementById(BTN_ID);
   if (!btn) return;
@@ -330,13 +274,30 @@ function updateProgress(progress: number): void {
   const clamped = Math.min(1, Math.max(0, progress));
   currentProgress = clamped;
 
-  // Charged state
+  // Charged state: plop 3 times then pause until next 15 posts
   if (clamped >= 1 && !isCharged) {
     isCharged = true;
     btn.classList.add('echa-charged');
     btn.setAttribute('aria-label', 'Voir votre Wrapped Scrollout');
+    logDebug(`Charged! ${CHARGE_THRESHOLD} posts reached — plopping ${PLOP_COUNT}x`);
+
+    // Plop 3 times with intervals
     spawnFirework(btn);
-    logDebug(`Charged! ${CHARGE_THRESHOLD} posts reached`);
+    for (let i = 1; i < PLOP_COUNT; i++) {
+      setTimeout(() => {
+        const b = document.getElementById(BTN_ID);
+        if (b) spawnFirework(b);
+      }, PLOP_INTERVAL * i);
+    }
+
+    // After all plops, reset charge so it recharges for the next 15 posts
+    setTimeout(() => {
+      resetCharge();
+      // Keep lastKnownPostCount so next threshold is current + 15
+      lastKnownPostCount = window.__echaPostCount || 0;
+      chargeBaseCount = lastKnownPostCount;
+      logDebug(`Plop cycle done — next trigger at ${lastKnownPostCount + CHARGE_THRESHOLD} posts`);
+    }, PLOP_INTERVAL * PLOP_COUNT + 1000);
   }
 }
 
@@ -470,14 +431,13 @@ function startBlobLoop(): void {
 function resetCharge(): void {
   isCharged = false;
   currentProgress = 0;
-  lastKnownPostCount = 0;
+  scrollHeat = 0;
 
   const btn = document.getElementById(BTN_ID);
   if (btn) {
     btn.classList.remove('echa-charged');
     btn.setAttribute('aria-label', 'Menu Scrollout');
   }
-  updateProgress(0);
 }
 
 // ─── Poll tracker post count ────────────────────────────────
@@ -487,30 +447,10 @@ function pollPostCount(): void {
   if (count <= lastKnownPostCount) return;
 
   lastKnownPostCount = count;
-  const progress = count / CHARGE_THRESHOLD;
+  // Progress relative to last charge base (repeats every CHARGE_THRESHOLD posts)
+  const sinceLast = count - chargeBaseCount;
+  const progress = sinceLast / CHARGE_THRESHOLD;
   updateProgress(progress);
-
-  // Firework loop when charged (re-burst every 8s to keep inviting)
-  if (progress >= 1 && isCharged) {
-    scheduleFireworkLoop();
-  }
-}
-
-let fireworkLoopId: ReturnType<typeof setInterval> | null = null;
-
-function scheduleFireworkLoop(): void {
-  if (fireworkLoopId) return;
-  fireworkLoopId = setInterval(() => {
-    if (!isCharged) {
-      if (fireworkLoopId) clearInterval(fireworkLoopId);
-      fireworkLoopId = null;
-      return;
-    }
-    const btn = document.getElementById(BTN_ID);
-    if (btn && btn.dataset.hidden !== '1') {
-      spawnFirework(btn);
-    }
-  }, 8000);
 }
 
 // ─── Injection ──────────────────────────────────────────────

@@ -29,9 +29,10 @@ vi.mock('../services/db-bridge.js', () => ({
     ],
     topUsers: [
       { username: 'operadelyon', count: 11, totalDwellMs: 50000 },
+      { username: 'larochandry', count: 8, totalDwellMs: 35000 },
     ],
     topCategories: [],
-    signals: { activism: 0, conflict: 2, moralAbsolute: 1, enemyDesignation: 0, ingroupOutgroup: 0, total: 3 },
+    signals: { activism: 5, conflict: 2, moralAbsolute: 1, enemyDesignation: 3, ingroupOutgroup: 4, total: 15 },
     sponsoredStats: {
       sponsored: { count: 71, avgDwellMs: 3000, avgPolitical: 0.2 },
       organic: { count: 209, avgDwellMs: 5000, avgPolitical: 0.3 },
@@ -52,13 +53,22 @@ vi.mock('../services/db-bridge.js', () => ({
       { topic: 'divertissement', totalDwellMs: 120000, avgDwellMs: 5000, count: 24 },
       { topic: 'culture', totalDwellMs: 100000, avgDwellMs: 4500, count: 22 },
     ],
+    mediaTypes: [
+      { type: 'reel', count: 120, totalDwellMs: 600000 },
+      { type: 'image', count: 100, totalDwellMs: 300000 },
+      { type: 'carousel', count: 60, totalDwellMs: 240000 },
+    ],
+    polarizingAccounts: [
+      { username: 'compte_polemic', avgPolarization: 0.8, avgPolitical: 3.5, count: 15, totalDwellMs: 45000 },
+      { username: 'news_extremist', avgPolarization: 0.75, avgPolitical: 3.2, count: 12, totalDwellMs: 38000 },
+    ],
+    attentionPolitical: {
+      engaged: { avgPolitical: 1.2, avgPolarization: 0.15, count: 54 },
+      viewed: { avgPolitical: 0.8, avgPolarization: 0.08, count: 57 },
+      glanced: { avgPolitical: 0.6, avgPolarization: 0.05, count: 70 },
+      skipped: { avgPolitical: 0.3, avgPolarization: 0.02, count: 99 },
+    },
   }),
-  resolveEntities: vi.fn((items: any[]) => items.map((i: any) => ({
-    raw: i.topic || i.narrative || i.emotion || '',
-    canonical: i.topic || i.narrative || i.emotion || '',
-    type: 'Unknown',
-    count: i.count,
-  }))),
 }));
 
 vi.mock('../services/ontology.js', () => ({
@@ -76,45 +86,38 @@ describe('screen-wrapped', () => {
     expect(customElements.get('screen-wrapped')).toBeDefined();
   });
 
-  it('should create element and render 11 slides', async () => {
+  it('should render 19 slides', async () => {
     await import('../screens/screen-wrapped.js');
     const el = document.createElement('screen-wrapped') as any;
     document.body.appendChild(el);
-
     await new Promise(r => setTimeout(r, 100));
     if (el.updateComplete) await el.updateComplete;
 
     expect(el.shadowRoot).toBeTruthy();
     const slides = el.shadowRoot!.querySelectorAll('.slide');
-    expect(slides.length).toBe(11);
+    expect(slides.length).toBe(19);
   });
 
   it('should navigate between slides via go()', async () => {
     await import('../screens/screen-wrapped.js');
     const el = document.createElement('screen-wrapped') as any;
     document.body.appendChild(el);
-
     await new Promise(r => setTimeout(r, 100));
     if (el.updateComplete) await el.updateComplete;
 
     expect(el.currentSlide).toBe(0);
-
-    el.go(1);
-    expect(el.currentSlide).toBe(1);
-
+    el.go(3);
+    expect(el.currentSlide).toBe(3);
     el.go(-1);
     expect(el.currentSlide).toBe(0);
-
-    // Clamps to max slide (10 = index of 11th slide)
-    el.go(20);
-    expect(el.currentSlide).toBe(10);
+    el.go(25);
+    expect(el.currentSlide).toBe(18); // clamp to 19-1
   });
 
   it('should dispatch close-wrapped event', async () => {
     await import('../screens/screen-wrapped.js');
     const el = document.createElement('screen-wrapped') as any;
     document.body.appendChild(el);
-
     await new Promise(r => setTimeout(r, 100));
     if (el.updateComplete) await el.updateComplete;
 
@@ -124,53 +127,84 @@ describe('screen-wrapped', () => {
     expect(closed).toBe(true);
   });
 
-  it('should display top domain percentage on slide 1', async () => {
+  it('should show top domain percentage (slide 01)', async () => {
     await import('../screens/screen-wrapped.js');
     const el = document.createElement('screen-wrapped') as any;
     document.body.appendChild(el);
-
     await new Promise(r => setTimeout(r, 100));
     if (el.updateComplete) await el.updateComplete;
 
     const text = el.shadowRoot!.textContent || '';
-    // 92 out of 147 total = 63%
+    // 92/147 total = 63%
     expect(text).toContain('63%');
     expect(text).toContain('divertissement');
   });
 
-  it('should display user profile type on slide 09', async () => {
+  it('should show skip rate (slide 07)', async () => {
     await import('../screens/screen-wrapped.js');
     const el = document.createElement('screen-wrapped') as any;
     document.body.appendChild(el);
-
     await new Promise(r => setTimeout(r, 100));
     if (el.updateComplete) await el.updateComplete;
 
     const text = el.shadowRoot!.textContent || '';
-    // Culture_divertissement > 50% → "Le zappeur"
-    expect(text).toContain('Vous êtes');
-    expect(text).toContain('zappeur');
-  });
-
-  it('should display skip rate on slide 07', async () => {
-    await import('../screens/screen-wrapped.js');
-    const el = document.createElement('screen-wrapped') as any;
-    document.body.appendChild(el);
-
-    await new Promise(r => setTimeout(r, 100));
-    if (el.updateComplete) await el.updateComplete;
-
-    const text = el.shadowRoot!.textContent || '';
-    // 99 skipped / 280 total = 35%
+    // 99/280 = 35%
     expect(text).toContain('35%');
     expect(text).toContain('passent sans être regardés');
   });
 
-  it('should have share and close on last slide', async () => {
+  it('should show narrative labels', async () => {
     await import('../screens/screen-wrapped.js');
     const el = document.createElement('screen-wrapped') as any;
     document.body.appendChild(el);
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
 
+    const text = el.shadowRoot!.textContent || '';
+    expect(text).toContain('Héroïque');
+    expect(text).toContain('Nous vs Eux');
+  });
+
+  it('should show emotion labels', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    expect(text).toContain('Joie');
+    expect(text).toContain('Colère');
+  });
+
+  it('should show compass axes values', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    expect(text).toContain('+0.29');
+    expect(text).toContain('-0.14');
+  });
+
+  it('should show user profile on slide 09', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    expect(text).toContain('Vous êtes');
+    expect(text).toContain('zappeur');
+  });
+
+  it('should have share, terminer, and on continue on last slide', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
     await new Promise(r => setTimeout(r, 100));
     if (el.updateComplete) await el.updateComplete;
 
@@ -178,5 +212,39 @@ describe('screen-wrapped', () => {
     expect(text).toContain('Partager');
     expect(text).toContain('Terminer');
     expect(text).toContain('On continue');
+  });
+
+  it('should show account names in sAccounts slide', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    expect(text).toContain('operadelyon');
+    expect(text).toContain('influence');
+  });
+
+  it('should show media types in sMediaTypes slide', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    expect(text.toLowerCase()).toMatch(/reel|media|format/i);
+  });
+
+  it('should show signal data in sSignals slide', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    expect(text).toContain('signaux');
   });
 });

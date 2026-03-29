@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "presync": "node -e \"const fs=require('fs'),p='www/assets';fs.existsSync(p)&&fs.readdirSync(p).forEach(f=>fs.unlinkSync(p+'/'+f));console.log('Cleaned www/assets/')\"",
+    "presync": "node -e \"const fs=require('fs'),path=require('path'),p='www/assets';fs.existsSync(p)&&fs.readdirSync(p).forEach(f=>{const fp=path.join(p,f);fs.statSync(fp).isDirectory()?fs.rmSync(fp,{recursive:true}):fs.unlinkSync(fp)});console.log('Cleaned www/assets/')\"",
     "sync": "npm run presync && vite build && npx cap sync android"
   },
   "keywords": [],

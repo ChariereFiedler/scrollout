@@ -7,3 +7,4 @@ import './screens/screen-knowledge.js';
 import './screens/screen-posts.js';
 import './screens/screen-settings.js';
 import './screens/screen-wrapped.js';
+import './screens/screen-transparence.js';
