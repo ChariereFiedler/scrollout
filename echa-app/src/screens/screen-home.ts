@@ -1,7 +1,8 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, polColors, scrolloutDots, domainColors, attentionColors, scrolloutIconSvg } from '../styles/theme.js';
+import { theme, polColors, scrolloutDots, domainColors, attentionColors, palette } from '../styles/theme.js';
+import '../components/scrollout-logo.js';
 import { openInstagram } from '../services/native-bridge.js';
 import { getStats, type DbStats, type SubjectInsight } from '../services/db-bridge.js';
 
@@ -162,7 +163,7 @@ export class ScreenHome extends LitElement {
       }
       .btn-launch {
         background: var(--bleu-indigo);
-        color: #fff;
+        color: var(--white);
         border: none;
         padding: 14px 36px;
         border-radius: var(--radius-pill);
@@ -909,7 +910,7 @@ export class ScreenHome extends LitElement {
 
       /* ── Wrapped CTA ── */
       .wrapped-banner {
-        background: linear-gradient(135deg, #5B3FE8 0%, #8B22CC 100%);
+        background: linear-gradient(135deg, var(--bleu-indigo) 0%, var(--violet) 100%);
         border-radius: var(--radius);
         padding: 18px 20px;
         margin-bottom: 16px;
@@ -930,7 +931,7 @@ export class ScreenHome extends LitElement {
         font-family: var(--font-heading);
         font-weight: 900;
         font-size: 18px;
-        color: #fff;
+        color: var(--white);
       }
       .wrapped-banner .wb-sub {
         font-size: 11px;
@@ -1019,7 +1020,7 @@ export class ScreenHome extends LitElement {
     return html`
       <div class="header">
         <div class="logo-row">
-          <span .innerHTML=${scrolloutIconSvg(36)}></span>
+          <scrollout-logo size="36"></scrollout-logo>
           <span class="logo">Scrollout</span>
         </div>
         <div class="subtitle">ton feed, decrypte</div>
@@ -1106,19 +1107,19 @@ export class ScreenHome extends LitElement {
     return html`
       <div class="stats-row">
         <div class="stat-card">
-          <div class="stat-val" style="color:var(--bleu-indigo)">${s.totalPosts}</div>
+          <div class="stat-val" style="color:${palette.bleuIndigo}">${s.totalPosts}</div>
           <div class="stat-label">Posts vus</div>
         </div>
         <div class="stat-card">
-          <div class="stat-val" style="color:var(--vert-menthe)">${enrichPct}%</div>
+          <div class="stat-val" style="color:${palette.vertMenthe}">${enrichPct}%</div>
           <div class="stat-label">Analyses</div>
         </div>
         <div class="stat-card">
-          <div class="stat-val" style="color:var(--orange)">${totalMinutes > 0 ? `${totalMinutes}m` : '<1m'}</div>
+          <div class="stat-val" style="color:${palette.orange}">${totalMinutes > 0 ? `${totalMinutes}m` : '<1m'}</div>
           <div class="stat-label">Temps</div>
         </div>
         <div class="stat-card">
-          <div class="stat-val" style="color:var(--violet)">${(s.avgConfidence ?? 0) > 0 ? `${Math.round((s.avgConfidence ?? 0) * 100)}%` : '--'}</div>
+          <div class="stat-val" style="color:${palette.violet}">${(s.avgConfidence ?? 0) > 0 ? `${Math.round((s.avgConfidence ?? 0) * 100)}%` : '--'}</div>
           <div class="stat-label">Confiance</div>
         </div>
       </div>
@@ -1171,16 +1172,16 @@ export class ScreenHome extends LitElement {
 
     // ─ Speed metaphor (m/h)
     const speedMetaphor = scrollSpeed < 50
-      ? { text: 'Un escargot te battrait (53 m/h).', color: 'var(--vert-menthe)' }
+      ? { text: 'Un escargot te battrait (53 m/h).', color: palette.vertMenthe }
       : scrollSpeed < 100
-      ? { text: 'Vitesse d\'un escargot motive. Respect.', color: 'var(--vert-menthe)' }
+      ? { text: 'Vitesse d\'un escargot motive. Respect.', color: palette.vertMenthe }
       : scrollSpeed < 270
-      ? { text: 'Plus rapide qu\'une tortue (270 m/h). Bravo.', color: 'var(--bleu-ciel)' }
+      ? { text: 'Plus rapide qu\'une tortue (270 m/h). Bravo.', color: palette.bleuCiel }
       : scrollSpeed < 1000
-      ? { text: 'Ton pouce est un sprinter amateur.', color: 'var(--jaune)' }
+      ? { text: 'Ton pouce est un sprinter amateur.', color: palette.jaune }
       : scrollSpeed < 5000
-      ? { text: 'Tu scrolles plus vite qu\'une hirondelle !', color: 'var(--orange)' }
-      : { text: 'Ton pouce depasse un guepard. Litteralement.', color: 'var(--rouge)' };
+      ? { text: 'Tu scrolles plus vite qu\'une hirondelle !', color: palette.orange }
+      : { text: 'Ton pouce depasse un guepard. Litteralement.', color: palette.rouge };
 
     // ─ Time metaphor
     const totalMin = Math.round((s.totalDwellMs || 0) / 60000);
@@ -1213,8 +1214,8 @@ export class ScreenHome extends LitElement {
         <div class="fun-grid">
           <div class="fun-card">
             <div class="fun-header">
-              ${ico(FUN_ICONS.ruler, 16, 'var(--bleu-indigo)')}
-              <div class="fun-val" style="color:var(--bleu-indigo)">${distanceText}</div>
+              ${ico(FUN_ICONS.ruler, 16, palette.bleuIndigo)}
+              <div class="fun-val" style="color:${palette.bleuIndigo}">${distanceText}</div>
             </div>
             <div class="fun-unit">scrolles au total</div>
             <div class="fun-meta">${distanceMetaphor}</div>
@@ -1229,16 +1230,16 @@ export class ScreenHome extends LitElement {
           </div>
           <div class="fun-card">
             <div class="fun-header">
-              ${ico(FUN_ICONS.flame, 16, 'var(--rose)')}
-              <div class="fun-val" style="color:var(--rose)">${s.totalPosts}</div>
+              ${ico(FUN_ICONS.flame, 16, palette.rose)}
+              <div class="fun-val" style="color:${palette.rose}">${s.totalPosts}</div>
             </div>
             <div class="fun-unit">contenus engloutis</div>
             <div class="fun-meta">${contentMetaphor}</div>
           </div>
           <div class="fun-card">
             <div class="fun-header">
-              ${ico(FUN_ICONS.zap, 16, 'var(--orange)')}
-              <div class="fun-val" style="color:var(--orange)">${postsPerSession}</div>
+              ${ico(FUN_ICONS.zap, 16, palette.orange)}
+              <div class="fun-val" style="color:${palette.orange}">${postsPerSession}</div>
             </div>
             <div class="fun-unit">posts / session</div>
             <div class="fun-meta">${postsPerSession > 50
@@ -1251,8 +1252,8 @@ export class ScreenHome extends LitElement {
         <div class="fun-grid">
           <div class="fun-card full">
             <div class="fun-header">
-              ${ico(FUN_ICONS.clock, 18, 'var(--violet)')}
-              <div class="fun-val" style="color:var(--violet)">${totalMin > 0 ? `${totalMin} min` : '<1 min'}</div>
+              ${ico(FUN_ICONS.clock, 18, palette.violet)}
+              <div class="fun-val" style="color:${palette.violet}">${totalMin > 0 ? `${totalMin} min` : '<1 min'}</div>
               <div class="fun-unit">de scroll cumule</div>
             </div>
             <div class="fun-meta">${timeMetaphor}</div>
@@ -1260,7 +1261,7 @@ export class ScreenHome extends LitElement {
         </div>
         ${avgMinPerSession > 0 ? html`
           <div class="insight">
-            ${ico(FUN_ICONS.fish, 14, 'var(--bleu-ciel)')}
+            ${ico(FUN_ICONS.fish, 14, palette.bleuCiel)}
             En moyenne, tu passes <strong>${avgMinPerSession} min</strong> par session.
             ${avgMinPerSession > 15
               ? html`C'est plus que la duree moyenne d'attention d'un poisson rouge (9s). Enfin... <strong>${Math.round(avgMinPerSession * 60 / 9)}x</strong> plus.`
@@ -1281,14 +1282,14 @@ export class ScreenHome extends LitElement {
     if (total === 0) return nothing;
 
     const dnaColors: Record<string, string> = {
-      'culture_divertissement': '#DA70D6',
-      'lifestyle_bienetre': '#90DDAA',
-      'politique_societe': '#FF0000',
-      'information_savoirs': '#B0E0FF',
-      'ecologie_environnement': '#90EE90',
-      'economie_travail': '#FFFF66',
-      'sport': '#FF6B00',
-      'technologie': '#5B3FE8',
+      'culture_divertissement': palette.rose,
+      'lifestyle_bienetre': palette.vertEau,
+      'politique_societe': palette.rouge,
+      'information_savoirs': palette.bleuCiel,
+      'ecologie_environnement': palette.vertMenthe,
+      'economie_travail': palette.jaune,
+      'sport': palette.orange,
+      'technologie': palette.bleuIndigo,
       ...domainColors,
     };
 
@@ -1392,8 +1393,11 @@ export class ScreenHome extends LitElement {
           ${emotions.slice(0, 8).map(e => {
             const meta = getEmotionMeta(e.emotion);
             const pct = total > 0 ? Math.round(e.count / total * 100) : 0;
+            const borderAlpha = typeof meta.color === 'string' && meta.color.startsWith('rgb')
+              ? meta.color.replace(/\)/, ', 0.2)').replace(/rgb/, 'rgba')
+              : meta.color;
             return html`
-              <div class="emotion-chip" style="border-color:${meta.color}30">
+              <div class="emotion-chip" style="border-color:${borderAlpha}">
                 <span class="emotion-icon" style="color:${meta.color}">${meta.icon}</span>
                 <span class="emotion-name">${e.emotion}</span>
                 <span class="emotion-cnt">${pct}%</span>
@@ -1584,11 +1588,11 @@ export class ScreenHome extends LitElement {
             <div class="si-metric-label">posts</div>
           </div>
           <div class="si-metric">
-            <div class="si-metric-val" style="color:var(--bleu-ciel)">${dwellLabel}</div>
+            <div class="si-metric-val" style="color:${palette.bleuCiel}">${dwellLabel}</div>
             <div class="si-metric-label">temps total</div>
           </div>
           <div class="si-metric">
-            <div class="si-metric-val" style="color:var(--vert-menthe)">${avgSec}s</div>
+            <div class="si-metric-val" style="color:${palette.vertMenthe}">${avgSec}s</div>
             <div class="si-metric-label">moy/post</div>
           </div>
           <div class="si-metric">
@@ -1651,13 +1655,13 @@ export class ScreenHome extends LitElement {
         <!-- Emotion + tone tags -->
         <div class="si-tags">
           ${emotionInfo ? html`
-            <span class="si-tag" style="border-color:${emotionInfo.color}40">
+            <span class="si-tag" style="border-color:${emotionInfo.color}">
               <span class="si-tag-icon" style="color:${emotionInfo.color}">${emotionInfo.icon}</span>
               ${si.dominantEmotion}
             </span>
           ` : ''}
           ${toneInfo && si.dominantTone ? html`
-            <span class="si-tag" style="border-color:${toneInfo.color}40">
+            <span class="si-tag" style="border-color:${toneInfo.color}">
               <span class="si-tag-icon" style="color:${toneInfo.color}">~</span>
               ${si.dominantTone}
             </span>
@@ -1718,7 +1722,7 @@ export class ScreenHome extends LitElement {
             </span>
           `) : ''}
           ${emotionInfo ? html`
-            <span class="si-tag" style="border-color:${emotionInfo.color}40">
+            <span class="si-tag" style="border-color:${emotionInfo.color}">
               <span class="si-tag-icon" style="color:${emotionInfo.color}">${emotionInfo.icon}</span>
               ${psi.dominantEmotion}
             </span>
@@ -1835,8 +1839,8 @@ export class ScreenHome extends LitElement {
       <div class="section">
         <div class="section-label">L'algorithme et toi</div>
         <div class="reveals">
-          <div class="reveal" style="border-color:${diff > 0.3 ? 'var(--rouge)' : diff > 0 ? 'var(--jaune)' : 'var(--vert-menthe)'}">
-            <div class="reveal-icon" style="color:${diff > 0.3 ? 'var(--rouge)' : diff > 0 ? 'var(--jaune)' : 'var(--vert-menthe)'}">
+          <div class="reveal" style="border-color:${diff > 0.3 ? palette.rouge : diff > 0 ? palette.jaune : palette.vertMenthe}">
+            <div class="reveal-icon" style="color:${diff > 0.3 ? palette.rouge : diff > 0 ? palette.jaune : palette.vertMenthe}">
               ${diff > 0 ? '+' : ''}${diff.toFixed(1)}
             </div>
             <div class="reveal-body">
@@ -1853,8 +1857,8 @@ export class ScreenHome extends LitElement {
             </div>
           </div>
           ${engagedPolar > 0.2 ? html`
-            <div class="reveal" style="border-color:var(--violet)">
-              <div class="reveal-icon" style="color:var(--violet)">${engagedPolar.toFixed(2)}</div>
+            <div class="reveal" style="border-color:${palette.violet}">
+              <div class="reveal-icon" style="color:${palette.violet}">${engagedPolar.toFixed(2)}</div>
               <div class="reveal-body">
                 <div class="reveal-headline">Le contenu qui te capte est polarisant</div>
                 <div class="reveal-detail">Les posts sur lesquels tu passes du temps ont une polarisation de ${engagedPolar.toFixed(2)} en moyenne.</div>
@@ -1872,11 +1876,11 @@ export class ScreenHome extends LitElement {
     if (!s.signals || s.signals.total === 0) return nothing;
     const sig = s.signals;
     const activeSignals = [
-      { name: 'Activisme', count: sig.activism, color: 'var(--rouge)', desc: 'appels a l\'action, mobilisation' },
-      { name: 'Conflit', count: sig.conflict, color: 'var(--orange)', desc: 'vocabulaire de guerre, combat, ennemi' },
-      { name: 'Absolus moraux', count: sig.moralAbsolute, color: 'var(--violet)', desc: 'fascisme, genocide, monstrueux' },
-      { name: 'Designation d\'ennemi', count: sig.enemyDesignation, color: 'var(--rose)', desc: '"dehors", "degagez", exclusion' },
-      { name: 'Nous vs Eux', count: sig.ingroupOutgroup, color: 'var(--jaune)', desc: 'elites vs peuple, communautarisme' },
+      { name: 'Activisme', count: sig.activism, color: palette.rouge, desc: 'appels a l\'action, mobilisation' },
+      { name: 'Conflit', count: sig.conflict, color: palette.orange, desc: 'vocabulaire de guerre, combat, ennemi' },
+      { name: 'Absolus moraux', count: sig.moralAbsolute, color: palette.violet, desc: 'fascisme, genocide, monstrueux' },
+      { name: 'Designation d\'ennemi', count: sig.enemyDesignation, color: palette.rose, desc: '"dehors", "degagez", exclusion' },
+      { name: 'Nous vs Eux', count: sig.ingroupOutgroup, color: palette.jaune, desc: 'elites vs peuple, communautarisme' },
     ].filter(x => x.count > 0);
 
     if (activeSignals.length === 0) return nothing;
@@ -1909,8 +1913,8 @@ export class ScreenHome extends LitElement {
       reel: 'Reels', story: 'Stories', '': 'Autre',
     };
     const typeColors: Record<string, string> = {
-      photo: 'var(--bleu-ciel)', video: 'var(--violet)', carousel: 'var(--orange)',
-      reel: 'var(--rose)', story: 'var(--jaune)',
+      photo: palette.bleuCiel, video: palette.violet, carousel: palette.orange,
+      reel: palette.rose, story: palette.jaune,
     };
 
     return html`
@@ -1947,8 +1951,8 @@ export class ScreenHome extends LitElement {
       <div class="section">
         <div class="section-label">Contenu sponsorise</div>
         <div class="reveals">
-          <div class="reveal" style="border-color:var(--jaune)">
-            <div class="reveal-icon" style="color:var(--jaune);font-size:14px;">${spPct}%</div>
+          <div class="reveal" style="border-color:${palette.jaune}">
+            <div class="reveal-icon" style="color:${palette.jaune};font-size:14px;">${spPct}%</div>
             <div class="reveal-body">
               <div class="reveal-headline">${spCount} pub${spCount > 1 ? 's' : ''} dans ton feed</div>
               <div class="reveal-detail">

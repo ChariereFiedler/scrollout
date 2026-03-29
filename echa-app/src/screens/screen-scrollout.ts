@@ -1,6 +1,7 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, scrolloutIconSvg } from '../styles/theme.js';
+import { theme } from '../styles/theme.js';
+import '../components/scrollout-logo.js';
 import {
   getCognitiveThemes,
   getPosts,
@@ -176,7 +177,7 @@ export class ScreenScrollout extends LitElement {
       .primary-btn {
         border: none;
         background: linear-gradient(90deg, var(--bleu-indigo), var(--violet));
-        color: #fff;
+        color: var(--white);
       }
 
       .stats-row {
@@ -434,7 +435,7 @@ export class ScreenScrollout extends LitElement {
         <section class="hero">
           <div class="hero-top">
             <div class="brand">
-              <div class="brand-mark" .innerHTML=${scrolloutIconSvg(30)}></div>
+              <div class="brand-mark"><scrollout-logo size="30"></scrollout-logo></div>
               <div>
                 <div class="title">Scrollout</div>
                 <div class="subtitle">Comprendre ma bulle</div>

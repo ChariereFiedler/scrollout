@@ -6,7 +6,7 @@ import Database from 'better-sqlite3';
 import { writeFileSync } from 'fs';
 import path from 'path';
 
-const db = new Database(path.join(__dirname, '..', 'data', 'echa.db'));
+const db = new Database(path.join(__dirname, '..', 'data', 'echa_device_now.db'));
 
 function parse(s: string): any[] {
   try { return JSON.parse(s || '[]'); } catch { return []; }

@@ -3,20 +3,21 @@ import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { customElement, state } from 'lit/decorators.js';
 import { getStats, type DbStats, resolveEntities, type ResolvedEntity } from '../services/db-bridge.js';
 import { resolveEntityLocal, ENTITY_DICTIONARY } from '../services/ontology.js';
+import { palette } from '../styles/theme.js';
 
 // ── Constants ───────────────────────────────────────────────
 
 const TOTAL_SLIDES = 9;
 
 const DOMAIN_COLORS: Record<string, string> = {
-  culture_divertissement: '#8B22CC',
-  lifestyle_bienetre: '#90DDAA',
-  politique_societe: '#FF0000',
-  information_savoirs: '#B0E0FF',
-  ecologie_environnement: '#90EE90',
-  economie_travail: '#FFFF66',
-  sport: '#FF6B00',
-  technologie: '#5B3FE8',
+  culture_divertissement: palette.violet,
+  lifestyle_bienetre: palette.vertEau,
+  politique_societe: palette.rouge,
+  information_savoirs: palette.bleuCiel,
+  ecologie_environnement: palette.vertMenthe,
+  economie_travail: palette.jaune,
+  sport: palette.orange,
+  technologie: palette.bleuIndigo,
 };
 
 function domainLabel(d: string): string {
@@ -34,32 +35,32 @@ function domainLabel(d: string): string {
 // ── Emotion → color + icon mapping ──────────────────────────
 
 const EMOTION_META: Record<string, { color: string; icon: string }> = {
-  anger:    { color: '#FF0000', icon: '<path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14 0-5.5 3-7 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.15.5-2.5 1.5-3.5z"/>' },
-  fear:     { color: '#9B59B6', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
-  joy:      { color: '#FFFF66', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
-  hope:     { color: '#90EE90', icon: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 00-8 0"/>' },
-  disgust:  { color: '#2ECC71', icon: '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><path d="M7.5 8l2.5 1 2.5-1"/><path d="M16.5 8l-2.5 1-2.5-1"/>' },
-  sadness:  { color: '#3498DB', icon: '<path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5S5 13 5 15a7 7 0 007 7z"/>' },
-  surprise: { color: '#FF6B00', icon: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
-  contempt: { color: '#95A5A6', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15c1 1 3.5 1 5-1"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
-  neutral:  { color: '#BDC3C7', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
+  anger:    { color: palette.rouge, icon: '<path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14 0-5.5 3-7 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.15.5-2.5 1.5-3.5z"/>' },
+  fear:     { color: '#9B59B6', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' }, // emotion-specific color
+  joy:      { color: palette.jaune, icon: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
+  hope:     { color: palette.vertMenthe, icon: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 00-8 0"/>' },
+  disgust:  { color: '#2ECC71', icon: '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><path d="M7.5 8l2.5 1 2.5-1"/><path d="M16.5 8l-2.5 1-2.5-1"/>' }, // emotion-specific color
+  sadness:  { color: '#3498DB', icon: '<path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5S5 13 5 15a7 7 0 007 7z"/>' }, // emotion-specific color
+  surprise: { color: palette.orange, icon: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
+  contempt: { color: '#95A5A6', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15c1 1 3.5 1 5-1"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' }, // emotion-specific color
+  neutral:  { color: '#BDC3C7', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' }, // emotion-specific color
 };
 
 // ── Narrative → icon mapping ────────────────────────────────
 
 const NARRATIVE_META: Record<string, { color: string; icon: string; label: string }> = {
-  apocalyptic:       { color: '#FF0000', icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>', label: 'Apocalyptique' },
-  hero_journey:      { color: '#5B3FE8', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', label: 'Heroique' },
-  oppression:        { color: '#9B59B6', icon: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>', label: 'Oppression' },
-  meritocracy:       { color: '#FFFF66', icon: '<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 1012 0V2z"/>', label: 'Meritocratie' },
-  us_vs_them:        { color: '#FF6B00', icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>', label: 'Nous vs Eux' },
-  victim:            { color: '#3498DB', icon: '<path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5S5 13 5 15a7 7 0 007 7z"/>', label: 'Victimaire' },
-  resistance:        { color: '#E74C3C', icon: '<path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z"/><path d="M14 2v6h6"/>', label: 'Resistance' },
-  progress:          { color: '#90EE90', icon: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', label: 'Progres' },
-  nostalgia:         { color: '#D4A76A', icon: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>', label: 'Nostalgie' },
-  fear_mongering:    { color: '#8E44AD', icon: '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>', label: 'Alarmisme' },
-  empowerment:       { color: '#FF6B00', icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>', label: 'Empowerment' },
-  conspiracy:        { color: '#2C3E50', icon: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>', label: 'Complotisme' },
+  apocalyptic:       { color: palette.rouge, icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>', label: 'Apocalyptique' },
+  hero_journey:      { color: palette.bleuIndigo, icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', label: 'Heroique' },
+  oppression:        { color: '#9B59B6', icon: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>', label: 'Oppression' }, // narrative-specific color
+  meritocracy:       { color: palette.jaune, icon: '<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 1012 0V2z"/>', label: 'Meritocratie' },
+  us_vs_them:        { color: palette.orange, icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>', label: 'Nous vs Eux' },
+  victim:            { color: '#3498DB', icon: '<path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5S5 13 5 15a7 7 0 007 7z"/>', label: 'Victimaire' }, // narrative-specific color
+  resistance:        { color: '#E74C3C', icon: '<path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z"/><path d="M14 2v6h6"/>', label: 'Resistance' }, // narrative-specific color
+  progress:          { color: palette.vertMenthe, icon: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', label: 'Progres' },
+  nostalgia:         { color: '#D4A76A', icon: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>', label: 'Nostalgie' }, // narrative-specific color
+  fear_mongering:    { color: '#8E44AD', icon: '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>', label: 'Alarmisme' }, // narrative-specific color
+  empowerment:       { color: palette.orange, icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>', label: 'Empowerment' },
+  conspiracy:        { color: '#2C3E50', icon: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>', label: 'Complotisme' }, // narrative-specific color
 };
 
 // ── Lucide SVG helper ───────────────────────────────────────
@@ -109,7 +110,7 @@ export class ScreenWrapped extends LitElement {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: 'Averia Sans Libre', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: var(--font-body);
       -webkit-font-smoothing: antialiased;
     }
 
@@ -136,61 +137,61 @@ export class ScreenWrapped extends LitElement {
     .slide-1 { background: linear-gradient(180deg, #fafafa 0%, #f0f0f5 100%); }
     .slide-2 { background: linear-gradient(180deg, #f8f8fc 0%, #eef0f8 100%); }
     .slide-3 { background: linear-gradient(180deg, #fdf9f2 0%, #f4efe5 100%); }
-    .slide-4 { background: linear-gradient(180deg, #1a1a1a 0%, #111 100%); color: #f0f0f0; }
-    .slide-5 { background: linear-gradient(180deg, #0f0f1a 0%, #1a1025 100%); color: #f0f0f0; }
+    .slide-4 { background: linear-gradient(180deg, #1a1a1a 0%, #111 100%); color: var(--text); }
+    .slide-5 { background: linear-gradient(180deg, #0f0f1a 0%, #1a1025 100%); color: var(--text); }
     .slide-6 { background: linear-gradient(180deg, #f5f7f2 0%, #ecefe6 100%); }
-    .slide-7 { background: linear-gradient(180deg, #0f0f1a 0%, #1a1025 100%); color: #f0f0f0; }
+    .slide-7 { background: linear-gradient(180deg, #0f0f1a 0%, #1a1025 100%); color: var(--text); }
     .slide-8 { background: linear-gradient(180deg, #f8f4ec 0%, #eee7db 100%); }
-    .slide-9 { background: linear-gradient(180deg, #111 0%, #1a1025 100%); color: #f0f0f0; }
+    .slide-9 { background: linear-gradient(180deg, #111 0%, #1a1025 100%); color: var(--text); }
 
     /* ── Typography ── */
     .eyebrow {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 11px;
       font-weight: 500;
       letter-spacing: 1.2px;
       text-transform: uppercase;
-      color: #999;
+      color: var(--text-soft);
       margin-bottom: 12px;
     }
     .dark-slide .eyebrow { color: #88aacc; }
 
     .title {
-      font-family: 'Averia Sans Libre', sans-serif;
+      font-family: var(--font-mono);
       font-weight: 900;
       font-size: 28px;
       line-height: 1;
-      color: #111;
+      color: var(--surface-dark);
       margin-bottom: 12px;
     }
-    .dark-slide .title { color: #f0f0f0; }
+    .dark-slide .title { color: var(--text); }
 
     .body-text {
       font-size: 13px;
       line-height: 1.4;
-      color: #555;
+      color: var(--text-faint);
       margin-bottom: 14px;
     }
-    .dark-slide .body-text { color: #aaa; }
+    .dark-slide .body-text { color: var(--text-dim); }
 
     /* ── Hero stat ── */
     .hero {
-      background: #111;
+      background: var(--surface-dark);
       border-radius: 24px;
       padding: 24px;
       margin-bottom: 16px;
     }
     .hero-big {
-      font-family: 'Averia Sans Libre', sans-serif;
+      font-family: var(--font-mono);
       font-weight: 900;
       font-size: 96px;
       line-height: 0.88;
-      color: #f0f0f0;
+      color: var(--text);
     }
     .hero-sub {
       font-size: 16px;
       font-weight: 600;
-      color: #bbb;
+      color: var(--text-dim);
       margin-top: 10px;
       line-height: 1.2;
     }
@@ -207,7 +208,7 @@ export class ScreenWrapped extends LitElement {
       padding: 16px;
     }
     .stat-card .val {
-      font-family: 'Averia Sans Libre', sans-serif;
+      font-family: var(--font-mono);
       font-weight: 700;
       font-size: 22px;
       line-height: 1;
@@ -245,20 +246,20 @@ export class ScreenWrapped extends LitElement {
     .bubble .b-label {
       font-weight: 700;
       line-height: 1.1;
-      color: #fff;
+      color: var(--white);
       text-shadow: 0 1px 3px rgba(0,0,0,0.3);
     }
     .bubble .b-count {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 10px;
       color: rgba(255,255,255,0.8);
     }
     .bubble.ghost {
-      border: 1.5px dashed #ccc;
+      border: 1.5px dashed var(--border-soft);
       background: rgba(255,255,255,0.6) !important;
     }
-    .bubble.ghost .b-label { color: #999; text-shadow: none; font-weight: 600; }
-    .bubble.ghost .b-count { color: #aaa; }
+    .bubble.ghost .b-label { color: var(--text-soft); text-shadow: none; font-weight: 600; }
+    .bubble.ghost .b-count { color: var(--text-dim); }
 
     /* ── Info cards ── */
     .info-card {
@@ -266,15 +267,15 @@ export class ScreenWrapped extends LitElement {
       padding: 18px;
       margin-bottom: 12px;
     }
-    .info-card.dark { background: #111; color: #f0f0f0; }
-    .info-card.accent { background: #5B3FE8; color: #fff; }
-    .info-card.orange { background: #FF6B00; color: #fff; }
-    .info-card.yellow { background: #FFFF66; color: #111; }
-    .info-card.red { background: #FF0000; color: #fff; }
-    .info-card.mint { background: #90EE90; color: #111; }
+    .info-card.dark { background: var(--surface-dark); color: var(--text); }
+    .info-card.accent { background: var(--bleu-indigo); color: var(--white); }
+    .info-card.orange { background: var(--orange); color: var(--white); }
+    .info-card.yellow { background: var(--jaune); color: var(--surface-dark); }
+    .info-card.red { background: var(--rouge); color: var(--white); }
+    .info-card.mint { background: var(--vert-menthe); color: var(--surface-dark); }
     .info-card.surface { background: #f0ece3; color: #333; }
     .info-card .card-eyebrow {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 10px;
       letter-spacing: 0.8px;
       text-transform: uppercase;
@@ -300,7 +301,7 @@ export class ScreenWrapped extends LitElement {
       margin-bottom: 12px;
     }
     .metric-block .m-val {
-      font-family: 'Averia Sans Libre', sans-serif;
+      font-family: var(--font-mono);
       font-weight: 900;
       font-size: 48px;
       line-height: 1;
@@ -325,7 +326,7 @@ export class ScreenWrapped extends LitElement {
       font-size: 11px;
       font-weight: 600;
       text-align: right;
-      color: #555;
+      color: var(--text-faint);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -344,10 +345,10 @@ export class ScreenWrapped extends LitElement {
     }
     .bar-val {
       width: 36px;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 10px;
       font-weight: 500;
-      color: #777;
+      color: var(--text-muted);
     }
 
     /* ── Narrative/Emotion chips ── */
@@ -379,7 +380,7 @@ export class ScreenWrapped extends LitElement {
       line-height: 1.2;
     }
     .chip-count {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 11px;
       opacity: 0.7;
     }
@@ -401,7 +402,7 @@ export class ScreenWrapped extends LitElement {
       width: 100%;
       aspect-ratio: 1;
       border-radius: 24px;
-      background: #222;
+      background: var(--surface3);
       overflow: hidden;
       margin-bottom: 16px;
     }
@@ -413,7 +414,7 @@ export class ScreenWrapped extends LitElement {
     .compass-axis.v { height: 100%; width: 1px; left: 50%; }
     .compass-label {
       position: absolute;
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 9px;
       letter-spacing: 0.5px;
       text-transform: uppercase;
@@ -456,27 +457,27 @@ export class ScreenWrapped extends LitElement {
       width: 6px;
       height: 6px;
       border-radius: 50%;
-      background: #ccc;
+      background: var(--border-soft);
       transition: all 0.3s;
     }
     .dot.active {
-      background: #5B3FE8;
+      background: var(--bleu-indigo);
       width: 18px;
       border-radius: 4px;
     }
     .dark-slide .dot { background: #444; }
-    .dark-slide .dot.active { background: #5B3FE8; }
+    .dark-slide .dot.active { background: var(--bleu-indigo); }
 
     .btn-next {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: #111;
-      color: #f0f0f0;
+      background: var(--surface-dark);
+      color: var(--text);
       border: none;
       border-radius: 999px;
       padding: 10px 18px;
-      font-family: 'Averia Sans Libre', sans-serif;
+      font-family: var(--font-mono);
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
@@ -484,14 +485,14 @@ export class ScreenWrapped extends LitElement {
       -webkit-tap-highlight-color: transparent;
     }
     .btn-next:active { opacity: 0.7; }
-    .dark-slide .btn-next { background: #f0f0f0; color: #111; }
-    .btn-next.finish { background: #5B3FE8; color: #fff; }
+    .dark-slide .btn-next { background: var(--text); color: var(--surface-dark); }
+    .btn-next.finish { background: var(--bleu-indigo); color: var(--white); }
 
     .btn-back {
       background: none;
       border: none;
-      color: #999;
-      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-soft);
+      font-family: var(--font-mono);
       font-size: 11px;
       cursor: pointer;
       padding: 8px;
@@ -516,10 +517,10 @@ export class ScreenWrapped extends LitElement {
       z-index: 10;
       -webkit-tap-highlight-color: transparent;
     }
-    .close-btn svg { width: 20px; height: 20px; stroke: #555; stroke-width: 2.5; }
+    .close-btn svg { width: 20px; height: 20px; stroke: var(--text-faint); stroke-width: 2.5; }
     .close-btn:active { opacity: 0.5; }
     .dark-slide .close-btn { background: rgba(255,255,255,0.15); }
-    .dark-slide .close-btn svg { stroke: #aaa; }
+    .dark-slide .close-btn svg { stroke: var(--text-dim); }
 
     /* ── Share button ── */
     .share-btn {
@@ -531,9 +532,9 @@ export class ScreenWrapped extends LitElement {
       padding: 16px;
       border-radius: 16px;
       border: none;
-      background: linear-gradient(135deg, #5B3FE8 0%, #8B22CC 100%);
-      color: #fff;
-      font-family: 'Averia Sans Libre', sans-serif;
+      background: linear-gradient(135deg, var(--bleu-indigo) 0%, var(--violet) 100%);
+      color: var(--white);
+      font-family: var(--font-mono);
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
@@ -631,11 +632,11 @@ export class ScreenWrapped extends LitElement {
 
   render() {
     if (this.loading) {
-      return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#fafafa;color:#999;font-size:13px;">Chargement...</div>`;
+      return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#fafafa;color:var(--text-soft);font-size:13px;">Chargement...</div>`;
     }
     const s = this.stats;
     if (!s) {
-      return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#fafafa;color:#999;font-size:13px;">Pas de donnees disponibles</div>`;
+      return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#fafafa;color:var(--text-soft);font-size:13px;">Pas de donnees disponibles</div>`;
     }
 
     return html`
@@ -703,11 +704,11 @@ export class ScreenWrapped extends LitElement {
         </div>
 
         <div class="cards-row">
-          <div class="stat-card" style="background:#5B3FE8;color:#fff;">
+          <div class="stat-card" style="background:var(--bleu-indigo);color:var(--white);">
             <div class="val">${polPct}%</div>
             <div class="lbl">${icon(ICONS.shield, 14)} politique</div>
           </div>
-          <div class="stat-card" style="background:#FF6B00;color:#fff;">
+          <div class="stat-card" style="background:var(--orange);color:var(--white);">
             <div class="val">${polarPct}%</div>
             <div class="lbl">${icon(ICONS.zap, 14)} polarisation</div>
           </div>
@@ -771,14 +772,14 @@ export class ScreenWrapped extends LitElement {
         <div class="eyebrow">${icon(ICONS.alertTriangle, 14)} 03 / Tes biais</div>
         <div class="title">Surexposition selective, pas extremisme.</div>
 
-        <div class="info-card dark">
+        <div class="info-card" style="background:var(--surface-dark);color:var(--text);">
           <div class="card-row">${icon(ICONS.eye, 18)}<div>
             <div class="card-eyebrow">Renforcement</div>
             <div class="card-text">${topPct}% concentre dans un seul cadre.</div>
           </div></div>
         </div>
 
-        <div class="info-card accent">
+        <div class="info-card" style="background:var(--bleu-indigo);color:var(--white);">
           <div class="card-row">${icon(ICONS.shield, 18)}<div>
             <div class="card-text">Le politique reste peripherique.</div>
           </div></div>
@@ -823,17 +824,17 @@ export class ScreenWrapped extends LitElement {
 
         <div class="chip-grid">
           ${narratives.length === 0 ? html`
-            <div class="info-card" style="background:#222;color:#888;">
+            <div class="info-card" style="background:var(--surface3);color:#888;">
               <div class="card-row">${icon(ICONS.sparkles, 18)}<div>
                 <div class="card-text">Pas encore assez de donnees narratives.</div>
               </div></div>
             </div>
           ` : narratives.slice(0, 5).map(n => {
-            const meta = NARRATIVE_META[n.narrative] || { color: '#5B3FE8', icon: ICONS.bookOpen, label: n.narrative.replace(/_/g, ' ') };
+            const meta = NARRATIVE_META[n.narrative] || { color: palette.bleuIndigo, icon: ICONS.bookOpen, label: n.narrative.replace(/_/g, ' ') };
             const w = Math.round((n.count / maxCount) * 100);
             return html`
               <div class="chip" style="background:${meta.color}22;">
-                <div class="chip-icon" style="background:${meta.color};color:#fff;">
+                <div class="chip-icon" style="background:${meta.color};color:var(--white);">
                   ${icon(meta.icon, 20)}
                 </div>
                 <div style="flex:1;min-width:0;">
@@ -847,7 +848,7 @@ export class ScreenWrapped extends LitElement {
         </div>
 
         ${narratives.length > 0 ? html`
-          <div class="info-card" style="background:#222;color:#f0f0f0;">
+          <div class="info-card" style="background:var(--surface3);color:var(--text);">
             <div class="card-row">${icon(ICONS.brain, 18)}<div>
               <div class="card-text">Ton cadre dominant : ${NARRATIVE_META[narratives[0]?.narrative]?.label || narratives[0]?.narrative}</div>
             </div></div>
@@ -873,7 +874,7 @@ export class ScreenWrapped extends LitElement {
 
         <div class="chip-grid">
           ${emotions.length === 0 ? html`
-            <div class="info-card" style="background:#222;color:#888;">
+            <div class="info-card" style="background:var(--surface3);color:#888;">
               <div class="card-row">${icon(ICONS.sparkles, 18)}<div>
                 <div class="card-text">Pas encore de donnees emotionnelles.</div>
               </div></div>
@@ -883,7 +884,7 @@ export class ScreenWrapped extends LitElement {
             const w = Math.round((e.count / maxCount) * 100);
             return html`
               <div class="chip" style="background:${meta.color}18;">
-                <div class="chip-icon" style="background:${meta.color};color:#fff;">
+                <div class="chip-icon" style="background:${meta.color};color:var(--white);">
                   ${icon(meta.icon, 20)}
                 </div>
                 <div style="flex:1;min-width:0;">
@@ -898,11 +899,11 @@ export class ScreenWrapped extends LitElement {
 
         ${emotions.length >= 2 ? html`
           <div class="cards-row">
-            <div class="stat-card" style="background:${EMOTION_META[emotions[0]?.emotion]?.color || '#5B3FE8'};color:#fff;">
+            <div class="stat-card" style="background:${EMOTION_META[emotions[0]?.emotion]?.color || palette.bleuIndigo};color:var(--white);">
               <div class="val">#1</div>
               <div class="lbl">${emotions[0].emotion}</div>
             </div>
-            <div class="stat-card" style="background:${EMOTION_META[emotions[1]?.emotion]?.color || '#FF6B00'};color:#fff;">
+            <div class="stat-card" style="background:${EMOTION_META[emotions[1]?.emotion]?.color || palette.orange};color:var(--white);">
               <div class="val">#2</div>
               <div class="lbl">${emotions[1].emotion}</div>
             </div>
@@ -962,7 +963,7 @@ export class ScreenWrapped extends LitElement {
             top:${cy}%;
             width:${dotSize}px;
             height:${dotSize}px;
-            background:#5B3FE8;
+            background:var(--bleu-indigo);
             --dot-color:rgba(107,107,255,0.5);
           "></div>
           <!-- Glow ring -->
@@ -985,12 +986,12 @@ export class ScreenWrapped extends LitElement {
         </div>
 
         <div class="cards-row">
-          <div class="stat-card" style="background:#111;color:#f0f0f0;">
-            <div class="val" style="color:#5B3FE8;">${axes.economic >= 0 ? '+' : ''}${axes.economic.toFixed(2)}</div>
+          <div class="stat-card" style="background:var(--surface-dark);color:var(--text);">
+            <div class="val" style="color:var(--bleu-indigo);">${axes.economic >= 0 ? '+' : ''}${axes.economic.toFixed(2)}</div>
             <div class="lbl">Axe economique</div>
           </div>
-          <div class="stat-card" style="background:#111;color:#f0f0f0;">
-            <div class="val" style="color:#FF6B00;">${axes.societal >= 0 ? '+' : ''}${axes.societal.toFixed(2)}</div>
+          <div class="stat-card" style="background:var(--surface-dark);color:var(--text);">
+            <div class="val" style="color:var(--orange);">${axes.societal >= 0 ? '+' : ''}${axes.societal.toFixed(2)}</div>
             <div class="lbl">Axe societal</div>
           </div>
         </div>
@@ -1020,28 +1021,28 @@ export class ScreenWrapped extends LitElement {
         <div class="title">Les chiffres qui piquent.</div>
 
         <div class="cards-row">
-          <div class="metric-block" style="background:#222;color:#f0f0f0;flex:1;">
-            <div class="m-val" style="color:#5B3FE8;">${bubbleScore}%</div>
-            <div class="m-desc" style="color:#aaa;">${icon(ICONS.target, 14)} Bubble Score</div>
+          <div class="metric-block" style="background:var(--surface3);color:var(--text);flex:1;">
+            <div class="m-val" style="color:var(--bleu-indigo);">${bubbleScore}%</div>
+            <div class="m-desc" style="color:var(--text-dim);">${icon(ICONS.target, 14)} Bubble Score</div>
           </div>
-          <div class="metric-block" style="background:#FFFF66;color:#111;flex:1;">
+          <div class="metric-block" style="background:var(--jaune);color:var(--surface-dark);flex:1;">
             <div class="m-val">${engaged}</div>
             <div class="m-desc">${icon(ICONS.eye, 14)} engages (> 5s)</div>
           </div>
         </div>
 
-        <div class="metric-block" style="background:#5B3FE8;color:#fff;">
+        <div class="metric-block" style="background:var(--bleu-indigo);color:var(--white);">
           <div class="m-desc">${icon(ICONS.zap, 16)} ${skipRate}% skip rate — ${skipped} posts zappes</div>
         </div>
 
         ${totalSignals > 0 ? html`
-          <div class="metric-block" style="background:#FF0000;color:#fff;">
+          <div class="metric-block" style="background:var(--rouge);color:var(--white);">
             <div class="m-val">${totalSignals}</div>
             <div class="m-desc">${icon(ICONS.alertTriangle, 16)} signaux de polarisation</div>
           </div>
         ` : nothing}
 
-        <div class="metric-block" style="background:#333;color:#ccc;">
+        <div class="metric-block" style="background:var(--border-light);color:var(--border-soft);">
           <div class="m-desc">${icon(ICONS.clock, 14)} ${s.totalSessions} sessions, ${formatDwell(s.totalDwellMs)} de scroll total</div>
         </div>
 
@@ -1078,7 +1079,7 @@ export class ScreenWrapped extends LitElement {
         <div class="eyebrow">${icon(ICONS.trophy, 14)} 08 / Tes records</div>
         <div class="title">Tu scrolles. L'algo compte.</div>
 
-        <div class="hero" style="background:linear-gradient(135deg, #5B3FE8 0%, #8B22CC 100%);">
+        <div class="hero" style="background:linear-gradient(135deg, var(--bleu-indigo) 0%, var(--violet) 100%);">
           <div style="display:flex;align-items:center;gap:12px;">
             ${icon(ICONS.ruler, 28)}
             <div class="hero-big" style="font-size:64px;">${distanceText}</div>
@@ -1087,28 +1088,28 @@ export class ScreenWrapped extends LitElement {
         </div>
 
         <div class="cards-row">
-          <div class="metric-block" style="background:#111;color:#f0f0f0;flex:1;">
+          <div class="metric-block" style="background:var(--surface-dark);color:var(--text);flex:1;">
             <div style="display:flex;align-items:center;gap:8px;">
               ${icon(ICONS.gauge, 20)}
-              <div class="m-val" style="color:#FFFF66;font-size:36px;">${Math.round(scrollSpeed)}</div>
+              <div class="m-val" style="color:var(--jaune);font-size:36px;">${Math.round(scrollSpeed)}</div>
             </div>
-            <div class="m-desc" style="color:#aaa;">m/h de scroll</div>
-            <div class="m-desc" style="color:#FFFF66;margin-top:4px;">vs ${speedAnimal.name}. ${speedAnimal.verdict}</div>
+            <div class="m-desc" style="color:var(--text-dim);">m/h de scroll</div>
+            <div class="m-desc" style="color:var(--jaune);margin-top:4px;">vs ${speedAnimal.name}. ${speedAnimal.verdict}</div>
           </div>
         </div>
 
         <div class="cards-row">
-          <div class="stat-card" style="background:#FF6B00;color:#fff;flex:1;">
+          <div class="stat-card" style="background:var(--orange);color:var(--white);flex:1;">
             <div style="display:flex;align-items:center;gap:6px;">${icon(ICONS.flame, 16)}<div class="val">${s.totalPosts}</div></div>
             <div class="lbl">contenus</div>
           </div>
-          <div class="stat-card" style="background:#90EE90;color:#111;flex:1;">
+          <div class="stat-card" style="background:var(--vert-menthe);color:var(--surface-dark);flex:1;">
             <div style="display:flex;align-items:center;gap:6px;">${icon(ICONS.zap, 16)}<div class="val">${postsPerSession}</div></div>
             <div class="lbl">posts / session</div>
           </div>
         </div>
 
-        <div class="info-card" style="background:#111;color:#f0f0f0;">
+        <div class="info-card" style="background:var(--surface-dark);color:var(--text);">
           <div class="card-row">${icon(ICONS.clock, 16)}<div class="card-text">${totalMin > 0 ? `${totalMin} min` : '<1 min'} = ${timeEquiv}</div></div>
         </div>
 
@@ -1132,29 +1133,29 @@ export class ScreenWrapped extends LitElement {
         <div class="title">Sortir = ajouter des mondes.</div>
         <div class="body-text">3 contenus absents + 3 comptes hors-cluster, 14 jours.</div>
 
-        <div class="info-card" style="background:#222;color:#f0f0f0;">
+        <div class="info-card" style="background:var(--surface3);color:var(--text);">
           <div class="card-row">${icon(ICONS.bookOpen, 18)}<div>
             <div class="card-text">1. Format long factuel — casse le drama court.</div>
           </div></div>
         </div>
 
-        <div class="info-card accent">
+        <div class="info-card" style="background:var(--bleu-indigo);color:var(--white);">
           <div class="card-row">${icon(ICONS.users, 18)}<div>
             <div class="card-text">2. Comptes hors-cluster — cadres narratifs incompatibles.</div>
           </div></div>
         </div>
 
-        <div class="info-card" style="background:#FFFF66;color:#111;">
+        <div class="info-card" style="background:var(--jaune);color:var(--surface-dark);">
           <div class="card-row">${icon(ICONS.eye, 18)}<div>
             <div class="card-text">3. Sources anti-confirmation.</div>
           </div></div>
         </div>
 
         ${weak.length > 0 || missing.length > 0 ? html`
-          <div class="info-card" style="background:#1a1a2e;color:#ccc;">
+          <div class="info-card" style="background:#1a1a2e;color:var(--border-soft);">
             <div class="card-eyebrow">${icon(ICONS.map, 12)} Zones sous-exposees</div>
             <div class="card-text" style="margin-top:6px;">
-              ${weak.map(w => html`<span style="display:inline-block;background:#333;border-radius:999px;padding:3px 10px;font-size:12px;margin:2px 3px;">${w}</span>`)}
+              ${weak.map(w => html`<span style="display:inline-block;background:var(--border-light);border-radius:999px;padding:3px 10px;font-size:12px;margin:2px 3px;">${w}</span>`)}
               ${missing.map(m => html`<span style="display:inline-block;border:1.5px dashed #444;border-radius:999px;padding:3px 10px;font-size:12px;margin:2px 3px;color:#666;">${domainLabel(m)}</span>`)}
             </div>
           </div>

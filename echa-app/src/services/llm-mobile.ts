@@ -21,7 +21,7 @@ export interface LLMConfig {
   temperature?: number;
 }
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_MODEL = 'gpt-4.1-nano';
 
 /**
  * Appelle l'API OpenAI chat completions.
@@ -68,12 +68,18 @@ const SYSTEM_PROMPT = `Tu es un sémiologue spécialisé dans l'analyse de conte
 Tu dois produire une analyse structurée en JSON, rigoureuse et factuelle.
 
 RÈGLE FONDAMENTALE — SÉMIOLOGIE, PAS DESCRIPTION :
-- Analyse le SENS, le PROPOS, l'IDÉE du post — jamais son format.
-- Demande-toi : "Quel message ce post plante dans la tête du spectateur ? Quelle vision du monde il véhicule ?"
-- Un post de BD → le sujet c'est le thème traité (critique sociale, absurde, nostalgie), pas "une bande dessinée".
-- Un post de recette → le sujet c'est "cuisine japonaise traditionnelle" ou "alimentation vegan engagée", pas "photo de plat".
-- Un post d'actu → le sujet c'est "réforme des retraites contestée" ou "montée du RN", pas "article partagé".
-- Le semantic_summary doit décrire le FOND, la THÈSE, le PROPOS — jamais "Le compte X partage..."
+Tu ne décris PAS le post. Tu décodes le MESSAGE IMPLICITE que le spectateur reçoit.
+
+- semantic_summary = le message planté dans l'inconscient du spectateur. Pas ce que le post "fait" ou "montre", mais ce qu'il FAIT CROIRE, RESSENTIR, DÉSIRER.
+- Mauvais : "Promotion de la littérature via des publications d'éditeurs" (description)
+- Bon : "Lire rend spécial — tu fais partie d'une élite cultivée" (message implicite)
+- Mauvais : "Partage d'une recette de ramen maison" (description)
+- Bon : "La vraie cuisine demande du temps et du soin — le fast-food est indigne" (propos)
+- Mauvais : "Présentation de prototypes de jeux vidéo" (description)
+- Bon : "L'innovation artisanale dans le jeu est plus noble que l'industrie AAA" (idéologie)
+
+- media_message = la même chose, formulé comme une phrase que le spectateur intériorise
+- media_intent = l'EFFET RECHERCHÉ sur le spectateur (pas le format du contenu)
 
 AUTRES RÈGLES :
 - Tu mesures le CONTENU du post, pas l'opinion de l'auteur ni du lecteur.
@@ -162,7 +168,7 @@ LISTE DES 31 THÈMES (utilise UNIQUEMENT ces identifiants) :
 
 Produis un JSON avec ces champs :
 {
-  "semantic_summary": "Phrase sémiologique (15 mots max) décrivant le PROPOS, la THÈSE. Pas de description de format. Commence par le sujet.",
+  "semantic_summary": "Le message IMPLICITE que le spectateur intériorise (15 mots max). Pas de description. Pas de 'Le post montre/partage/présente'. Formule ce que le spectateur CROIT/RESSENT après avoir vu ce post.",
   "main_topics": ["1-3 thèmes. JAMAIS vide."],
   "secondary_topics": ["0-3 thèmes secondaires"],
   "subjects": ["Sujets CONCRETS du fond (niveau 3). Ex: 'cuisine japonaise', 'réforme retraites', 'nostalgie Disney'. Décris le FOND."],
@@ -183,7 +189,7 @@ Produis un JSON avec ces champs :
   "activism_signal": true/false,
   "narrative_frame": "declin|urgence|injustice|revelation|mobilisation|denonciation|empowerment|ordre|menace|aspiration|inspiration|derision|victimisation|heroisation|aucun",
   "call_to_action_type": "aucun|commenter|partager|sindigner|sinformer|voter|soutenir|boycotter|acheter|suivre_le_compte",
-  "media_message": "Le message que ce contenu plante dans la tête du spectateur, en 1 phrase directe.",
+  "media_message": "La croyance ou le désir que ce post installe chez le spectateur, formulé à la 2e personne. Ex: 'Tu devrais manger plus sain', 'Les élites te mentent', 'Cette marque te rend désirable'.",
   "media_intent": "informer|divertir|vendre|convaincre|emouvoir|eduquer|provoquer|aucun",
   "confidence_score": 0.0-1.0
 }
@@ -235,8 +241,7 @@ Texte: ${p.normalizedText.substring(0, 600)}${hints}
 
   const prompt = `Analyse ces ${posts.length} posts Instagram et produis un JSON avec un tableau "posts".
 
-RÈGLE SÉMIOLOGIQUE : semantic_summary = le PROPOS, la THÈSE, le MESSAGE. Jamais "Le compte partage..." ni description de format. Commence par le sujet.
-subjects = sujets CONCRETS du fond (pas de la forme).
+RÈGLE SÉMIOLOGIQUE : semantic_summary = le MESSAGE IMPLICITE intériorisé par le spectateur. Pas de description ("Le post montre..."). Formule ce que le spectateur CROIT/RESSENT/DÉSIRE après. media_message = pareil, à la 2e personne ("Tu devrais...", "Les élites te mentent...").
 
 ${postsBlock}
 
@@ -247,7 +252,7 @@ Réponds avec ce JSON :
   "posts": [
     {
       "index": 0,
-      "semantic_summary": "Phrase sémiologique (15 mots max) — PROPOS, pas description",
+      "semantic_summary": "Message IMPLICITE intériorisé par le spectateur (15 mots max). Pas de description.",
       "main_topics": ["1-3 thèmes. JAMAIS vide."],
       "secondary_topics": ["0-2"],
       "subjects": ["sujets concrets du fond"],
@@ -261,7 +266,7 @@ Réponds avec ce JSON :
       "political_explicitness_score": 0-4,
       "polarization_score": 0.0-1.0,
       "narrative_frame": "aucun|declin|urgence|...",
-      "media_message": "Le message planté dans la tête du spectateur",
+      "media_message": "Croyance/désir installé chez le spectateur, à la 2e personne",
       "media_intent": "informer|divertir|vendre|...",
       "confidence_score": 0.0-1.0
     }

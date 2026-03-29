@@ -592,6 +592,10 @@ async function tick() {
     const pending = await countPending();
     stats.pendingPosts = pending;
 
+    const llmConfig: LLMConfig | null = config.rulesOnly
+      ? null
+      : { apiKey: config.apiKey, model: config.model };
+
     // Check if there are rules-only posts needing LLM (even if no unenriched)
     let rulesOnlyCount = 0;
     if (llmConfig && pending < config.threshold) {
@@ -604,10 +608,6 @@ async function tick() {
       notify();
       return;
     }
-
-    const llmConfig: LLMConfig | null = config.rulesOnly
-      ? null
-      : { apiKey: config.apiKey, model: config.model };
 
     // ━━ Phase rapide : rules-only bulk (only if unenriched posts exist) ━━
     stats.rulesCount = 0;
@@ -686,9 +686,17 @@ async function tick() {
       notify();
       let llmDone = 0;
 
-      for (let i = 0; i < batchPosts.length; i += BATCH_SIZE) {
-        const chunk = batchPosts.slice(i, i + BATCH_SIZE);
-        try {
+      const PARALLEL = 5; // concurrent API calls
+      for (let i = 0; i < batchPosts.length; i += BATCH_SIZE * PARALLEL) {
+        // Launch PARALLEL chunks concurrently
+        const parallelChunks = [];
+        for (let p = 0; p < PARALLEL; p++) {
+          const start = i + p * BATCH_SIZE;
+          if (start >= batchPosts.length) break;
+          parallelChunks.push(batchPosts.slice(start, start + BATCH_SIZE));
+        }
+
+        const parallelResults = await Promise.allSettled(parallelChunks.map(chunk => {
           const batchInput: BatchPost[] = chunk.map((c, idx) => ({
             index: idx,
             username: c.post.username,
@@ -702,8 +710,15 @@ async function tick() {
               detectedActors: c.rulesResult.politicalActors,
             },
           }));
+          return callOpenAIBatch(batchInput, llmConfig).then(results => ({ chunk, results }));
+        }));
 
-          const results = await callOpenAIBatch(batchInput, llmConfig);
+        for (const settled of parallelResults) {
+          if (settled.status !== 'fulfilled') {
+            log(`[LLM] parallel chunk error: ${(settled as any).reason?.message || 'unknown'}`);
+            continue;
+          }
+          const { chunk, results } = settled.value;
 
           // Merge et save chaque résultat
           for (const r of results) {
@@ -732,7 +747,7 @@ async function tick() {
                 media_message: r.result.media_message || '',
                 media_intent: r.result.media_intent || '',
                 confidence_score: r.result.confidence_score || 0.5,
-              }, c.rulesResult, c.post, 'gpt-4o-mini-batch');
+              }, c.rulesResult, c.post, 'gpt-4.1-nano-batch');
               await saveEnrichment(c.post.id, enrichment);
               // Graph ingest after LLM refinement
               try { await graphIngestMobile(c.post.id, enrichment as MobileEnrichment); } catch { /* non-blocking */ }
@@ -743,12 +758,8 @@ async function tick() {
 
           log(`LLM batch: ${llmDone}/${batchPosts.length}`);
           notify();
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          log(`[LLM] batch error chunk ${i}/${batchPosts.length}: ${msg}`);
-          // Don't break on individual chunk errors, continue with next
-        }
-      }
+        } // end for settled
+      } // end for i
 
       stats.llmCount = llmDone;
       stats.phase = 'done';

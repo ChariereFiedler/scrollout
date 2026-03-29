@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, scrolloutDots, scrolloutIconSvg } from '../styles/theme.js';
+import { theme, scrolloutDots } from '../styles/theme.js';
+import '../components/scrollout-logo.js';
 import {
   startDaemon,
   stopDaemon,
@@ -187,7 +188,7 @@ export class ScreenSettings extends LitElement {
       }
       .toggle input:checked + .toggle-track::after {
         transform: translateX(20px);
-        background: #fff;
+        background: var(--white);
       }
 
       /* ── Buttons ── */
@@ -206,8 +207,8 @@ export class ScreenSettings extends LitElement {
         transition: transform 0.15s;
       }
       .btn:active { transform: scale(0.97); }
-      .btn-primary { background: var(--bleu-indigo); color: #fff; flex: 1; }
-      .btn-danger { background: var(--rouge); color: #fff; flex: 1; }
+      .btn-primary { background: var(--bleu-indigo); color: var(--white); flex: 1; }
+      .btn-danger { background: var(--rouge); color: var(--white); flex: 1; }
       .btn-secondary { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
 
       .status-bar {
@@ -635,7 +636,7 @@ export class ScreenSettings extends LitElement {
       <!-- About -->
       <div class="about">
         <div class="about-logo-row">
-          <span .innerHTML=${scrolloutIconSvg(30)}></span>
+          <scrollout-logo size="30"></scrollout-logo>
           <span class="about-logo">Scrollout</span>
         </div>
         <div class="about-tagline">Reprends le controle sur ton feed</div>

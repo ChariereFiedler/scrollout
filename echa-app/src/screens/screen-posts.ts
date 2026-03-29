@@ -108,7 +108,7 @@ export class ScreenPosts extends LitElement {
         border-radius: var(--radius-pill);
         font-size: 10px;
         font-weight: 700;
-        color: #fff;
+        color: var(--white);
       }
       .pc-account-topics {
         display: flex;

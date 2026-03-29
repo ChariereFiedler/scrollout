@@ -1,24 +1,24 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { customElement, state, query } from 'lit/decorators.js';
-import { theme, scrolloutDots } from '../styles/theme.js';
+import { theme, palette, scrolloutDots } from '../styles/theme.js';
 import { getGraphStats, backfillGraph, type GraphStats } from '../services/graph-ingest-mobile.js';
 
 const ico = (path: string, size = 18, color = 'currentColor') => html`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex-shrink:0;">${unsafeSVG(path)}</svg>`;
 
 const TYPE_CFG: Record<string, { color: string; label: string }> = {
-  Theme:          { color: '#5B3FE8', label: 'Theme' },
-  Subject:        { color: '#B0E0FF', label: 'Sujet' },
-  PreciseSubject: { color: '#8B22CC', label: 'S. precis' },
-  Person:         { color: '#FF6B00', label: 'Personne' },
-  Organization:   { color: '#DA70D6', label: 'Org.' },
-  Institution:    { color: '#FFFF66', label: 'Institution' },
-  Country:        { color: '#90DDAA', label: 'Pays' },
-  Media:          { color: '#FF6B00', label: 'Media' },
-  Domain:         { color: '#90EE90', label: 'Domaine' },
-  Narrative:      { color: '#FF0000', label: 'Narratif' },
-  Emotion:        { color: '#90EE90', label: 'Emotion' },
-  Audience:       { color: '#b0b0b0', label: 'Audience' },
+  Theme:          { color: palette.bleuIndigo, label: 'Theme' },
+  Subject:        { color: palette.bleuCiel, label: 'Sujet' },
+  PreciseSubject: { color: palette.violet, label: 'S. precis' },
+  Person:         { color: palette.orange, label: 'Personne' },
+  Organization:   { color: palette.rose, label: 'Org.' },
+  Institution:    { color: palette.jaune, label: 'Institution' },
+  Country:        { color: palette.vertEau, label: 'Pays' },
+  Media:          { color: palette.orange, label: 'Media' },
+  Domain:         { color: palette.vertMenthe, label: 'Domaine' },
+  Narrative:      { color: palette.rouge, label: 'Narratif' },
+  Emotion:        { color: palette.vertMenthe, label: 'Emotion' },
+  Audience:       { color: palette.textDim, label: 'Audience' },
 };
 
 // ── Force-directed graph ───────────────────────────────────────
@@ -157,7 +157,7 @@ function drawGraph(
   // Draw nodes (back to front: small first)
   const sortedForDraw = [...nodes].sort((a, b) => a.radius - b.radius);
   for (const n of sortedForDraw) {
-    const cfg = TYPE_CFG[n.type] || { color: '#555' };
+    const cfg = TYPE_CFG[n.type] || { color: palette.textFaint };
     const isSelected = n.id === selectedId;
     const connected = selectedId ? connectedToSelected.has(n.id) : false;
     const dimmed = selectedId && !isSelected && !connected;
@@ -450,7 +450,7 @@ export class ScreenKnowledge extends LitElement {
     return html`
       <div class="detail">
         <div class="detail-head">
-          <div class="detail-badge" style="background:${cfg.color};color:#000">${n.name[0].toUpperCase()}</div>
+          <div class="detail-badge" style="background:${cfg.color};color:var(--bg)">${n.name[0].toUpperCase()}</div>
           <div>
             <div class="detail-name">${n.name}</div>
             <div class="detail-type" style="color:${cfg.color}">${cfg.label}</div>
@@ -460,7 +460,7 @@ export class ScreenKnowledge extends LitElement {
         ${unique.length ? html`
           <div class="detail-connections">
             ${unique.slice(0, 10).map(c => {
-              const cc = TYPE_CFG[c.type] || { color: '#555' };
+              const cc = TYPE_CFG[c.type] || { color: palette.textFaint };
               const isStructural = c.relation !== 'coOccurrence';
               return html`
                 <span class="conn-tag" style="${isStructural ? `border-color:${cc.color}40` : ''}">
@@ -521,7 +521,7 @@ export class ScreenKnowledge extends LitElement {
                 ${w.entities.slice(0, 6).map(e => {
                   const pct = Math.max(20, (e.count / maxCount) * 100);
                   const node = this.graphNodes.find(n => n.name === e.name);
-                  const cfg = TYPE_CFG[node?.type || 'Theme'] || { color: '#5B3FE8' };
+                  const cfg = TYPE_CFG[node?.type || 'Theme'] || { color: palette.bleuIndigo };
                   return html`<span class="tl-chip" style="width:${pct}%;background:${cfg.color}">${e.name}</span>`;
                 })}
               </div>

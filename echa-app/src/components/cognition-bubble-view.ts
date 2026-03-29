@@ -79,7 +79,7 @@ export class CognitionBubbleView extends LitElement {
         justify-content: center;
         border: none;
         border-radius: 50%;
-        color: #fff;
+        color: var(--white);
         text-align: center;
         padding: 12px;
         cursor: pointer;

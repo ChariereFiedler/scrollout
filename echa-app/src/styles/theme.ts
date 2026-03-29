@@ -2,10 +2,10 @@ import { css } from 'lit';
 
 /**
  * Scrollout Design System — aligned with scrollout-site brand identity.
- * 9-color palette, Outfit/Inter/JetBrains Mono fonts, dark theme.
+ * 9-color palette, Averia Sans Libre font, dark theme.
  */
 export const theme = css`
-  @import url('https://fonts.googleapis.com/css2?family=Averia+Sans+Libre:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Averia+Sans+Libre:wght@300;400;700&display=swap');
 
   :host {
     /* Backgrounds */
@@ -13,13 +13,18 @@ export const theme = css`
     --surface: #141414;
     --surface2: #1a1a1a;
     --surface3: #222;
+    --surface-dark: #111;
     --border: #2a2a2a;
     --border-light: #333;
+    --border-soft: #ccc;
 
     /* Text */
     --text: #f0f0f0;
     --text-dim: #b0b0b0;
     --text-muted: #777;
+    --text-soft: #999;
+    --text-faint: #555;
+    --white: #fff;
 
     /* Scrollout 9-color palette */
     --jaune: #FFFF66;
@@ -39,6 +44,17 @@ export const theme = css`
     --red: var(--rouge);
     --purple: var(--violet);
 
+    /* Overlays */
+    --overlay-light: rgba(255, 255, 255, 0.04);
+    --overlay-medium: rgba(255, 255, 255, 0.08);
+    --overlay-strong: rgba(255, 255, 255, 0.15);
+    --scrim: rgba(0, 0, 0, 0.6);
+    --scrim-heavy: rgba(0, 0, 0, 0.85);
+
+    /* Accent glows */
+    --glow-accent: rgba(107, 107, 255, 0.08);
+    --glow-accent-strong: rgba(107, 107, 255, 0.4);
+
     /* Radii */
     --radius: 16px;
     --radius-sm: 10px;
@@ -50,59 +66,64 @@ export const theme = css`
 
     /* Fonts */
     --font-heading: 'Averia Sans Libre', sans-serif;
-    --font-body: 'Averia Sans Libre', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: 'SF Mono', 'Roboto Mono', monospace;
 
     font-family: var(--font-body);
   }
 `;
 
+/* ── JS Palette (for canvas, inline JS, color maps) ──────────── */
+
+export const palette = {
+  jaune: '#FFFF66',
+  vertMenthe: '#90EE90',
+  bleuIndigo: '#5B3FE8',
+  orange: '#FF6B00',
+  rose: '#DA70D6',
+  violet: '#8B22CC',
+  rouge: '#FF0000',
+  bleuCiel: '#B0E0FF',
+  vertEau: '#90DDAA',
+  white: '#fff',
+  bg: '#0a0a0a',
+  surface: '#141414',
+  surface2: '#1a1a1a',
+  surface3: '#222',
+  surfaceDark: '#111',
+  border: '#2a2a2a',
+  borderLight: '#333',
+  text: '#f0f0f0',
+  textDim: '#b0b0b0',
+  textMuted: '#777',
+  textSoft: '#999',
+  textFaint: '#555',
+} as const;
+
 /** Political score color scale (0–4) */
-export const polColors = ['#555', '#90EE90', '#FFFF66', '#FF6B00', '#FF0000'];
+export const polColors = [palette.textFaint, palette.vertMenthe, palette.jaune, palette.orange, palette.rouge];
 export const polLabels = ['Apolitique', 'Social', 'Indirect', 'Explicite', 'Militant'];
 
 /** Attention level colors */
 export const attentionColors: Record<string, string> = {
-  engaged: '#90EE90',
-  viewed: '#5B3FE8',
-  glanced: '#FFFF66',
-  skipped: '#555',
+  engaged: palette.vertMenthe,
+  viewed: palette.bleuIndigo,
+  glanced: palette.jaune,
+  skipped: palette.textFaint,
 };
 
 /** Domain colors for content diet visualization */
 export const domainColors: Record<string, string> = {
-  'actualité': '#FF6B00',
-  'politique': '#FF0000',
-  'divertissement': '#DA70D6',
-  'lifestyle': '#90DDAA',
-  'culture': '#8B22CC',
-  'société': '#5B3FE8',
-  'sport': '#FFFF66',
-  'technologie': '#B0E0FF',
-  'business': '#90EE90',
+  'actualité': palette.orange,
+  'politique': palette.rouge,
+  'divertissement': palette.rose,
+  'lifestyle': palette.vertEau,
+  'culture': palette.violet,
+  'société': palette.bleuIndigo,
+  'sport': palette.jaune,
+  'technologie': palette.bleuCiel,
+  'business': palette.vertMenthe,
 };
 
 /** Scrollout color dots (brand identity) — legacy, kept for loading animations */
-export const scrolloutDots = ['#FFFF66', '#90EE90', '#5B3FE8', '#FF6B00', '#DA70D6', '#8B22CC', '#FF0000', '#B0E0FF', '#90DDAA'];
-
-/** Brand mark rendered as inline SVG string for .innerHTML bindings */
-export function scrolloutIconSvg(size = 28): string {
-  const r = size / 8;
-  const dots = [
-    { x: size * 0.18, y: size * 0.18, c: '#FFFF66' },
-    { x: size * 0.5, y: size * 0.14, c: '#90EE90' },
-    { x: size * 0.82, y: size * 0.18, c: '#5B3FE8' },
-    { x: size * 0.18, y: size * 0.5, c: '#FF6B00' },
-    { x: size * 0.5, y: size * 0.5, c: '#DA70D6' },
-    { x: size * 0.82, y: size * 0.5, c: '#8B22CC' },
-    { x: size * 0.18, y: size * 0.82, c: '#FF0000' },
-    { x: size * 0.5, y: size * 0.86, c: '#B0E0FF' },
-    { x: size * 0.82, y: size * 0.82, c: '#90DDAA' },
-  ];
-
-  return `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" aria-hidden="true">
-      ${dots.map(dot => `<circle cx="${dot.x}" cy="${dot.y}" r="${r}" fill="${dot.c}"></circle>`).join('')}
-    </svg>
-  `;
-}
+export const scrolloutDots = [palette.jaune, palette.vertMenthe, palette.bleuIndigo, palette.orange, palette.rose, palette.violet, palette.rouge, palette.bleuCiel, palette.vertEau];

@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, polColors, polLabels, scrolloutDots } from '../styles/theme.js';
+import { theme, palette, polColors, polLabels, scrolloutDots } from '../styles/theme.js';
 import { getStats, type DbStats } from '../services/db-bridge.js';
 
 @customElement('screen-enrichment')
@@ -115,7 +115,7 @@ export class ScreenEnrichment extends LitElement {
         width: 20px;
         height: 20px;
         border-radius: 50%;
-        background: #fff;
+        background: var(--white);
         border: 3px solid var(--bg);
         box-shadow: var(--shadow-soft);
         transform: translateX(-50%);
@@ -740,12 +740,12 @@ export class ScreenEnrichment extends LitElement {
 
   private renderMediaTypes(types: Array<{ type: string; count: number; totalDwellMs: number }>, totalPosts: number) {
     const mtColors: Record<string, string> = {
-      photo: '#5B3FE8',
-      carousel: '#90EE90',
-      video: '#FF6B00',
-      reel: '#DA70D6',
-      story: '#FFFF66',
-      igtv: '#B0E0FF',
+      photo: palette.bleuIndigo,
+      carousel: palette.vertMenthe,
+      video: palette.orange,
+      reel: palette.rose,
+      story: palette.jaune,
+      igtv: palette.bleuCiel,
     };
     const mtIcons: Record<string, string> = {
       photo: '\u{1F4F7}',      // camera
@@ -762,7 +762,7 @@ export class ScreenEnrichment extends LitElement {
       <!-- Cards -->
       <div class="media-types">
         ${types.map(t => {
-          const color = mtColors[t.type] || '#888';
+          const color = mtColors[t.type] || palette.textSoft;
           const icon = mtIcons[t.type] || '\u{1F4C4}';
           const pct = total > 0 ? Math.round(t.count / total * 100) : 0;
           const avgDwell = t.count > 0 ? Math.round(t.totalDwellMs / t.count / 1000 * 10) / 10 : 0;
@@ -782,7 +782,7 @@ export class ScreenEnrichment extends LitElement {
         <div class="mt-stacked">
           ${types.map(t => {
             const pct = total > 0 ? (t.count / total * 100) : 0;
-            const color = mtColors[t.type] || '#888';
+            const color = mtColors[t.type] || palette.textSoft;
             return pct > 0 ? html`
               <div class="mt-seg" style="flex:${pct};background:${color}">
                 ${pct > 10 ? `${Math.round(pct)}%` : ''}
@@ -792,7 +792,7 @@ export class ScreenEnrichment extends LitElement {
         </div>
         <div class="mt-legend">
           ${types.map(t => {
-            const color = mtColors[t.type] || '#888';
+            const color = mtColors[t.type] || palette.textSoft;
             return html`
               <div class="mt-legend-item">
                 <span class="mt-legend-dot" style="background:${color}"></span>
@@ -809,7 +809,7 @@ export class ScreenEnrichment extends LitElement {
         <div class="mt-stacked">
           ${types.map(t => {
             const pct = totalDwell > 0 ? (t.totalDwellMs / totalDwell * 100) : 0;
-            const color = mtColors[t.type] || '#888';
+            const color = mtColors[t.type] || palette.textSoft;
             return pct > 0 ? html`
               <div class="mt-seg" style="flex:${pct};background:${color};opacity:0.8">
                 ${pct > 10 ? `${Math.round(pct)}%` : ''}

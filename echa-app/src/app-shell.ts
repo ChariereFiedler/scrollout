@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { theme, scrolloutDots, scrolloutIconSvg } from './styles/theme.js';
+import { theme, scrolloutDots } from './styles/theme.js';
+import './components/scrollout-logo.js';
 import {
   openInstagram,
   openInstagramProfile,
@@ -219,7 +220,7 @@ export class AppShell extends LitElement {
 
   private async bindSidebarEvent() {
     try {
-      this.sidebarHandle = await onSidebarRequest(() => { void this.go('scrollout'); });
+      this.sidebarHandle = await onSidebarRequest(() => { void this.go('home'); });
     } catch { /* mock */ }
   }
 
@@ -353,7 +354,7 @@ export class AppShell extends LitElement {
 
       <div class="drawer ${this.drawer ? 'open' : ''}">
         <div class="drawer-head">
-          <div class="drawer-logo" .innerHTML=${scrolloutIconSvg(28)}></div>
+          <div class="drawer-logo"><scrollout-logo size="28"></scrollout-logo></div>
           <span class="drawer-brand">Scrollout</span>
         </div>
         <div class="drawer-nav">

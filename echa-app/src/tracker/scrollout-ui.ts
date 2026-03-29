@@ -7,6 +7,7 @@
  */
 export {};
 
+/** Mirror of palette from styles/theme.ts — hardcoded because this file runs in isolated WebView context */
 const SCROLLOUT_COLORS = [
   '#FFFF66', '#90EE90', '#5B3FE8',
   '#FF6B00', '#DA70D6', '#8B22CC',
