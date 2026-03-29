@@ -17,6 +17,18 @@ data/
 *.db
 *.db-journal
 
+# Screenshots & debug dumps (use data/ or docs/assets/)
+*.png
+*.xml
+!prisma/**
+!echa-app/**/*.xml
+!scrollout-site/**/*.png
+
+# Temp files
+tmp-*
+gemini.html
+AGENTS.md
+
 # Vite build artifacts (bundled JS may contain env secrets)
 echa-app/www/assets/index-*.js
 

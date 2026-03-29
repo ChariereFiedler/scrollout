@@ -1,82 +1,123 @@
-# ECHA — Extracteur de Comportement Humain sur Applications
+# Scrollout
 
-Outil d'analyse comportementale qui capture et structure les interactions utilisateur sur applications mobiles (Instagram principalement) via l'arbre d'accessibilité Android.
+**Scrollout** capture et analyse ton activité Instagram pour produire un rapport structuré de ta consommation : quels contenus vus, combien de temps sur chacun, quelle catégorie, quelle origine (organique/algo/pub).
+
+## Workflow
+
+```
+Capture → Enrichissement sémantique → Scoring politique/polarisation → Wrapped
+```
+
+1. **Capture** — AccessibilityService Android extrait l'arbre UI Instagram en temps réel
+2. **Analyse** — Catégorisation automatique, dwell time, niveaux d'attention
+3. **Enrichissement** — Pipeline hybride règles + LLM (Ollama/OpenAI) : taxonomie 5 niveaux, scoring politique, polarisation, narratif, émotions
+4. **Wrapped** — Rapport visuel style Spotify Wrapped avec 19 slides animées
 
 ## Architecture
 
 ```
-echa/
-├── src/                    # Core — scripts TypeScript d'extraction
-│   ├── index.ts            # Point d'entrée principal
-│   ├── adb.ts              # Wrapper ADB (devices, screenshots, UI dump)
-│   ├── adb-path.ts         # Résolution automatique du chemin ADB
-│   ├── capture.ts          # Capture temps réel avec dwell time tracking
-│   ├── auto-capture.ts     # Capture automatisée en continu
-│   ├── listen.ts           # Écoute logcat en temps réel
-│   ├── logcat-listener.ts  # Listener logcat structuré
-│   ├── parser.ts           # Parsing XML UIAutomator → données structurées
-│   ├── analyzer.ts         # Analyse de session (catégorisation, rapport)
-│   └── deep-extract.ts     # Extraction profonde des données
-├── echa-app/               # Application Capacitor (Android)
-│   └── android/            # Projet Android natif (APK)
-├── echa-android/           # Application Android native
-│   └── app/                # Module principal (APK debug)
-├── scripts/
-│   └── scan-devices.ts     # Gestion des appareils (scan, WiFi ADB, install APK)
-├── data/                   # Données de sessions capturées (JSON)
-└── .env.devices            # IPs des appareils connectés (auto-généré)
+scrollout/
+├── src/                        # Scripts TypeScript (PC-side)
+│   ├── capture.ts              # Capture temps réel logcat
+│   ├── analyzer.ts             # Analyse session + ingest SQLite
+│   ├── enrichment/             # Pipeline sémantique (rules + LLM)
+│   │   ├── pipeline.ts         # Orchestration normalize → rules → LLM → persist
+│   │   ├── rules-engine.ts     # Classification par dictionnaires
+│   │   ├── llm/                # Ollama / OpenAI providers
+│   │   └── dictionaries/       # Taxonomie, acteurs politiques, hashtags
+│   ├── media/                  # Transcription audio (Whisper)
+│   └── db/                     # Prisma client + ingest SQLite
+├── echa-app/                   # App Capacitor (Android)
+│   ├── src/
+│   │   ├── screens/            # screen-home, screen-wrapped, screen-transparence
+│   │   ├── services/           # db-bridge, graph-ingest, enrichment-daemon
+│   │   └── tracker/            # scrollout-ui (WebView Instagram)
+│   └── android/                # Projet Android (Capacitor)
+├── echa-android/               # APK AccessibilityService (Java)
+├── prisma/                     # Schema SQLite (Session, Post, PostSemantic)
+├── scripts/                    # Utilitaires (scan-devices, etc.)
+├── docs/                       # Roadmap, replanification
+└── scrollout-site/             # Landing page (Astro)
 ```
 
-## Fonctionnement
-
-1. **Connexion** — Détecte les appareils Android via ADB (USB ou WiFi)
-2. **Capture** — Lit l'arbre d'accessibilité UIAutomator en temps réel pendant que l'utilisateur navigue
-3. **Parsing** — Extrait les données structurées (posts, profils, interactions) depuis le XML brut
-4. **Analyse** — Calcule le dwell time, catégorise le contenu, produit un rapport de session
-
-## Prérequis
-
-- Node.js LTS
-- ADB (Android Debug Bridge) dans le PATH
-- Appareil Android avec débogage USB activé
-
-## Installation
+## Quick Start
 
 ```bash
 npm install
+npm run db:generate
 ```
 
-## Commandes
-
-### Gestion des appareils
+### Capture
 
 ```bash
-npm run devices          # Scanner les appareils connectés → .env.devices
-npm run devices:wifi     # Activer ADB WiFi sur tous les appareils
-npm run devices:list     # Afficher les appareils enregistrés
-npm run apk:install -- <chemin.apk>   # Installer un APK sur tous les appareils
+npm run devices                          # Scan appareils ADB
+npx tsx src/capture.ts [seconds]         # Capture temps réel
+npx tsx src/auto-capture.ts [n] [ms]     # Auto-scroll + capture
 ```
 
-### Capture et analyse
+### Enrichissement
 
 ```bash
-npx tsx src/capture.ts [durée_secondes]   # Capture en temps réel (défaut: 30s)
-npx tsx src/auto-capture.ts               # Capture automatique en continu
-npx tsx src/analyzer.ts [session.json]    # Analyser une session capturée
-npx tsx src/index.ts                      # Extraction complète
+npm run enrich                           # Ollama (local, gratuit)
+npx tsx src/enrich.ts --openai           # OpenAI (cloud)
+npm run enrich:rules                     # Rules only (pas de LLM)
+npx tsx src/enrich.ts --with-audio       # + transcription Whisper
+```
+
+### App Android
+
+```bash
+cd echa-app && npx vite build && npx cap sync android
+cd android && ./gradlew assembleDebug
+```
+
+### Tests
+
+```bash
+npm test                                 # Vitest (tous les tests)
+npm run test:watch                       # Watch mode
 ```
 
 ## Stack
 
-- **TypeScript** strict
-- **ADB** pour la communication Android
-- **UIAutomator** pour l'arbre d'accessibilité
-- **Capacitor** pour l'app embarquée
+| Composant | Technologie |
+|-----------|-------------|
+| Scripts | TypeScript + tsx |
+| App mobile | Capacitor 8 + Lit |
+| AccessibilityService | Java (Android natif) |
+| Database | SQLite + Prisma |
+| Enrichissement | Ollama / OpenAI |
+| Transcription | Whisper (local + API) |
+| Landing page | Astro |
 
-## Données extraites
+## Pipeline d'enrichissement
 
-- Posts visibles (auteur, caption, likes, description image)
-- Temps de visionnage par post (dwell time)
-- Navigation et scrolls
-- Informations de profil
-- Catégorisation automatique du contenu
+```
+Post brut → Normalize → Rules Engine → LLM Classify → Merge → PostSemantic
+```
+
+- **Taxonomie 5 niveaux** : domaine → thème → sujet → sujet précis → marqueurs
+- **Scoring politique** : 0 (neutre) → 4 (militant)
+- **Polarisation** : 0 (factuel) → 1 (polarisant)
+- **Narratif** : apocalyptique, héroïque, oppression, nous-vs-eux, etc.
+- **Émotions** : colère, peur, joie, espoir, dégoût, etc.
+
+## Niveaux d'attention
+
+| Niveau | Durée | Signification |
+|--------|-------|---------------|
+| `skipped` | < 0.5s | Scrollé sans regarder |
+| `glanced` | 0.5–2s | Vu rapidement |
+| `viewed` | 2–5s | Consulté |
+| `engaged` | > 5s | Engagement fort |
+
+## Prérequis
+
+- Node.js LTS
+- ADB (`~/lab/platform-tools/adb.exe`)
+- Ollama (optionnel, pour enrichissement local)
+- ffmpeg (optionnel, pour transcription audio)
+
+## Licence
+
+Projet privé.
