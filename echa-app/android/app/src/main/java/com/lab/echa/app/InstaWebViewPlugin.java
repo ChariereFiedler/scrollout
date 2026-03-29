@@ -578,6 +578,20 @@ public class InstaWebViewPlugin extends Plugin {
     }
 
     @PluginMethod()
+    public void deduplicatePosts(PluginCall call) {
+        db.runAsync(() -> {
+            try {
+                int removed = db.deduplicatePosts();
+                JSObject ret = new JSObject();
+                ret.put("removed", removed);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("deduplicatePosts error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
     public void queryRulesOnlyPosts(PluginCall call) {
         int limit = call.getInt("limit", 100);
         db.runAsync(() -> {

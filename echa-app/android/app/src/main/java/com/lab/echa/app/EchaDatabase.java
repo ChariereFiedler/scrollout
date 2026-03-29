@@ -354,15 +354,47 @@ public class EchaDatabase extends SQLiteOpenHelper {
     public void insertPost(String sessionId, JSONObject post) {
         long now = System.currentTimeMillis();
         String postId = post.optString("postId", "unknown");
-        String id = sessionId + ":" + post.optString("username", "") + ":" + postId;
+        String username = post.optString("username", "");
+        String caption = post.optString("caption", "");
+        boolean isSponsored = post.optBoolean("isSponsored", false);
+        int dwellTimeMs = post.optInt("dwellTimeMs", 0);
+
+        // ── Dedup: merge if same username+allText already exists (skip ads) ──
+        String allText = post.optString("allText", "");
+        if (!isSponsored && username.length() > 0 && allText.length() > 10) {
+            Cursor existing = getReadableDatabase().rawQuery(
+                    "SELECT id, seenCount, dwellTimeMs FROM posts WHERE username = ? AND substr(allText,1,100) = substr(?,1,100) LIMIT 1",
+                    new String[]{username, allText});
+            if (existing.moveToFirst()) {
+                // Post already seen — update seenCount + aggregate dwell
+                String existingId = existing.getString(0);
+                int prevSeen = existing.getInt(1);
+                int prevDwell = existing.getInt(2);
+                existing.close();
+                ContentValues upd = new ContentValues();
+                upd.put("seenCount", prevSeen + 1);
+                upd.put("dwellTimeMs", Math.max(prevDwell, dwellTimeMs));
+                upd.put("attentionLevel", classifyAttention(Math.max(prevDwell, dwellTimeMs)));
+                upd.put("lastSeenAt", now);
+                getWritableDatabase().update("posts", upd, "id = ?", new String[]{existingId});
+                Log.d(TAG, "Dedup: merged @" + username + " (seen " + (prevSeen + 1) + "x)");
+
+                EchaWebSocketClient ws = EchaWebSocketClient.getInstance();
+                if (ws != null) ws.sendPost(sessionId, post);
+                return;
+            }
+            existing.close();
+        }
+
+        String id = sessionId + ":" + username + ":" + postId;
 
         ContentValues cv = new ContentValues();
         cv.put("id", id);
         cv.put("sessionId", sessionId);
         cv.put("postId", postId);
-        cv.put("username", post.optString("username", ""));
+        cv.put("username", username);
         cv.put("displayName", post.optString("displayName", ""));
-        cv.put("caption", post.optString("caption", ""));
+        cv.put("caption", caption);
         cv.put("fullCaption", post.optString("fullCaption", ""));
         cv.put("hashtags", post.optString("hashtags", "[]"));
         cv.put("imageAlts", post.optString("imageAlts", "[]"));
@@ -371,10 +403,10 @@ public class EchaDatabase extends SQLiteOpenHelper {
         cv.put("mediaType", post.optString("mediaType", "photo"));
         cv.put("likeCount", parseLikeCount(post.optString("likeCount", "0")));
         cv.put("commentCount", parseLikeCount(post.optString("commentCount", "0")));
-        cv.put("isSponsored", post.optBoolean("isSponsored", false) ? 1 : 0);
+        cv.put("isSponsored", isSponsored ? 1 : 0);
         cv.put("isSuggested", post.optBoolean("isSuggested", false) ? 1 : 0);
-        cv.put("dwellTimeMs", post.optInt("dwellTimeMs", 0));
-        cv.put("attentionLevel", classifyAttention(post.optInt("dwellTimeMs", 0)));
+        cv.put("dwellTimeMs", dwellTimeMs);
+        cv.put("attentionLevel", classifyAttention(dwellTimeMs));
         cv.put("allText", post.optString("allText", ""));
         cv.put("dateLabel", post.optString("date", ""));
         cv.put("location", post.optString("location", ""));
@@ -1278,6 +1310,64 @@ public class EchaDatabase extends SQLiteOpenHelper {
         }
         c.close();
         return result;
+    }
+
+    /**
+     * Deduplicate existing posts: keep the one with highest dwellTimeMs,
+     * aggregate seenCount, delete the rest. Sponsored posts are not deduped.
+     * Returns number of duplicates removed.
+     */
+    public int deduplicatePosts() {
+        SQLiteDatabase db = getWritableDatabase();
+        // Find groups of duplicates (same username + first 100 chars of allText)
+        Cursor groups = db.rawQuery(
+                "SELECT username, substr(allText,1,100) as txtKey, COUNT(*) as cnt " +
+                "FROM posts WHERE isSponsored = 0 AND length(allText) > 10 " +
+                "GROUP BY username, substr(allText,1,100) HAVING cnt > 1", null);
+        int totalRemoved = 0;
+        while (groups.moveToNext()) {
+            String user = groups.getString(0);
+            String txtKey = groups.getString(1);
+            // Get all dupes, ordered by dwellTimeMs DESC (keep the best)
+            Cursor dupes = db.rawQuery(
+                    "SELECT id, seenCount, dwellTimeMs FROM posts " +
+                    "WHERE username = ? AND substr(allText,1,100) = ? AND isSponsored = 0 " +
+                    "ORDER BY dwellTimeMs DESC",
+                    new String[]{user, txtKey});
+            boolean first = true;
+            String keepId = null;
+            int totalSeen = 0;
+            int maxDwell = 0;
+            List<String> deleteIds = new ArrayList<>();
+            while (dupes.moveToNext()) {
+                String id = dupes.getString(0);
+                int seen = dupes.getInt(1);
+                int dwell = dupes.getInt(2);
+                totalSeen += seen;
+                maxDwell = Math.max(maxDwell, dwell);
+                if (first) { keepId = id; first = false; }
+                else deleteIds.add(id);
+            }
+            dupes.close();
+            if (keepId != null && !deleteIds.isEmpty()) {
+                // Update keeper with aggregated stats
+                ContentValues upd = new ContentValues();
+                upd.put("seenCount", totalSeen);
+                upd.put("dwellTimeMs", maxDwell);
+                upd.put("attentionLevel", classifyAttention(maxDwell));
+                db.update("posts", upd, "id = ?", new String[]{keepId});
+                // Delete duplicates + their enrichments/observations
+                for (String delId : deleteIds) {
+                    db.delete("post_enriched", "postId = ?", new String[]{delId});
+                    db.delete("observations", "postId = ?", new String[]{delId});
+                    db.delete("posts", "id = ?", new String[]{delId});
+                    totalRemoved++;
+                }
+            }
+        }
+        groups.close();
+        Log.i(TAG, "Dedup: removed " + totalRemoved + " duplicate posts");
+        return totalRemoved;
     }
 
     public int countUnenrichedPosts() {

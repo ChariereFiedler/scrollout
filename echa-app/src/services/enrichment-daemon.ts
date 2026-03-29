@@ -799,6 +799,14 @@ export function startDaemon(daemonConfig: DaemonConfig): void {
   log(`Démarré — intervalle: ${config.intervalSec}s, batch: ${config.batchSize}, seuil: ${config.threshold}, LLM: ${config.rulesOnly ? 'non' : 'oui'}`);
   notify();
 
+  // Dedup existing posts on first start
+  const plugin = getPlugin();
+  if (plugin?.deduplicatePosts) {
+    plugin.deduplicatePosts().then((r: any) => {
+      if (r.removed > 0) log(`Dedup: ${r.removed} doublons supprimés`);
+    }).catch(() => {});
+  }
+
   // Premier tick immédiat
   tick();
 
