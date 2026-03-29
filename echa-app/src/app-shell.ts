@@ -363,7 +363,7 @@ export class AppShell extends LitElement {
           ${this.navItem('instagram', 'ig', 'Capture', this.igOpen)}
           ${this.navItem('scrollout', 'radio', 'Comprends ma bulle')}
           ${this.navItem('cognition', 'bubble', 'Bulle cognitive')}
-          ${this.navItem('knowledge', 'graph', 'Ontologie')}
+          ${this.navItem('knowledge', 'graph', 'Univers')}
           ${this.navItem('posts', 'feed', 'Feed')}
           ${this.navItem('settings', 'settings', 'Configuration')}
         </div>
