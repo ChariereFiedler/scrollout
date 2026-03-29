@@ -10,7 +10,7 @@ import {
   triggerNow,
   type DaemonStatus,
 } from '../services/enrichment-daemon.js';
-import { getStats, resetAllEnrichments, type DbStats } from '../services/db-bridge.js';
+import { getStats, resetAllEnrichments, deduplicatePosts, type DbStats } from '../services/db-bridge.js';
 
 @customElement('screen-settings')
 export class ScreenSettings extends LitElement {
@@ -299,6 +299,7 @@ export class ScreenSettings extends LitElement {
   @state() private enableVision = localStorage.getItem('scrollout-enable-vision') !== 'false';
   @state() private stats: DbStats | null = null;
   @state() private enrichMsg = '';
+  @state() private dedupMsg = '';
 
   private unsubDaemon?: () => void;
   private statsInterval?: ReturnType<typeof setInterval>;
@@ -420,6 +421,21 @@ export class ScreenSettings extends LitElement {
     }
   }
 
+  private async cleanupDuplicates() {
+    this.dedupMsg = 'Recherche de doublons...';
+    try {
+      const removed = await deduplicatePosts();
+      if (removed > 0) {
+        this.dedupMsg = `${removed} doublon${removed > 1 ? 's' : ''} supprime${removed > 1 ? 's' : ''}`;
+        try { this.stats = await getStats(); } catch { /* */ }
+      } else {
+        this.dedupMsg = 'Aucun doublon detecte';
+      }
+    } catch (e: any) {
+      this.dedupMsg = `Erreur: ${e.message}`;
+    }
+  }
+
   private async testAndSave() {
     const url = this.apiUrl.replace(/\/+$/, '');
     this.status = 'testing';
@@ -503,7 +519,11 @@ export class ScreenSettings extends LitElement {
           <button class="btn btn-danger" @click=${this.resetEnrichments}>
             Re-classifier tout
           </button>
+          <button class="btn btn-secondary" @click=${this.cleanupDuplicates}>
+            Nettoyer doublons
+          </button>
         </div>
+        ${this.dedupMsg ? html`<div style="margin-top:8px;font-size:12px;color:var(--text-dim)">${this.dedupMsg}</div>` : ''}
         ${ds.running && (ds.phase === 'rules' || ds.phase === 'llm') ? (() => {
           const current = ds.phase === 'rules' ? ds.rulesCount : ds.llmCount;
           const total = ds.tickTotal;

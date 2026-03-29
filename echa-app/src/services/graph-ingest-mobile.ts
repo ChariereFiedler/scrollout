@@ -178,6 +178,10 @@ export async function graphIngestMobile(
   if (observations.length === 0) return { observationCount: 0 };
 
   try {
+    // Delete existing observations for idempotent re-enrichment
+    if (plugin.deleteGraphObservations) {
+      await plugin.deleteGraphObservations({ postId });
+    }
     await plugin.saveGraphObservations({
       postId,
       observations: JSON.stringify(observations),

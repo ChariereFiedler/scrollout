@@ -206,6 +206,20 @@ export async function getStats(): Promise<DbStats> {
   }
   // Advanced cross-analyses
   const parseField = (f: any) => typeof f === 'string' ? JSON.parse(f) : (f || undefined);
+  // Deep-parse: plugin may double-serialize nested fields inside arrays/objects
+  const deepParse = (obj: any): any => {
+    if (obj == null) return obj;
+    if (typeof obj === 'string') {
+      try { const p = JSON.parse(obj); return typeof p === 'object' ? deepParse(p) : p; } catch { return obj; }
+    }
+    if (Array.isArray(obj)) return obj.map(deepParse);
+    if (typeof obj === 'object') {
+      const out: any = {};
+      for (const k of Object.keys(obj)) out[k] = deepParse(obj[k]);
+      return out;
+    }
+    return obj;
+  };
   if (result.topEmotions) stats.topEmotions = parseField(result.topEmotions);
   if (result.topActors) stats.topActors = parseField(result.topActors);
   if (result.topSubjects) stats.topSubjects = parseField(result.topSubjects);
@@ -217,8 +231,8 @@ export async function getStats(): Promise<DbStats> {
   if (result.polarizingAccounts) stats.polarizingAccounts = parseField(result.polarizingAccounts);
   if (result.sponsoredStats) stats.sponsoredStats = parseField(result.sponsoredStats);
   if (result.signals) stats.signals = parseField(result.signals);
-  if (result.subjectInsights) stats.subjectInsights = parseField(result.subjectInsights);
-  if (result.preciseSubjectInsights) stats.preciseSubjectInsights = parseField(result.preciseSubjectInsights);
+  if (result.subjectInsights) stats.subjectInsights = deepParse(parseField(result.subjectInsights));
+  if (result.preciseSubjectInsights) stats.preciseSubjectInsights = deepParse(parseField(result.preciseSubjectInsights));
   return stats;
 }
 
@@ -257,6 +271,13 @@ export async function saveEnrichmentFromApp(dbPostId: string, enrichment: Record
 export async function resetAllEnrichments(): Promise<number> {
   const result = await getPlugin().resetAllEnrichments();
   return result.deleted || 0;
+}
+
+export async function deduplicatePosts(): Promise<number> {
+  const plugin = getPlugin();
+  if (!plugin?.deduplicatePosts) return 0;
+  const result = await plugin.deduplicatePosts();
+  return result.removed || 0;
 }
 
 export function safeParse(json: string | null | undefined): string[] {

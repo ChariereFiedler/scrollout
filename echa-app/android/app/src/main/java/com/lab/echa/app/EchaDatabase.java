@@ -359,13 +359,31 @@ public class EchaDatabase extends SQLiteOpenHelper {
         boolean isSponsored = post.optBoolean("isSponsored", false);
         int dwellTimeMs = post.optInt("dwellTimeMs", 0);
 
-        // ── Dedup: merge if same username+allText already exists (skip ads) ──
+        // ── Dedup: merge if same post already exists (including sponsored) ──
         String allText = post.optString("allText", "");
-        if (!isSponsored && username.length() > 0 && allText.length() > 10) {
-            Cursor existing = getReadableDatabase().rawQuery(
-                    "SELECT id, seenCount, dwellTimeMs FROM posts WHERE username = ? AND substr(allText,1,100) = substr(?,1,100) LIMIT 1",
-                    new String[]{username, allText});
-            if (existing.moveToFirst()) {
+        if (username.length() > 0) {
+            Cursor existing = null;
+            // Strategy 1: match by postId (Instagram native ID) if available
+            if (!postId.equals("unknown") && postId.length() > 3) {
+                existing = getReadableDatabase().rawQuery(
+                        "SELECT id, seenCount, dwellTimeMs FROM posts WHERE username = ? AND postId = ? LIMIT 1",
+                        new String[]{username, postId});
+                if (!existing.moveToFirst()) {
+                    existing.close();
+                    existing = null;
+                }
+            }
+            // Strategy 2: fallback to text-based matching
+            if (existing == null && allText.length() > 10) {
+                existing = getReadableDatabase().rawQuery(
+                        "SELECT id, seenCount, dwellTimeMs FROM posts WHERE username = ? AND substr(allText,1,100) = substr(?,1,100) LIMIT 1",
+                        new String[]{username, allText});
+                if (!existing.moveToFirst()) {
+                    existing.close();
+                    existing = null;
+                }
+            }
+            if (existing != null) {
                 // Post already seen — update seenCount + aggregate dwell
                 String existingId = existing.getString(0);
                 int prevSeen = existing.getInt(1);
@@ -383,7 +401,6 @@ public class EchaDatabase extends SQLiteOpenHelper {
                 if (ws != null) ws.sendPost(sessionId, post);
                 return;
             }
-            existing.close();
         }
 
         String id = sessionId + ":" + username + ":" + postId;

@@ -289,6 +289,9 @@ export async function graphIngest(
     });
   }
 
+  // Delete existing observations for this post (idempotent re-enrichment)
+  await prisma.observation.deleteMany({ where: { postId } });
+
   // Persist observations + update entity mention counts in a transaction
   const entityMentionCounts = new Map<string, number>();
   for (const obs of resolvedObservations) {

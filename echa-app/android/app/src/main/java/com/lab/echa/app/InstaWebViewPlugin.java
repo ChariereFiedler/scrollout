@@ -941,6 +941,11 @@ public class InstaWebViewPlugin extends Plugin {
             db.runAsync(() -> {
                 db.updateSession(currentSessionId, durationSec, totalPosts, totalEvents);
                 Log.i(TAG, "Session ended: " + currentSessionId + " (" + totalPosts + " posts, " + Math.round(durationSec) + "s)");
+                // Auto-deduplicate posts after each capture session
+                int removed = db.deduplicatePosts();
+                if (removed > 0) {
+                    Log.i(TAG, "Post-session dedup: removed " + removed + " duplicate posts");
+                }
             });
         }
 

@@ -276,9 +276,29 @@ function mergeResults(
       confidence: ps.confidence,
     }));
 
+  // Merge topics: union of rules + LLM, deduplicated via normalizeTopics
+  const mergedMainTopics = normalizeTopics([...rules.mainTopics, ...llm.main_topics]);
+  const mergedSecondaryTopics = normalizeTopics([
+    ...rules.secondaryTopics,
+    ...llm.secondary_topics,
+  ]).filter(t => !mergedMainTopics.includes(t)); // secondary must not repeat main
+
   // Domains from merged topics
-  const allMergedTopics = [...normalizeTopics(llm.main_topics), ...normalizeTopics(llm.secondary_topics)];
+  const allMergedTopics = [...mergedMainTopics, ...mergedSecondaryTopics];
   const mergedDomains = getDomainsFromThemes(allMergedTopics);
+
+  // Deduplicate persons/organizations/countries via case-insensitive canonical form
+  const canonicalize = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const dedup = (arr: string[]) => {
+    const seen = new Set<string>();
+    return arr.filter(s => {
+      if (!s) return false;
+      const key = canonicalize(s);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
 
   return {
     provider: providerName,
@@ -288,18 +308,18 @@ function mergeResults(
     semanticSummary: llm.semantic_summary,
     keywordTerms: JSON.stringify(keywordTerms),
     domains: JSON.stringify(mergedDomains),
-    mainTopics: JSON.stringify(normalizeTopics(llm.main_topics)),
-    secondaryTopics: JSON.stringify(normalizeTopics(llm.secondary_topics)),
+    mainTopics: JSON.stringify(mergedMainTopics),
+    secondaryTopics: JSON.stringify(mergedSecondaryTopics),
     subjects: JSON.stringify(mergedSubjects),
     preciseSubjects: JSON.stringify(validPreciseSubjects),
     contentDomain: llm.content_domain,
     audienceTarget: llm.audience_target,
-    persons: JSON.stringify(llm.persons),
-    organizations: JSON.stringify(llm.organizations),
-    institutions: JSON.stringify([...new Set([...rules.institutions, ...llm.institutions])]),
-    countries: JSON.stringify(llm.countries),
+    persons: JSON.stringify(dedup(llm.persons || [])),
+    organizations: JSON.stringify(dedup(llm.organizations || [])),
+    institutions: JSON.stringify(dedup([...rules.institutions, ...llm.institutions])),
+    countries: JSON.stringify(dedup(llm.countries || [])),
     locations: '[]',
-    politicalActors: JSON.stringify([...new Set([...rules.politicalActors, ...(llm.persons || [])])]),
+    politicalActors: JSON.stringify(dedup([...rules.politicalActors, ...(llm.persons || [])])),
     tone: llm.tone,
     primaryEmotion: llm.primary_emotion,
     emotionIntensity: llm.emotion_intensity,
