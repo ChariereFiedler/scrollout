@@ -17,6 +17,9 @@ data/
 *.db
 *.db-journal
 
+# Vite build artifacts (bundled JS may contain env secrets)
+echa-app/www/assets/index-*.js
+
 # CI artifacts
 ci-logs/
 public/
