@@ -415,6 +415,7 @@
     const articles = document.querySelectorAll('article:not([data-echa-id])');
     for (const article of articles) {
       postCounter++;
+      window.__echaPostCount = postCounter;
       const id = 'echa_' + postCounter;
       article.dataset.echaId = id;
       observer.observe(article);

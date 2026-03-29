@@ -3,7 +3,7 @@ import { resolve } from 'path';
 
 export default defineConfig({
   root: '.',
-  publicDir: 'public',
+  publicDir: 'static',
   resolve: {
     alias: {
       '@shared': resolve(__dirname, '../src/enrichment'),
