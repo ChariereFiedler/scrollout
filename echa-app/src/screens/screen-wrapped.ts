@@ -291,6 +291,59 @@ export class ScreenWrapped extends LitElement {
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-14px); }
     }
+    /* Pill scroll for slide 7 */
+    @keyframes pillScroll {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    .slide.active .pill { animation: pillScroll 4s ease-in-out infinite; }
+    .slide.active .pill:nth-child(odd) { animation-delay: 0.5s; animation-duration: 5s; }
+    /* Subtle tag drift for slide 6 */
+    @keyframes tagDrift1 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(4px, -3px); }
+    }
+    @keyframes tagDrift2 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-3px, 4px); }
+    }
+    /* Strong float for slide 5 */
+    @keyframes floatStrong1 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(8px, -18px) scale(1.08); }
+    }
+    @keyframes floatStrong2 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(-10px, -14px) scale(1.06); }
+    }
+    @keyframes floatStrong3 {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(6px, -20px) scale(1.1); }
+    }
+    @keyframes photoBounceIn {
+      0% { opacity: 0; transform: scale(0.5); }
+      70% { opacity: 1; transform: scale(1.08); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    /* Bubble pop-in for slide 1 */
+    @keyframes bubblePop {
+      0% { opacity: 0; transform: scale(0); }
+      70% { opacity: 1; transform: scale(1.15); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    /* Arrow slide-in animations for slide 2 */
+    @keyframes slideFromLeft {
+      from { opacity: 0; transform: translateX(-120%); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideFromTop {
+      from { opacity: 0; transform: rotate(180deg) translateY(80px); }
+      to { opacity: 1; transform: rotate(180deg) translateY(0); }
+    }
+    @keyframes slideFromBottom {
+      from { opacity: 0; transform: rotate(180deg) translateY(-80px); }
+      to { opacity: 1; transform: rotate(180deg) translateY(0); }
+    }
     @keyframes heartBeat {
       0%, 100% { transform: rotate(4.53deg) scale(1); }
       50% { transform: rotate(4.53deg) scale(1.05); }
@@ -318,6 +371,16 @@ export class ScreenWrapped extends LitElement {
       25% { transform: rotate(3deg); }
       75% { transform: rotate(-3deg); }
     }
+    @keyframes spinBounce {
+      0% { transform: translate(-50%,-50%) rotate(0deg) scale(1); }
+      25% { transform: translate(-50%,-50%) rotate(90deg) scale(1.08); }
+      50% { transform: translate(-50%,-50%) rotate(180deg) scale(1); }
+      75% { transform: translate(-50%,-50%) rotate(270deg) scale(1.06); }
+      100% { transform: translate(-50%,-50%) rotate(360deg) scale(1); }
+    }
+    .slide.active .spin-bounce {
+      animation: spinBounce 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
 
     /* ── Animation utilities ── */
     .anim { opacity: 0; transform: translateY(24px); }
@@ -330,10 +393,51 @@ export class ScreenWrapped extends LitElement {
       animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       animation-delay: var(--d, 0ms);
     }
-    .slide.active .float-1 { animation: floatY1 4s ease-in-out infinite; }
-    .slide.active .float-2 { animation: floatY2 5.5s ease-in-out 0.3s infinite; }
-    .slide.active .float-3 { animation: floatY3 3.8s ease-in-out 0.8s infinite; }
-    .slide.active .float-4 { animation: floatY1 6s ease-in-out 1.2s infinite; }
+    /* Slide 1 bubble pop-in then float */
+    .bubble-pop { opacity: 0; transform: scale(0); }
+    .slide.active .bubble-pop.float-1 {
+      animation: bubblePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s forwards,
+                 floatY1 4s ease-in-out 0.7s infinite;
+    }
+    .slide.active .bubble-pop.float-2 {
+      animation: bubblePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s forwards,
+                 floatY2 5.5s ease-in-out 0.9s infinite;
+    }
+    .slide.active .bubble-pop.float-3 {
+      animation: bubblePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s forwards,
+                 floatY3 3.8s ease-in-out 1.1s infinite;
+    }
+    .slide.active .bubble-pop.float-4 {
+      animation: bubblePop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s forwards,
+                 floatY1 6s ease-in-out 1.3s infinite;
+    }
+    /* Slide 2 arrow entrances */
+    .arrow-enter { opacity: 0; }
+    .slide.active .arrow-from-left {
+      animation: slideFromLeft 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+    }
+    .slide.active .arrow-from-top {
+      animation: slideFromTop 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+    }
+    .slide.active .arrow-from-bottom {
+      animation: slideFromBottom 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.4s forwards;
+    }
+    /* Legacy float (other slides) */
+    .slide.active .float-1:not(.bubble-pop):not(.float-strong) { animation: floatY1 4s ease-in-out infinite; }
+    .slide.active .float-2:not(.bubble-pop):not(.float-strong) { animation: floatY2 5.5s ease-in-out 0.3s infinite; }
+    .slide.active .float-3:not(.bubble-pop):not(.float-strong) { animation: floatY3 3.8s ease-in-out 0.8s infinite; }
+    .slide.active .float-4:not(.bubble-pop):not(.float-strong) { animation: floatY1 6s ease-in-out 1.2s infinite; }
+    /* Strong float for slide 5 blobs */
+    .slide.active .float-strong.float-1 { animation: floatStrong1 3s ease-in-out infinite; }
+    .slide.active .float-strong.float-2 { animation: floatStrong2 4s ease-in-out 0.2s infinite; }
+    .slide.active .float-strong.float-3 { animation: floatStrong3 3.5s ease-in-out 0.5s infinite; }
+    .slide.active .float-strong.float-4 { animation: floatStrong1 4.5s ease-in-out 0.8s infinite; }
+    /* Photo bounce */
+    .photo-bounce { opacity: 0; transform: scale(0.5); }
+    .slide.active .photo-bounce {
+      animation: photoBounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      animation-delay: var(--d, 0ms);
+    }
     .slide.active .heart-beat {
       animation: heartBeat 1.8s ease-in-out var(--d, 0s) infinite;
     }
@@ -494,17 +598,23 @@ export class ScreenWrapped extends LitElement {
     ctx.scale(dpr, dpr);
 
     const colors = ['#ff6701', '#9948d3', '#8ee88e', '#f5f44c', '#9ddfff', '#eeebdf'];
-    const particles = Array.from({ length: 80 }, () => ({
-      x: Math.random() * rect.width,
-      y: -10 - Math.random() * rect.height * 0.3,
-      vx: (Math.random() - 0.5) * 4,
-      vy: 1.5 + Math.random() * 3,
-      w: 4 + Math.random() * 6,
-      h: 8 + Math.random() * 8,
-      c: colors[Math.floor(Math.random() * colors.length)],
-      rot: Math.random() * Math.PI * 2,
-      vr: (Math.random() - 0.5) * 0.15,
-    }));
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const particles = Array.from({ length: 80 }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 3 + Math.random() * 6;
+      return {
+        x: cx,
+        y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        w: 4 + Math.random() * 6,
+        h: 8 + Math.random() * 8,
+        c: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.15,
+      };
+    });
 
     let frame = 0;
     const draw = () => {
@@ -591,11 +701,11 @@ export class ScreenWrapped extends LitElement {
     return html`
     <div class="slide" style="background:#eeebdf;color:#1e1e1e;">
       ${this.xBtn()}
-      <!-- 4 lilac bubbles from Figma assets -->
-      <img class="asset float-1" src="assets/wrapped/s01-bubble-1.svg" style="left:${x(48)};top:${y(69)};width:${x(298)};height:auto;" alt=""/>
-      <img class="asset float-2" src="assets/wrapped/s01-bubble-2.svg" style="left:${x(257)};top:${y(346)};width:${x(98)};height:auto;" alt=""/>
-      <img class="asset float-3" src="assets/wrapped/s01-bubble-3.svg" style="left:${x(209)};top:${y(444)};width:${x(60)};height:auto;" alt=""/>
-      <img class="asset float-4" src="assets/wrapped/s01-bubble-4.svg" style="left:${x(184)};top:${y(515)};width:${x(25)};height:auto;" alt=""/>
+      <!-- 4 lilac bubbles — pop-in then float -->
+      <img class="asset bubble-pop float-1" src="assets/wrapped/s01-bubble-1.svg" style="left:${x(48)};top:${y(69)};width:${x(298)};height:auto;" alt=""/>
+      <img class="asset bubble-pop float-2" src="assets/wrapped/s01-bubble-2.svg" style="left:${x(257)};top:${y(346)};width:${x(98)};height:auto;" alt=""/>
+      <img class="asset bubble-pop float-3" src="assets/wrapped/s01-bubble-3.svg" style="left:${x(209)};top:${y(444)};width:${x(60)};height:auto;" alt=""/>
+      <img class="asset bubble-pop float-4" src="assets/wrapped/s01-bubble-4.svg" style="left:${x(184)};top:${y(515)};width:${x(25)};height:auto;" alt=""/>
 
       <!-- Content in flex layout to avoid overlap -->
       <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;height:100%;padding:${y(80)} 20px ${y(60)};">
@@ -631,10 +741,10 @@ export class ScreenWrapped extends LitElement {
     <div class="slide" style="background:#ff6701;color:#eeebdf;">
       ${this.xBtn(true)}
 
-      <!-- Arrow assets from Figma -->
-      <img class="asset" src="assets/wrapped/s02-arrow-center.svg" style="left:${x(-42)};top:${y(308)};width:${x(464)};height:auto;" alt=""/>
-      <img class="asset" src="assets/wrapped/s02-arrow-top.svg" style="left:${x(-71)};top:${y(25)};width:${x(292)};height:auto;transform:rotate(180deg);" alt=""/>
-      <img class="asset" src="assets/wrapped/s02-arrow-bottom.svg" style="left:${x(-71)};top:${y(638)};width:${x(190)};height:auto;transform:rotate(180deg);" alt=""/>
+      <!-- Arrow assets — animated entrances -->
+      <img class="asset arrow-enter arrow-from-left" src="assets/wrapped/s02-arrow-center.svg" style="left:${x(-42)};top:${y(308)};width:${x(464)};height:auto;" alt=""/>
+      <img class="asset arrow-enter arrow-from-top" src="assets/wrapped/s02-arrow-top.svg" style="left:${x(-71)};top:${y(25)};width:${x(292)};height:auto;transform:rotate(180deg);" alt=""/>
+      <img class="asset arrow-enter arrow-from-bottom" src="assets/wrapped/s02-arrow-bottom.svg" style="left:${x(-71)};top:${y(638)};width:${x(190)};height:auto;transform:rotate(180deg);" alt=""/>
 
       <!-- "78%" at top -->
       <p class="abs cx f-averia anim-scale" style="top:${y(64)};font-size:${vw(132)};text-align:center;line-height:0.9;letter-spacing:-2px;">
@@ -645,7 +755,7 @@ export class ScreenWrapped extends LitElement {
         vont dans le même sens</p>
 
       <!-- Bottom phrase -->
-      <p class="abs cx f-jaldi anim" style="bottom:${y(110)};font-size:${vw(52)};line-height:0.92;text-align:center;width:85%;--d:300ms;">
+      <p class="abs cx f-jaldi anim" style="bottom:${y(140)};font-size:${vw(46)};line-height:0.95;text-align:center;width:80%;--d:300ms;">
         Tu es rarement confronté à une contradiction</p>
 
 
@@ -681,12 +791,15 @@ export class ScreenWrapped extends LitElement {
       <p class="abs f-averia" style="left:${x(22)};top:${y(318)};font-size:${vw(47)};line-height:1;">contenus</p>
       <p class="abs f-averia" style="left:${x(22)};top:${y(365)};font-size:${vw(47)};line-height:1;">sur 10</p>
 
-      <!-- Sub-text -->
-      <p class="abs f-jaldi" style="left:${x(22)};top:${y(550)};font-size:${vw(22)};letter-spacing:-0.4px;">
+      <!-- Sub-text + explanation -->
+      <p class="abs f-jaldi anim" style="left:${x(22)};top:${y(430)};font-size:${vw(22)};letter-spacing:-0.4px;--d:200ms;">
         renforcent ce que tu penses déjà</p>
+      <p class="abs f-jaldi anim" style="left:${x(22)};right:${x(22)};top:${y(480)};font-size:${vw(17)};line-height:1.35;opacity:0.65;--d:400ms;">
+        L'algorithme détecte tes préférences et te propose des contenus similaires. Plus tu interagis, plus ta bulle se referme.</p>
 
-      <!-- Circle grid -->
+      <!-- Circle grid with top fade -->
       <div style="position:absolute;bottom:0;left:0;right:0;height:45%;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;right:0;height:80px;z-index:1;background:linear-gradient(to bottom, #8ee88e, transparent);pointer-events:none;"></div>
         ${gridCircles}
       </div>
 
@@ -711,12 +824,12 @@ export class ScreenWrapped extends LitElement {
       <img class="asset heart-beat" src="assets/wrapped/s04-heart-2.svg" style="left:${x(-81)};top:${y(152)};width:${x(522)};height:auto;transform:rotate(4.53deg);--d:0.6s;" alt=""/>
       <img class="asset heart-beat" src="assets/wrapped/s04-heart-1.svg" style="left:${x(7)};top:${y(250)};width:${x(360)};height:auto;transform:rotate(4.53deg);--d:0.9s;" alt=""/>
 
-      <!-- Stats bottom -->
-      <p class="abs cx f-averia anim-scale" style="top:${y(380)};font-size:${vw(132)};text-align:center;line-height:0.9;letter-spacing:-2px;">
+      <!-- Stats bottom — centered -->
+      <p class="abs cx f-averia anim-scale" style="top:${y(400)};font-size:${vw(110)};text-align:center;line-height:0.9;letter-spacing:-2px;">
         <span data-countup="${emoPct}" data-suffix="%"></span></p>
-      <p class="abs f-averia" style="top:${y(500)};left:${x(85)};font-size:${vw(44)};letter-spacing:-0.8px;">
+      <p class="abs cx f-averia" style="top:${y(510)};font-size:${vw(44)};text-align:center;letter-spacing:-0.8px;">
         des contenus</p>
-      <p class="abs f-averia" style="top:${y(550)};left:${x(15)};font-size:${vw(28)};letter-spacing:-0.5px;">
+      <p class="abs cx f-averia" style="top:${y(558)};font-size:${vw(28)};text-align:center;letter-spacing:-0.5px;">
         jouent sur des émotions fortes</p>
 
       ${this.navDots(3, true)}
@@ -739,13 +852,13 @@ export class ScreenWrapped extends LitElement {
     <div class="slide" style="background:#9ddfff;color:#1e1e1e;">
       ${this.xBtn()}
 
-      <!-- Purple blob assets from Figma -->
-      <img class="asset float-1" src="assets/wrapped/s05-blob-2.svg" style="left:${x(66)};top:${y(95)};width:${x(73)};height:auto;" alt=""/>
-      <img class="asset float-3" src="assets/wrapped/s05-blob-3.svg" style="left:${x(-60)};top:${y(207)};width:${x(121)};height:auto;" alt=""/>
-      <img class="asset float-2" src="assets/wrapped/s05-blob-5.svg" style="left:${x(320)};top:${y(16)};width:${x(109)};height:auto;" alt=""/>
-      <img class="asset float-4" src="assets/wrapped/s05-blob-4.svg" style="left:${x(-59)};top:${y(494)};width:${x(174)};height:auto;" alt=""/>
-      <img class="asset float-1" src="assets/wrapped/s05-blob-1.svg" style="left:${x(255)};top:${y(464)};width:${x(51)};height:auto;" alt=""/>
-      <img class="asset float-3" src="assets/wrapped/s05-blob-6.svg" style="left:${x(243)};top:${y(210)};width:${x(74)};height:auto;" alt=""/>
+      <!-- Purple blob assets — strong float -->
+      <img class="asset float-strong float-1" src="assets/wrapped/s05-blob-2.svg" style="left:${x(66)};top:${y(95)};width:${x(73)};height:auto;" alt=""/>
+      <img class="asset float-strong float-3" src="assets/wrapped/s05-blob-3.svg" style="left:${x(-60)};top:${y(207)};width:${x(121)};height:auto;" alt=""/>
+      <img class="asset float-strong float-2" src="assets/wrapped/s05-blob-5.svg" style="left:${x(320)};top:${y(16)};width:${x(109)};height:auto;" alt=""/>
+      <img class="asset float-strong float-4" src="assets/wrapped/s05-blob-4.svg" style="left:${x(-59)};top:${y(494)};width:${x(174)};height:auto;" alt=""/>
+      <img class="asset float-strong float-1" src="assets/wrapped/s05-blob-1.svg" style="left:${x(255)};top:${y(464)};width:${x(51)};height:auto;" alt=""/>
+      <img class="asset float-strong float-3" src="assets/wrapped/s05-blob-6.svg" style="left:${x(243)};top:${y(210)};width:${x(74)};height:auto;" alt=""/>
 
       <!-- Photo cards with images -->
       ${[
@@ -756,9 +869,9 @@ export class ScreenWrapped extends LitElement {
         { l: '147', t: '474', w: 66, h: 84, img: 's05-photo-5.png' },
         { l: '88', t: '133', w: 56, h: 71, img: 's05-photo-6.png' },
         { l: '62', t: '404', w: 47, h: 60, img: 's05-photo-7.png' },
-      ].map(c => html`
-        <div class="abs" style="left:${x(parseInt(c.l))};top:${y(parseInt(c.t))};width:${c.w}px;height:${c.h}px;
-          background:white;border:2px solid #4fa8d8;border-radius:8px;overflow:hidden;">
+      ].map((c, i) => html`
+        <div class="abs photo-bounce" style="left:${x(parseInt(c.l))};top:${y(parseInt(c.t))};width:${c.w}px;height:${c.h}px;
+          background:white;border:2px solid #4fa8d8;border-radius:8px;overflow:hidden;--d:${150 + i * 100}ms;">
           <img src="assets/wrapped/${c.img}" alt="" style="width:100%;height:100%;object-fit:cover;"/>
         </div>
       `)}
@@ -795,11 +908,11 @@ export class ScreenWrapped extends LitElement {
       .sort((a, b) => b.avgDwellMs - a.avgDwellMs)
       .slice(0, 7);
 
-    // Scatter positions for tags
+    // Scatter positions for tags — spaced to avoid overlap
     const pos = [
-      { l: '8%', t: '12%' }, { l: '55%', t: '8%' }, { l: '62%', t: '18%' },
-      { l: '3%', t: '25%' }, { l: '32%', t: '30%' }, { l: '58%', t: '32%' },
-      { l: '12%', t: '38%' },
+      { l: '6%', t: '8%' }, { l: '52%', t: '5%' }, { l: '60%', t: '20%' },
+      { l: '5%', t: '24%' }, { l: '28%', t: '35%' }, { l: '58%', t: '36%' },
+      { l: '8%', t: '42%' },
     ];
 
     return html`
@@ -815,20 +928,24 @@ export class ScreenWrapped extends LitElement {
       <div style="position:absolute;top:0;left:0;right:0;height:50%;overflow:hidden;">
         ${topTopicsData.map((t, i) => {
           const p = pos[i] || { l: '20%', t: '20%' };
-          return html`<span class="abs f-averia" style="left:${p.l};top:${p.t};font-size:${vw(22)};color:#f5f44c;white-space:nowrap;">
-            ${t.topic} <span style="font-size:${vw(14)};opacity:0.8;">(${t.count})</span></span>`;
+          const drift = i % 2 === 0 ? 'tagDrift1' : 'tagDrift2';
+          const dur = 3 + (i * 0.5);
+          return html`<span class="abs f-averia anim" style="left:${p.l};top:${p.t};font-size:${vw(19)};color:#f5f44c;white-space:nowrap;animation:${drift} ${dur}s ease-in-out infinite;--d:${i * 80}ms;">
+            ${t.topic} <span style="font-size:${vw(13)};opacity:0.8;">(${t.count})</span></span>`;
         })}
-        <p class="abs cx f-averia" style="top:45%;font-size:${vw(42)};color:#f5f44c;text-align:center;">Ce que tu vois</p>
+        <p class="abs cx f-averia anim" style="top:45%;font-size:${vw(38)};color:#f5f44c;text-align:center;--d:200ms;">Ce que tu vois</p>
       </div>
 
       <!-- Bottom half: yellow -->
       <div style="position:absolute;bottom:0;left:0;right:0;height:50%;background:#f5f44c;overflow:hidden;">
         ${dwellTopicsData.map((t, i) => {
           const p = pos[i] || { l: '20%', t: '20%' };
-          return html`<span class="abs f-averia" style="left:${p.l};top:${p.t};font-size:${vw(22)};color:#a34abb;white-space:nowrap;">
-            ${t.topic} <span style="font-size:${vw(14)};opacity:0.8;">(${formatDwellShort(t.avgDwellMs)})</span></span>`;
+          const drift = i % 2 === 0 ? 'tagDrift2' : 'tagDrift1';
+          const dur = 3.5 + (i * 0.4);
+          return html`<span class="abs f-averia anim" style="left:${p.l};top:${p.t};font-size:${vw(19)};color:#a34abb;white-space:nowrap;animation:${drift} ${dur}s ease-in-out infinite;--d:${i * 80}ms;">
+            ${t.topic} <span style="font-size:${vw(13)};opacity:0.8;">(${formatDwellShort(t.avgDwellMs)})</span></span>`;
         })}
-        <p class="abs cx f-averia" style="top:45%;font-size:${vw(42)};color:#a34abb;text-align:center;">Ce qui t'accroche</p>
+        <p class="abs cx f-averia anim" style="top:45%;font-size:${vw(38)};color:#a34abb;text-align:center;--d:200ms;">Ce qui t'accroche</p>
       </div>
 
       ${this.navDots(5, true)}
@@ -864,12 +981,12 @@ export class ScreenWrapped extends LitElement {
         <p>Mais tu ne regardes pas toujours</p>
       </div>
 
-      <!-- Big stat -->
-      <p class="abs cx f-averia anim-scale" style="top:${y(494)};font-size:${vw(132)};text-align:center;line-height:0.9;letter-spacing:-2px;">
+      <!-- Big stat — centered -->
+      <p class="abs cx f-averia anim-scale" style="top:${y(494)};font-size:${vw(110)};text-align:center;line-height:0.9;letter-spacing:-2px;">
         <span data-countup="${skip}" data-suffix="%"></span></p>
-      <p class="abs f-averia" style="top:${y(615)};left:${x(76)};font-size:${vw(44)};letter-spacing:-0.8px;">
+      <p class="abs cx f-averia" style="top:${y(605)};font-size:${vw(44)};text-align:center;letter-spacing:-0.8px;">
         des contenus</p>
-      <p class="abs cx f-averia" style="top:${y(672)};font-size:${vw(28)};text-align:center;width:80%;line-height:1;letter-spacing:-0.5px;">
+      <p class="abs cx f-averia" style="top:${y(655)};font-size:${vw(28)};text-align:center;width:80%;line-height:1;letter-spacing:-0.5px;">
         passent sans être regardés</p>
 
       ${this.navDots(6, true)}
@@ -1094,47 +1211,64 @@ export class ScreenWrapped extends LitElement {
     <div class="slide" style="background:#1e1e1e;color:#eeebdf;">
       ${this.xBtn(true)}
 
-      <div class="slide-scroll">
-        <div style="padding:${y(60)} 20px ${y(80)};">
-          <p class="f-averia" style="font-size:${vw(48)};line-height:0.95;margin-bottom:12px;">
-            Qui influence ton feed ?</p>
-          <p class="f-jaldi" style="font-size:${vw(18)};color:#888;margin-bottom:28px;">
-            Les comptes les plus vus</p>
+      <div style="padding:${y(55)} 16px ${y(100)};display:flex;flex-direction:column;height:100%;overflow:hidden;">
+        <p class="f-averia anim" style="font-size:${vw(44)};line-height:0.95;text-align:center;margin-bottom:4px;">
+          Qui influence ton feed ?</p>
 
-          ${topUsers.map((u, i) => html`
-            <div style="background:#2a2a2a;border-radius:20px;padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;">
-              <div style="width:40px;height:40px;border-radius:50%;background:${['#9ddfff','#ff6701','#8ee88e'][i]};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <span class="f-averia" style="font-size:${vw(20)};color:#1e1e1e;font-weight:700;">#${i + 1}</span>
+        ${topUsers.length > 0 ? html`
+          <!-- Podium -->
+          <div style="display:flex;align-items:flex-end;justify-content:center;gap:10px;margin-top:28px;padding:0 4px;">
+            ${topUsers.length > 1 ? html`
+              <div class="anim-scale" style="flex:1;text-align:center;--d:300ms;">
+                <div style="width:56px;height:56px;border-radius:50%;background:#ff6701;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(255,103,1,0.35);">
+                  <span class="f-averia" style="font-size:${vw(26)};color:white;">${topUsers[1].username.charAt(0).toUpperCase()}</span>
+                </div>
+                <div class="f-jaldi" style="font-size:${vw(12)};color:rgba(255,255,255,0.4);">#2</div>
+                <div class="f-averia" style="font-size:${vw(15)};color:#eeebdf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@${topUsers[1].username}</div>
+                <div class="f-jaldi" style="font-size:${vw(12)};color:#888;margin-top:2px;">${topUsers[1].count} posts</div>
+              </div>` : nothing}
+
+            <div class="anim-scale" style="flex:1.3;text-align:center;--d:100ms;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#f5f44c" stroke="#f5f44c" stroke-width="1.5" stroke-linejoin="round" style="margin-bottom:4px;filter:drop-shadow(0 2px 6px rgba(245,244,76,0.4));">
+                <path d="m2 4 3 12h14l3-12-5 4-5-4-5 4z"/></svg>
+              <div class="pulse-glow" style="width:76px;height:76px;border-radius:50%;background:#9ddfff;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(157,223,255,0.4);--glow:rgba(157,223,255,0.5);">
+                <span class="f-averia" style="font-size:${vw(36)};color:#1e1e1e;">${topUsers[0].username.charAt(0).toUpperCase()}</span>
               </div>
-              <div style="flex:1;">
-                <div class="f-averia" style="font-size:${vw(24)};font-weight:700;margin-bottom:4px;">@${u.username}</div>
-                <div class="f-jaldi" style="font-size:${vw(16)};color:#888;">${u.count} posts • ${formatDwellShort(u.totalDwellMs)}</div>
-              </div>
+              <div class="f-averia" style="font-size:${vw(20)};color:#eeebdf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@${topUsers[0].username}</div>
+              <div class="f-jaldi" style="font-size:${vw(14)};color:#888;margin-top:4px;">${topUsers[0].count} posts • ${formatDwellShort(topUsers[0].totalDwellMs)}</div>
             </div>
-          `)}
 
-          ${polarizing.length > 0 ? html`
-            <div style="margin-top:32px;">
-              <p class="f-averia" style="font-size:${vw(28)};font-weight:700;margin-bottom:16px;">
-                Le plus polarisant</p>
+            ${topUsers.length > 2 ? html`
+              <div class="anim-scale" style="flex:1;text-align:center;--d:500ms;">
+                <div style="width:56px;height:56px;border-radius:50%;background:#8ee88e;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(142,232,142,0.35);">
+                  <span class="f-averia" style="font-size:${vw(26)};color:#1e1e1e;">${topUsers[2].username.charAt(0).toUpperCase()}</span>
+                </div>
+                <div class="f-jaldi" style="font-size:${vw(12)};color:rgba(255,255,255,0.4);">#3</div>
+                <div class="f-averia" style="font-size:${vw(15)};color:#eeebdf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@${topUsers[2].username}</div>
+                <div class="f-jaldi" style="font-size:${vw(12)};color:#888;margin-top:2px;">${topUsers[2].count} posts</div>
+              </div>` : nothing}
+          </div>
+        ` : html`<p class="f-jaldi" style="text-align:center;color:#888;margin-top:40px;">Pas assez de données.</p>`}
 
-              ${polarizing.map(p => {
-                const barWidth = Math.round(p.avgPolarization * 100);
-                return html`
-                  <div style="background:rgba(255,107,1,0.15);border-radius:20px;padding:24px;border-left:4px solid #ff6701;">
-                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:12px;">
-                      <div class="f-averia" style="font-size:${vw(22)};font-weight:700;color:#eeebdf;">@${p.username}</div>
-                      <div class="f-averia" style="font-size:${vw(48)};font-weight:700;color:#ff6701;">${Math.round(p.avgPolarization * 100)}%</div>
-                    </div>
-                    <div style="width:100%;height:10px;background:rgba(0,0,0,0.2);border-radius:5px;overflow:hidden;">
-                      <div style="height:100%;width:${barWidth}%;background:#ff6701;"></div>
-                    </div>
+        ${polarizing.length > 0 ? html`
+          <div class="anim" style="margin-top:auto;--d:600ms;">
+            <div style="background:rgba(255,103,1,0.12);border-radius:24px;padding:20px;display:flex;align-items:center;gap:14px;border:1px solid rgba(255,103,1,0.3);">
+              <div class="pulse-glow" style="width:48px;height:48px;border-radius:14px;background:#ff6701;display:flex;align-items:center;justify-content:center;flex-shrink:0;--glow:rgba(255,103,1,0.5);">
+                ${svgIcon('<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>', 24, 'white')}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div class="f-jaldi" style="font-size:${vw(12)};color:#888;">Le plus polarisant</div>
+                <div class="f-averia" style="font-size:${vw(20)};color:#eeebdf;">@${polarizing[0].username}</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                  <div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;">
+                    <div class="bar-grow" style="height:100%;width:${Math.round(polarizing[0].avgPolarization * 100)}%;background:#ff6701;"></div>
                   </div>
-                `;
-              })}
+                  <div class="f-averia" style="font-size:${vw(18)};color:#ff6701;">${Math.round(polarizing[0].avgPolarization * 100)}%</div>
+                </div>
+              </div>
             </div>
-          ` : nothing}
-        </div>
+          </div>
+        ` : nothing}
       </div>
 
       ${this.navDots(11, true)}
@@ -1167,48 +1301,55 @@ export class ScreenWrapped extends LitElement {
     const secondType = avgsByType.find((_, i) => i !== topTypeIndex);
     const comparison = secondType ? Math.round(((topType.avgDwell - secondType.avgDwell) / secondType.avgDwell) * 100) : 0;
 
-    const mediaTypeTints: Record<string, string> = {
-      'reel': 'rgba(140,67,233,0.1)',
-      'image': 'rgba(142,232,142,0.1)',
-      'carousel': 'rgba(255,103,1,0.1)',
-      'video': 'rgba(0,0,0,0.05)',
-      'story_video': 'rgba(0,0,0,0.05)',
-      'story': 'rgba(0,0,0,0.05)',
+    const mediaTypeIcons: Record<string, string> = {
+      reel: '<polygon points="6 3 20 12 6 21 6 3"/>',
+      video: '<polygon points="6 3 20 12 6 21 6 3"/>',
+      image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
+      carousel: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+      story_video: '<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>',
+      story: '<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>',
     };
+    const mediaColors = ['#8c43e9', '#ff6701', '#1e1e1e'];
 
     return html`
     <div class="slide" style="background:#9ddfff;color:#1e1e1e;">
       ${this.xBtn()}
 
-      <div class="slide-scroll">
-        <div style="padding:${y(60)} 20px ${y(80)};">
-          <p class="f-averia" style="font-size:${vw(48)};line-height:0.95;margin-bottom:12px;">
-            Reels, photos ou carrousels ?</p>
-          <p class="f-jaldi" style="font-size:${vw(18)};color:#555;margin-bottom:28px;">
-            Temps moyen par format</p>
+      <div style="padding:${y(55)} 20px ${y(80)};display:flex;flex-direction:column;height:100%;">
+        <p class="f-averia anim" style="font-size:${vw(44)};line-height:0.95;margin-bottom:4px;">
+          Reels, photos ou carrousels ?</p>
+        <p class="f-jaldi anim" style="font-size:${vw(18)};color:#555;--d:100ms;">
+          Temps moyen par format</p>
 
-          <div style="display:flex;flex-direction:column;gap:16px;">
-            ${types.slice(0, 3).map(t => {
-              const avgDwell = Math.round(t.totalDwellMs / t.count);
-              const typeLabel = mediaTypeLabel(t.type);
-              const colors = ['#8c43e9', '#ff6701', '#8ee88e'];
-              const tint = mediaTypeTints[t.type] || mediaTypeTints['video'];
-              return html`
-                <div style="background:${tint};border-radius:20px;padding:24px;text-align:center;border:2px solid ${colors[types.indexOf(t)] || '#8c43e9'}44;">
-                  <div class="f-averia" style="font-size:${vw(36)};font-weight:700;margin-bottom:8px;color:#1e1e1e;">${formatDwellShort(avgDwell)}</div>
-                  <div class="f-jaldi" style="font-size:${vw(18)};color:#333;">${typeLabel}</div>
+        <!-- Format circles -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;flex:1;">
+          ${types.slice(0, 3).map((t, i) => {
+            const avgDwell = Math.round(t.totalDwellMs / t.count);
+            const isTop = i === 0;
+            const sz = isTop ? 130 : 90;
+            const icon = mediaTypeIcons[t.type] || mediaTypeIcons['video'];
+            return html`
+              <div class="anim-scale" style="text-align:center;--d:${200 + i * 150}ms;">
+                <div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${mediaColors[i]};
+                  margin:0 auto 12px;display:flex;align-items:center;justify-content:center;
+                  box-shadow:0 6px 20px ${mediaColors[i]}44;">
+                  ${svgIcon(icon, isTop ? 44 : 30, 'white')}
                 </div>
-              `;
-            })}
-          </div>
-
-          ${comparison !== 0 ? html`
-            <div style="background:rgba(255,107,1,0.2);border-radius:20px;padding:20px;margin-top:28px;border-left:4px solid #ff6701;text-align:center;">
-              <p class="f-averia" style="font-size:${vw(24)};font-weight:700;color:#1e1e1e;">
-                Les ${mediaTypeLabel(topType.type)}<br/>te retiennent<br/><span style="font-size:${vw(40)};color:#ff6701;">${comparison}% plus longtemps</span></p>
-            </div>
-          ` : nothing}
+                <div class="f-averia" style="font-size:${vw(isTop ? 28 : 20)};color:#1e1e1e;">${formatDwellShort(avgDwell)}</div>
+                <div class="f-jaldi" style="font-size:${vw(15)};color:#555;margin-top:2px;">${mediaTypeLabel(t.type)}</div>
+                <div class="f-jaldi" style="font-size:${vw(13)};color:#999;margin-top:2px;">${t.count} vus</div>
+              </div>`;
+          })}
         </div>
+
+        ${comparison !== 0 ? html`
+          <div class="anim" style="--d:600ms;background:rgba(255,107,1,0.15);border-radius:24px;padding:20px;text-align:center;margin-top:auto;border:1px solid rgba(255,107,1,0.25);">
+            <p class="f-averia" style="font-size:${vw(20)};color:#1e1e1e;line-height:1.3;">
+              Les ${mediaTypeLabel(topType.type)} te retiennent
+              <span style="font-size:${vw(36)};color:#ff6701;display:block;margin:4px 0;">${comparison}%</span>
+              plus longtemps</p>
+          </div>
+        ` : nothing}
       </div>
 
       ${this.navDots(12)}
@@ -1221,12 +1362,12 @@ export class ScreenWrapped extends LitElement {
   // ════════════════════════════════════════════════════════════
   private sSignals(s: DbStats) {
     const signals = s.signals || { activism: 0, conflict: 0, moralAbsolute: 0, enemyDesignation: 0, ingroupOutgroup: 0, total: 0 };
-    const signalLabels: Record<string, string> = {
-      activism: 'Activisme',
-      conflict: 'Conflit',
-      moralAbsolute: 'Morale absolue',
-      enemyDesignation: 'Désignation d\'ennemi',
-      ingroupOutgroup: 'Nous vs Eux',
+    const signalMeta: Record<string, { label: string; icon: string; color: string }> = {
+      activism: { label: 'Activisme', icon: '<path d="m3 11 18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>', color: '#f5f44c' },
+      conflict: { label: 'Conflit', icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>', color: '#eeebdf' },
+      moralAbsolute: { label: 'Morale absolue', icon: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>', color: '#9ddfff' },
+      enemyDesignation: { label: 'Désignation d\'ennemi', icon: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>', color: '#ff6701' },
+      ingroupOutgroup: { label: 'Nous vs Eux', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', color: '#8ee88e' },
     };
 
     const signalList = [
@@ -1244,29 +1385,34 @@ export class ScreenWrapped extends LitElement {
     <div class="slide" style="background:#ff6701;color:#eeebdf;">
       ${this.xBtn(true)}
 
-      <div class="slide-scroll">
-        <div style="padding:${y(60)} 20px ${y(80)};">
-          <div style="text-align:center;margin-bottom:32px;">
-            <p class="f-averia anim-scale" style="font-size:${vw(80)};line-height:0.9;margin-bottom:8px;">
-              <span data-countup="${realTotal}"></span></p>
-            <p class="f-averia" style="font-size:${vw(28)};line-height:0.95;">Les signaux cachés</p>
-            <p class="f-jaldi" style="font-size:${vw(16)};color:rgba(255,255,255,0.7);margin-top:8px;">
-              ${realTotal === 0 ? 'Aucun signal détecté' : 'Tactiques de persuasion détectées'}</p>
-          </div>
+      <div style="padding:${y(55)} 20px ${y(80)};display:flex;flex-direction:column;height:100%;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <p class="f-averia anim-scale" style="font-size:${vw(80)};line-height:0.9;margin-bottom:4px;">
+            <span data-countup="${realTotal}"></span></p>
+          <p class="f-averia anim" style="font-size:${vw(28)};line-height:0.95;--d:200ms;">Les signaux cachés</p>
+          <p class="f-jaldi anim" style="font-size:${vw(16)};color:rgba(255,255,255,0.7);margin-top:6px;--d:300ms;">
+            ${realTotal === 0 ? 'Aucun signal détecté' : 'Tactiques de persuasion détectées'}</p>
+        </div>
 
-          ${signalList.length > 0 ? signalList.slice(0, 3).map(sig => {
-            const barWidth = (sig.count / maxSignalCount) * 100;
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px;">
+          ${signalList.length > 0 ? signalList.slice(0, 5).map((sig, i) => {
+            const meta = signalMeta[sig.key];
+            const w = Math.round((sig.count / maxSignalCount) * 100);
             return html`
-              <div style="margin-bottom:20px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                  <div class="f-averia" style="font-size:${vw(20)};font-weight:700;">${signalLabels[sig.key]}</div>
-                  <div class="f-averia" style="font-size:${vw(32)};font-weight:700;color:#1e1e1e;">${sig.count}</div>
+              <div class="anim" style="background:rgba(0,0,0,0.12);border-radius:20px;padding:16px;display:flex;align-items:center;gap:14px;--d:${400 + i * 120}ms;">
+                <div style="width:44px;height:44px;border-radius:12px;background:${meta.color};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  ${svgIcon(meta.icon, 22, sig.key === 'activism' ? '#1e1e1e' : 'white')}
                 </div>
-                <div style="width:100%;height:10px;background:rgba(0,0,0,0.2);border-radius:5px;overflow:hidden;">
-                  <div class="bar-grow" style="height:100%;width:${barWidth}%;background:#1e1e1e;"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+                    <div class="f-averia" style="font-size:${vw(17)};font-weight:700;">${meta.label}</div>
+                    <div class="f-averia" style="font-size:${vw(24)};font-weight:700;color:#1e1e1e;">${sig.count}</div>
+                  </div>
+                  <div style="height:6px;background:rgba(0,0,0,0.15);border-radius:3px;overflow:hidden;">
+                    <div class="bar-grow" style="height:100%;width:${w}%;background:${meta.color};--d:${0.5 + i * 0.12}s;"></div>
+                  </div>
                 </div>
-              </div>
-            `;
+              </div>`;
           }) : html`
             <div style="text-align:center;padding:20px;">
               <p class="f-jaldi" style="font-size:${vw(18)};color:rgba(255,255,255,0.6);">
@@ -1287,70 +1433,79 @@ export class ScreenWrapped extends LitElement {
   private sAttentionPol(s: DbStats) {
     const attentionMap = s.attentionPolitical || {};
     const levels = ['skipped', 'glanced', 'viewed', 'engaged'];
-    const levelLabels: Record<string, string> = {
-      skipped: 'Scrollés',
-      glanced: 'Aperçus',
-      viewed: 'Consultés',
-      engaged: 'Engagés',
-    };
-    const levelColors: Record<string, string> = {
-      skipped: '#95A5A6',
-      glanced: '#f5f44c',
-      viewed: '#9ddfff',
-      engaged: '#8ee88e',
+    const levelMeta: Record<string, { label: string; icon: string; color: string }> = {
+      skipped: { label: 'Scrollés', icon: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><line x1="1" y1="1" x2="23" y2="23"/>', color: '#95A5A6' },
+      glanced: { label: 'Aperçus', icon: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>', color: '#f5f44c' },
+      viewed: { label: 'Consultés', icon: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>', color: '#9ddfff' },
+      engaged: { label: 'Engagés', icon: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>', color: '#8ee88e' },
     };
 
     const data = levels.map(level => ({
       level,
-      label: levelLabels[level],
-      color: levelColors[level],
+      label: levelMeta[level].label,
+      color: levelMeta[level].color,
+      icon: levelMeta[level].icon,
       stats: attentionMap[level] || { avgPolitical: 0, avgPolarization: 0, count: 0 },
     }));
 
-    const maxPolitical = Math.max(0.2, ...data.map(d => d.stats.avgPolitical)); // Relative scale with floor
+    const maxPolitical = Math.max(0.2, ...data.map(d => d.stats.avgPolitical));
+    const totalCount = data.reduce((a, d) => a + d.stats.count, 0);
     const engagedData = data.find(d => d.level === 'engaged');
     const skippedData = data.find(d => d.level === 'skipped');
     const comparison = engagedData && skippedData && skippedData.stats.avgPolitical > 0
       ? Math.round(((engagedData.stats.avgPolitical - skippedData.stats.avgPolitical) / skippedData.stats.avgPolitical) * 100)
       : 0;
 
+    // Funnel widths: decreasing from skipped → engaged
+    const funnelWidths = [100, 82, 64, 48];
+
     return html`
     <div class="slide" style="background:#9948d3;color:#eeebdf;">
       ${this.xBtn(true)}
 
-      <div class="slide-scroll">
-        <div style="padding:${y(60)} 20px ${y(80)};">
-          <p class="f-averia" style="font-size:${vw(48)};line-height:0.95;margin-bottom:12px;">
-            Ton attention politique</p>
-          <p class="f-jaldi" style="font-size:${vw(18)};color:rgba(255,255,255,0.6);margin-bottom:28px;">
-            Comment tu interagis selon le contexte</p>
+      <div style="padding:${y(55)} 16px ${y(80)};display:flex;flex-direction:column;height:100%;">
+        <p class="f-averia anim" style="font-size:${vw(44)};line-height:0.95;margin-bottom:4px;text-align:center;">
+          Ton attention politique</p>
+        <p class="f-jaldi anim" style="font-size:${vw(16)};color:rgba(255,255,255,0.5);text-align:center;--d:100ms;">
+          Du scroll rapide à l'engagement</p>
 
-          ${data.map(d => {
-            const rawBarWidth = (d.stats.avgPolitical / maxPolitical) * 100;
-            const barWidth = Math.max(5, rawBarWidth);
+        <!-- Funnel -->
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:10px;margin-top:20px;">
+          ${data.map((d, i) => {
+            const barWidth = Math.max(8, (d.stats.avgPolitical / maxPolitical) * 100);
+            const countPct = totalCount > 0 ? Math.round((d.stats.count / totalCount) * 100) : 0;
             return html`
-              <div style="margin-bottom:24px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                  <div class="f-averia" style="font-size:${vw(20)};font-weight:700;">${d.label}</div>
-                  <div class="f-averia" style="font-size:${vw(32)};color:${d.color};font-weight:700;">
-                    ${d.stats.avgPolitical.toFixed(2)}</div>
+              <div class="anim" style="width:${funnelWidths[i]}%;margin:0 auto;--d:${200 + i * 150}ms;">
+                <div style="background:rgba(255,255,255,0.08);border-radius:20px;padding:14px 16px;display:flex;align-items:center;gap:12px;
+                  border:1px solid ${d.color}33;">
+                  <div style="width:40px;height:40px;border-radius:12px;background:${d.color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    ${svgIcon(d.icon, 20, d.color)}
+                  </div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                      <div class="f-averia" style="font-size:${vw(16)};font-weight:700;">${d.label}</div>
+                      <div class="f-averia" style="font-size:${vw(22)};color:${d.color};font-weight:700;">
+                        ${d.stats.avgPolitical.toFixed(1)}</div>
+                    </div>
+                    <div style="height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;margin-top:6px;">
+                      <div class="bar-grow" style="height:100%;width:${barWidth}%;background:${d.color};--d:${0.4 + i * 0.15}s;"></div>
+                    </div>
+                    <div class="f-jaldi" style="font-size:${vw(12)};color:rgba(255,255,255,0.45);margin-top:4px;">
+                      ${d.stats.count} contenus${countPct > 0 ? ` · ${countPct}%` : ''}</div>
+                  </div>
                 </div>
-                <div style="width:100%;height:10px;background:rgba(255,255,255,0.15);border-radius:5px;overflow:hidden;">
-                  <div class="bar-grow" style="height:100%;width:${barWidth}%;background:${d.color};"></div>
-                </div>
-                <div class="f-jaldi" style="font-size:${vw(14)};color:rgba(255,255,255,0.6);margin-top:6px;">
-                  ${d.stats.count} contenus</div>
-              </div>
-            `;
+              </div>`;
           })}
-
-          ${comparison !== 0 ? html`
-            <div style="background:rgba(238,235,223,0.15);border-radius:20px;padding:24px;margin-top:28px;border-left:4px solid #eeebdf;text-align:center;">
-              <p class="f-averia" style="font-size:${vw(24)};font-weight:700;color:#eeebdf;line-height:1.3;">
-                Quand tu t'arrêtes vraiment<br/><span style="font-size:${vw(40)};">${comparison}%</span><br/>plus politique</p>
-            </div>
-          ` : nothing}
         </div>
+
+        ${comparison !== 0 ? html`
+          <div class="anim" style="--d:800ms;background:rgba(238,235,223,0.1);border-radius:20px;padding:18px;text-align:center;margin-top:auto;border:1px solid rgba(238,235,223,0.2);">
+            <p class="f-averia" style="font-size:${vw(20)};color:#eeebdf;line-height:1.3;">
+              Quand tu t'arrêtes vraiment
+              <span style="font-size:${vw(36)};display:block;margin:2px 0;">${comparison}%</span>
+              plus politique</p>
+          </div>
+        ` : nothing}
       </div>
 
       ${this.navDots(14, true)}
@@ -1368,22 +1523,22 @@ export class ScreenWrapped extends LitElement {
     <div class="slide" style="background:#eeebdf;color:#1e1e1e;">
       ${this.xBtn()}
 
-      <div style="display:flex;flex-direction:column;align-items:center;height:100%;padding:0 20px;">
-        <p class="f-averia anim" style="font-size:${vw(44)};margin-top:${y(77)};margin-bottom:0;">Vous êtes</p>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:0 20px;">
+        <p class="f-averia anim" style="font-size:${vw(44)};margin-bottom:8px;">Vous êtes</p>
 
-        <!-- Mascotte + stars + circle from Figma assets -->
-        <div style="position:relative;width:${x(293)};aspect-ratio:293/309;margin-top:4px;display:flex;align-items:center;justify-content:center;">
+        <!-- Mascotte + stars + circle — bubble pop like slide 1 -->
+        <div class="bubble-pop float-1" style="position:relative;width:${x(340)};aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;">
           <!-- Outer wavy star -->
-          <img class="asset star-wobble" src="assets/wrapped/s09-star-outer.svg" style="position:absolute;inset:0;width:100%;height:100%;" alt=""/>
+          <img class="asset star-wobble" src="assets/wrapped/s09-star-outer.svg" style="position:absolute;inset:2%;width:96%;height:96%;" alt=""/>
           <!-- Inner star -->
-          <img class="asset" src="assets/wrapped/s09-star-inner.svg" style="position:absolute;inset:0;width:100%;height:100%;" alt=""/>
+          <img class="asset" src="assets/wrapped/s09-star-inner.svg" style="position:absolute;inset:2%;width:96%;height:96%;" alt=""/>
           <!-- Pink circle background -->
-          <img class="asset" src="assets/wrapped/s09-circle-pink.svg" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:${x(274)};height:${x(274)};" alt=""/>
+          <img class="asset spin-bounce" src="assets/wrapped/s09-circle-pink.svg" style="position:absolute;left:50%;top:50%;width:${x(340)};height:${x(340)};" alt=""/>
           <!-- Mascotte SVG -->
-          <img class="asset" src="assets/wrapped/s09-mascotte.svg" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:80%;height:80%;" alt=""/>
+          <img class="asset" src="assets/wrapped/s09-mascotte.svg" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:55%;height:55%;" alt=""/>
         </div>
 
-        <div style="margin-top:auto;margin-bottom:${y(100)};text-align:center;">
+        <div style="margin-top:16px;text-align:center;">
           <p class="f-averia anim-scale" style="font-size:${vw(44)};--d:400ms;">${profile.name}</p>
           <p class="f-jaldi" style="font-size:${vw(16)};margin-top:8px;line-height:1.2;padding:0 20px;">
             ${profile.description}</p>
@@ -1416,34 +1571,49 @@ export class ScreenWrapped extends LitElement {
       ${this.xBtn()}
 
       <div style="display:flex;flex-direction:column;height:100%;padding:${y(60)} 20px ${y(80)};">
-        <p class="f-averia" style="font-size:${vw(48)};line-height:0.95;text-align:center;margin-bottom:20px;">Tes records</p>
+        <p class="f-averia anim" style="font-size:${vw(44)};line-height:0.95;text-align:center;margin-bottom:16px;">Tes records</p>
 
-        <!-- Big distance stat -->
-        <div style="background:#1e1e1e;border-radius:24px;padding:32px;margin-bottom:24px;color:#eeebdf;text-align:center;">
-          <p class="f-averia" style="font-size:${vw(100)};line-height:0.9;margin-bottom:8px;">${distanceText}</p>
-          <p class="f-averia" style="font-size:${vw(20)};color:#aaa;">scrollés</p>
-          <p class="f-jaldi" style="font-size:${vw(18)};color:rgba(255,255,255,0.6);margin-top:8px;">→ ${distanceMetaphor}</p>
-        </div>
-
-        <div style="display:flex;gap:12px;">
-          <div style="flex:1;background:rgba(0,0,0,0.08);border-radius:20px;padding:20px;text-align:center;">
-            <p class="f-averia" style="font-size:${vw(56)};font-weight:700;line-height:0.95;">${s.totalPosts}</p>
-            <p class="f-jaldi" style="font-size:${vw(16)};margin-top:6px;">contenus</p>
+        <!-- Big distance hero -->
+        <div class="anim-scale" style="background:#1e1e1e;border-radius:28px;padding:28px 24px;color:#eeebdf;text-align:center;--d:200ms;">
+          <div style="margin-bottom:12px;">
+            ${svgIcon('<path d="M18 8c0 4.5-6 9-6 9s-6-4.5-6-9a6 6 0 0 1 12 0z"/><circle cx="12" cy="8" r="2"/>', 36, '#8ee88e')}
           </div>
-          <div style="flex:1;background:rgba(0,0,0,0.08);border-radius:20px;padding:20px;text-align:center;">
-            <p class="f-averia" style="font-size:${vw(56)};font-weight:700;line-height:0.95;">${postsPerSession}</p>
-            <p class="f-jaldi" style="font-size:${vw(16)};margin-top:6px;">par session</p>
+          <p class="f-averia" style="font-size:${vw(80)};line-height:0.85;margin-bottom:4px;">${distanceText}</p>
+          <p class="f-averia" style="font-size:${vw(18)};color:#888;">scrollés</p>
+          <div style="background:rgba(142,232,142,0.15);border-radius:12px;padding:8px 16px;margin-top:12px;display:inline-block;">
+            <p class="f-jaldi" style="font-size:${vw(15)};color:#8ee88e;">≈ ${distanceMetaphor}</p>
           </div>
         </div>
 
-        <div style="display:flex;gap:12px;margin-top:12px;">
-          <div style="flex:1;background:rgba(0,0,0,0.08);border-radius:20px;padding:20px;text-align:center;">
-            <p class="f-averia" style="font-size:${vw(48)};font-weight:700;line-height:0.95;">${timeText}</p>
-            <p class="f-jaldi" style="font-size:${vw(14)};margin-top:6px;">en scroll</p>
+        <!-- Stats grid with icons -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;">
+          <div class="anim" style="background:rgba(0,0,0,0.07);border-radius:20px;padding:16px;display:flex;align-items:center;gap:12px;--d:400ms;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${svgIcon('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>', 18, '#1e1e1e')}
+            </div>
+            <div><p class="f-averia" style="font-size:${vw(32)};line-height:0.95;">${s.totalPosts}</p>
+              <p class="f-jaldi" style="font-size:${vw(12)};color:#666;">contenus</p></div>
           </div>
-          <div style="flex:1;background:rgba(0,0,0,0.08);border-radius:20px;padding:20px;text-align:center;">
-            <p class="f-averia" style="font-size:${vw(48)};font-weight:700;line-height:0.95;">${s.totalSessions}</p>
-            <p class="f-jaldi" style="font-size:${vw(14)};margin-top:6px;">sessions</p>
+          <div class="anim" style="background:rgba(0,0,0,0.07);border-radius:20px;padding:16px;display:flex;align-items:center;gap:12px;--d:500ms;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${svgIcon('<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>', 18, '#1e1e1e')}
+            </div>
+            <div><p class="f-averia" style="font-size:${vw(32)};line-height:0.95;">${postsPerSession}</p>
+              <p class="f-jaldi" style="font-size:${vw(12)};color:#666;">par session</p></div>
+          </div>
+          <div class="anim" style="background:rgba(0,0,0,0.07);border-radius:20px;padding:16px;display:flex;align-items:center;gap:12px;--d:600ms;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${svgIcon('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', 18, '#1e1e1e')}
+            </div>
+            <div><p class="f-averia" style="font-size:${vw(32)};line-height:0.95;">${timeText}</p>
+              <p class="f-jaldi" style="font-size:${vw(12)};color:#666;">en scroll</p></div>
+          </div>
+          <div class="anim" style="background:rgba(0,0,0,0.07);border-radius:20px;padding:16px;display:flex;align-items:center;gap:12px;--d:700ms;">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${svgIcon('<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>', 18, '#1e1e1e')}
+            </div>
+            <div><p class="f-averia" style="font-size:${vw(32)};line-height:0.95;">${s.totalSessions}</p>
+              <p class="f-jaldi" style="font-size:${vw(12)};color:#666;">sessions</p></div>
           </div>
         </div>
 
