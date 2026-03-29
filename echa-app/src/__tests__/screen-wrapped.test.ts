@@ -34,7 +34,29 @@ vi.mock('../services/db-bridge.js', () => ({
     signals: { activism: 0, conflict: 2, moralAbsolute: 1, enemyDesignation: 0, ingroupOutgroup: 0, total: 3 },
     sponsoredStats: { sponsored: { count: 71, avgDwellMs: 3000, avgPolitical: 0.2 } },
     axes: { economic: 0.29, societal: -0.14, authority: 0, system: 0 },
+    topNarratives: [
+      { narrative: 'hero_journey', count: 18 },
+      { narrative: 'us_vs_them', count: 12 },
+      { narrative: 'nostalgia', count: 8 },
+    ],
+    topEmotions: [
+      { emotion: 'joy', count: 42 },
+      { emotion: 'anger', count: 28 },
+      { emotion: 'surprise', count: 15 },
+      { emotion: 'sadness', count: 10 },
+    ],
   }),
+  resolveEntities: vi.fn((items: any[]) => items.map((i: any) => ({
+    raw: i.topic || i.narrative || i.emotion || '',
+    canonical: i.topic || i.narrative || i.emotion || '',
+    type: 'Unknown',
+    count: i.count,
+  }))),
+}));
+
+vi.mock('../services/ontology.js', () => ({
+  resolveEntityLocal: vi.fn(() => null),
+  ENTITY_DICTIONARY: [],
 }));
 
 describe('screen-wrapped', () => {
@@ -47,18 +69,17 @@ describe('screen-wrapped', () => {
     expect(customElements.get('screen-wrapped')).toBeDefined();
   });
 
-  it('should create element and load data', async () => {
+  it('should create element and render 9 slides', async () => {
     await import('../screens/screen-wrapped.js');
     const el = document.createElement('screen-wrapped') as any;
     document.body.appendChild(el);
 
-    // Wait for async loadData
     await new Promise(r => setTimeout(r, 100));
     if (el.updateComplete) await el.updateComplete;
 
     expect(el.shadowRoot).toBeTruthy();
     const slides = el.shadowRoot!.querySelectorAll('.slide');
-    expect(slides.length).toBe(7);
+    expect(slides.length).toBe(9);
   });
 
   it('should navigate between slides via go()', async () => {
@@ -77,8 +98,9 @@ describe('screen-wrapped', () => {
     el.go(-1);
     expect(el.currentSlide).toBe(0);
 
-    el.go(10);
-    expect(el.currentSlide).toBe(6);
+    // Clamps to max slide (8 = index of 9th slide)
+    el.go(20);
+    expect(el.currentSlide).toBe(8);
   });
 
   it('should dispatch close-wrapped event', async () => {
@@ -106,5 +128,59 @@ describe('screen-wrapped', () => {
     const text = el.shadowRoot!.textContent || '';
     expect(text).toContain('280');
     expect(text).toContain('Culture & Divertissement');
+  });
+
+  it('should render narrative chips when data present', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    // Narrative slide should contain mapped labels
+    expect(text).toContain('Heroique');
+    expect(text).toContain('Nous vs Eux');
+  });
+
+  it('should render emotion chips when data present', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    expect(text).toContain('joy');
+    expect(text).toContain('anger');
+  });
+
+  it('should render political compass with axes values', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const text = el.shadowRoot!.textContent || '';
+    expect(text).toContain('Boussole politique');
+    expect(text).toContain('+0.29'); // economic axis
+    expect(text).toContain('-0.14'); // societal axis
+  });
+
+  it('should have a share button on the last slide', async () => {
+    await import('../screens/screen-wrapped.js');
+    const el = document.createElement('screen-wrapped') as any;
+    document.body.appendChild(el);
+
+    await new Promise(r => setTimeout(r, 100));
+    if (el.updateComplete) await el.updateComplete;
+
+    const shareBtn = el.shadowRoot!.querySelector('.share-btn');
+    expect(shareBtn).toBeTruthy();
+    expect(shareBtn!.textContent).toContain('Partager');
   });
 });

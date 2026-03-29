@@ -64,10 +64,18 @@ export async function callOpenAI(
 
 // ── Enrichment prompt (version mobile, identique au PC) ──────
 
-const SYSTEM_PROMPT = `Tu es un analyste de contenu spécialisé dans l'analyse de posts Instagram francophones.
+const SYSTEM_PROMPT = `Tu es un sémiologue spécialisé dans l'analyse de contenu Instagram francophone.
 Tu dois produire une analyse structurée en JSON, rigoureuse et factuelle.
 
-IMPORTANT :
+RÈGLE FONDAMENTALE — SÉMIOLOGIE, PAS DESCRIPTION :
+- Analyse le SENS, le PROPOS, l'IDÉE du post — jamais son format.
+- Demande-toi : "Quel message ce post plante dans la tête du spectateur ? Quelle vision du monde il véhicule ?"
+- Un post de BD → le sujet c'est le thème traité (critique sociale, absurde, nostalgie), pas "une bande dessinée".
+- Un post de recette → le sujet c'est "cuisine japonaise traditionnelle" ou "alimentation vegan engagée", pas "photo de plat".
+- Un post d'actu → le sujet c'est "réforme des retraites contestée" ou "montée du RN", pas "article partagé".
+- Le semantic_summary doit décrire le FOND, la THÈSE, le PROPOS — jamais "Le compte X partage..."
+
+AUTRES RÈGLES :
 - Tu mesures le CONTENU du post, pas l'opinion de l'auteur ni du lecteur.
 - Tu évalues l'EXPOSITION à un type de contenu, pas l'adhésion.
 - Sois conservateur dans tes scores : en cas de doute, score bas.
@@ -82,20 +90,33 @@ export function buildEnrichmentPrompt(post: {
   mediaType?: string;
   rulesHints?: {
     mainTopics: string[];
+    subjects?: { id: string; label: string; themeId: string }[];
     politicalScore: number;
     polarizationScore: number;
     detectedActors: string[];
   };
+  candidatePreciseSubjects?: { id: string; statement: string }[];
 }): string {
-  const rulesContext = post.rulesHints?.mainTopics.length
-    ? `\nIndices pré-calculés (règles) : topics=[${post.rulesHints.mainTopics.join(',')}], political_score=${post.rulesHints.politicalScore}, polarization=${post.rulesHints.polarizationScore}, actors=[${post.rulesHints.detectedActors.join(',')}]`
+  const subjectsStr = post.rulesHints?.subjects?.length
+    ? `, subjects=[${post.rulesHints.subjects.map(s => s.id).join(',')}]`
     : '';
+  const rulesContext = post.rulesHints?.mainTopics.length
+    ? `\nIndices pré-calculés (règles) : topics=[${post.rulesHints.mainTopics.join(',')}]${subjectsStr}, political_score=${post.rulesHints.politicalScore}, polarization=${post.rulesHints.polarizationScore}, actors=[${post.rulesHints.detectedActors.join(',')}]`
+    : '';
+
+  let preciseSubjectsBlock = '';
+  if (post.candidatePreciseSubjects && post.candidatePreciseSubjects.length > 0) {
+    const lines = post.candidatePreciseSubjects.map(ps => `  - ${ps.id}: "${ps.statement}"`).join('\n');
+    preciseSubjectsBlock = `\n\nSUJETS PRÉCIS CANDIDATS (choisis ceux qui correspondent au post, 0 à 3 max) :\n${lines}`;
+  }
 
   return `Analyse ce post Instagram et produis un JSON structuré.
 
 IMPORTANT — RÈGLES CRITIQUES :
 1. Le @username est un signal sémantique fort (ex: @boardgamegeek → jeux de société, @franceculture → culture/média).
 2. main_topics ne doit JAMAIS être vide []. En dernier recours, utilise "divertissement" ou "lifestyle".
+3. semantic_summary = le PROPOS, la THÈSE, le MESSAGE SÉMIOLOGIQUE. Pas de "Le compte partage...", pas de description de format. Commence par le sujet. Ex: "Critique de l'absurdité des remakes Disney via l'humour décalé", "La charge mentale des mères invisibilisée par l'injonction au bonheur".
+4. subjects = les SUJETS CONCRETS du fond (pas de la forme). Ex: "nostalgie Disney", "charge mentale", "réforme retraites".
 
 --- POST ---
 Auteur : @${post.username}
@@ -103,7 +124,7 @@ Type : ${post.mediaType || 'photo'}
 Hashtags : ${post.hashtags.join(', ') || '(aucun)'}
 Texte :
 ${post.normalizedText.substring(0, 1500)}
-${rulesContext}
+${rulesContext}${preciseSubjectsBlock}
 --- FIN POST ---
 
 LISTE DES 31 THÈMES (utilise UNIQUEMENT ces identifiants) :
@@ -141,9 +162,15 @@ LISTE DES 31 THÈMES (utilise UNIQUEMENT ces identifiants) :
 
 Produis un JSON avec ces champs :
 {
-  "semantic_summary": "résumé en 1-2 phrases",
+  "semantic_summary": "Phrase sémiologique (15 mots max) décrivant le PROPOS, la THÈSE. Pas de description de format. Commence par le sujet.",
   "main_topics": ["1-3 thèmes. JAMAIS vide."],
   "secondary_topics": ["0-3 thèmes secondaires"],
+  "subjects": ["Sujets CONCRETS du fond (niveau 3). Ex: 'cuisine japonaise', 'réforme retraites', 'nostalgie Disney'. Décris le FOND."],
+  "precise_subjects": [{"id": "ID du sujet précis si candidat fourni, sinon null", "position": "pour|contre|neutre|ambigu", "confidence": 0.0-1.0}],
+  "persons": ["personnes nommées"],
+  "organizations": ["organisations mentionnées"],
+  "institutions": ["institutions publiques"],
+  "countries": ["pays mentionnés"],
   "tone": "informatif|émotionnel|sarcastique|militant|neutre|inspirant|alarmiste",
   "primary_emotion": "colère|joie|peur|tristesse|dégoût|surprise|fierté|espoir|neutre",
   "emotion_intensity": 0.0-1.0,
@@ -155,6 +182,8 @@ Produis un JSON avec ces champs :
   "enemy_designation_signal": true/false,
   "activism_signal": true/false,
   "narrative_frame": "declin|urgence|injustice|revelation|mobilisation|denonciation|empowerment|ordre|menace|aspiration|inspiration|derision|victimisation|heroisation|aucun",
+  "call_to_action_type": "aucun|commenter|partager|sindigner|sinformer|voter|soutenir|boycotter|acheter|suivre_le_compte",
+  "media_message": "Le message que ce contenu plante dans la tête du spectateur, en 1 phrase directe.",
   "media_intent": "informer|divertir|vendre|convaincre|emouvoir|eduquer|provoquer|aucun",
   "confidence_score": 0.0-1.0
 }
@@ -206,6 +235,9 @@ Texte: ${p.normalizedText.substring(0, 600)}${hints}
 
   const prompt = `Analyse ces ${posts.length} posts Instagram et produis un JSON avec un tableau "posts".
 
+RÈGLE SÉMIOLOGIQUE : semantic_summary = le PROPOS, la THÈSE, le MESSAGE. Jamais "Le compte partage..." ni description de format. Commence par le sujet.
+subjects = sujets CONCRETS du fond (pas de la forme).
+
 ${postsBlock}
 
 THÈMES (IDs uniquement) : actualite, politique, geopolitique, economie, ecologie, immigration, securite, justice, sante, religion, education, culture, humour, divertissement, lifestyle, beaute, sport, business, developpement_personnel, technologie, feminisme, masculinite, identite, societe, food, voyage, maison_jardin, animaux, parentalite, automobile, shopping
@@ -215,15 +247,21 @@ Réponds avec ce JSON :
   "posts": [
     {
       "index": 0,
-      "semantic_summary": "...",
+      "semantic_summary": "Phrase sémiologique (15 mots max) — PROPOS, pas description",
       "main_topics": ["1-3 thèmes. JAMAIS vide."],
       "secondary_topics": ["0-2"],
+      "subjects": ["sujets concrets du fond"],
+      "persons": ["personnes nommées"],
+      "organizations": ["organisations"],
+      "institutions": ["institutions"],
+      "countries": ["pays"],
       "tone": "informatif|émotionnel|sarcastique|militant|neutre|inspirant|alarmiste",
       "primary_emotion": "neutre|joie|colère|...",
       "emotion_intensity": 0.0-1.0,
       "political_explicitness_score": 0-4,
       "polarization_score": 0.0-1.0,
       "narrative_frame": "aucun|declin|urgence|...",
+      "media_message": "Le message planté dans la tête du spectateur",
       "media_intent": "informer|divertir|vendre|...",
       "confidence_score": 0.0-1.0
     }

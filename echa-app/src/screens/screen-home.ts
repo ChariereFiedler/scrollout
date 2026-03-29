@@ -909,7 +909,7 @@ export class ScreenHome extends LitElement {
 
       /* ── Wrapped CTA ── */
       .wrapped-banner {
-        background: linear-gradient(135deg, #6B6BFF 0%, #8B44E8 100%);
+        background: linear-gradient(135deg, #5B3FE8 0%, #8B22CC 100%);
         border-radius: var(--radius);
         padding: 18px 20px;
         margin-bottom: 16px;
@@ -1281,14 +1281,14 @@ export class ScreenHome extends LitElement {
     if (total === 0) return nothing;
 
     const dnaColors: Record<string, string> = {
-      'culture_divertissement': '#E88BE8',
-      'lifestyle_bienetre': '#88EEBB',
-      'politique_societe': '#FF2222',
-      'information_savoirs': '#88CCFF',
-      'ecologie_environnement': '#6BE88B',
-      'economie_travail': '#FFE94A',
-      'sport': '#FF7B33',
-      'technologie': '#6B6BFF',
+      'culture_divertissement': '#DA70D6',
+      'lifestyle_bienetre': '#90DDAA',
+      'politique_societe': '#FF0000',
+      'information_savoirs': '#B0E0FF',
+      'ecologie_environnement': '#90EE90',
+      'economie_travail': '#FFFF66',
+      'sport': '#FF6B00',
+      'technologie': '#5B3FE8',
       ...domainColors,
     };
 

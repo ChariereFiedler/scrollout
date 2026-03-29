@@ -8,9 +8,9 @@
 export {};
 
 const SCROLLOUT_COLORS = [
-  '#FFE94A', '#6BE88B', '#6B6BFF',
-  '#FF7B33', '#E88BE8', '#8B44E8',
-  '#FF2222', '#88CCFF', '#88EEBB',
+  '#FFFF66', '#90EE90', '#5B3FE8',
+  '#FF6B00', '#DA70D6', '#8B22CC',
+  '#FF0000', '#B0E0FF', '#90DDAA',
 ];
 
 const BTN_ID = 'echa-scrollout-btn';

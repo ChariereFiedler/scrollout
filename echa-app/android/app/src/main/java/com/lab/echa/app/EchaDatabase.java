@@ -31,7 +31,7 @@ public class EchaDatabase extends SQLiteOpenHelper {
 
     private static final String TAG = "EchaDB";
     private static final String DB_NAME = "echa.db";
-    private static final int DB_VERSION = 5;
+    private static final int DB_VERSION = 6;
 
     private static EchaDatabase instance;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -265,6 +265,48 @@ public class EchaDatabase extends SQLiteOpenHelper {
             safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_obs_entityId ON observations(entityId)");
             safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_obs_relation ON observations(relation)");
         }
+        if (oldVersion < 6) {
+            // Ensure knowledge graph tables exist (may already exist from v5 fresh install)
+            safeAddColumn(db, "posts", "videoUrl", "TEXT DEFAULT ''");
+            safeExecSQL(db, "CREATE TABLE IF NOT EXISTS knowledge_entities (" +
+                    "id TEXT PRIMARY KEY," +
+                    "canonicalName TEXT UNIQUE NOT NULL," +
+                    "type TEXT NOT NULL," +
+                    "aliases TEXT DEFAULT '[]'," +
+                    "metadata TEXT DEFAULT '{}'," +
+                    "mentionCount INTEGER DEFAULT 0," +
+                    "lastSeenAt INTEGER," +
+                    "avgSentiment REAL DEFAULT 0," +
+                    "createdAt INTEGER NOT NULL," +
+                    "updatedAt INTEGER NOT NULL)");
+            safeExecSQL(db, "CREATE TABLE IF NOT EXISTS knowledge_edges (" +
+                    "id TEXT PRIMARY KEY," +
+                    "sourceId TEXT NOT NULL," +
+                    "targetId TEXT NOT NULL," +
+                    "relation TEXT NOT NULL," +
+                    "weight REAL DEFAULT 1," +
+                    "metadata TEXT DEFAULT '{}'," +
+                    "createdAt INTEGER NOT NULL," +
+                    "UNIQUE(sourceId, targetId, relation))");
+            safeExecSQL(db, "CREATE TABLE IF NOT EXISTS observations (" +
+                    "id TEXT PRIMARY KEY," +
+                    "postId TEXT NOT NULL," +
+                    "entityId TEXT NOT NULL," +
+                    "relation TEXT NOT NULL," +
+                    "stance TEXT DEFAULT ''," +
+                    "intensity REAL DEFAULT 0," +
+                    "confidence REAL DEFAULT 0," +
+                    "evidence TEXT DEFAULT ''," +
+                    "source TEXT NOT NULL," +
+                    "createdAt INTEGER NOT NULL)");
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_ke_type ON knowledge_entities(type)");
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_ke_mentions ON knowledge_entities(mentionCount)");
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_kedge_source ON knowledge_edges(sourceId)");
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_kedge_target ON knowledge_edges(targetId)");
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_obs_postId ON observations(postId)");
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_obs_entityId ON observations(entityId)");
+            safeExecSQL(db, "CREATE INDEX IF NOT EXISTS idx_obs_relation ON observations(relation)");
+        }
     }
 
     private void safeExecSQL(SQLiteDatabase db, String sql) {
@@ -407,6 +449,10 @@ public class EchaDatabase extends SQLiteOpenHelper {
         cv.put("mediaCategory", enrichment.optString("mediaCategory", ""));
         cv.put("mediaQuality", enrichment.optString("mediaQuality", ""));
         cv.put("confidenceScore", enrichment.optDouble("confidenceScore", 0));
+        cv.put("tone", enrichment.optString("tone", ""));
+        cv.put("semanticSummary", enrichment.optString("semanticSummary", ""));
+        cv.put("primaryEmotion", enrichment.optString("primaryEmotion", ""));
+        cv.put("narrativeFrame", enrichment.optString("narrativeFrame", ""));
         cv.put("domains", jsonArrayToString(enrichment, "domains"));
         cv.put("subjects", jsonArrayToString(enrichment, "subjects"));
         cv.put("preciseSubjects", jsonArrayToString(enrichment, "preciseSubjects"));
@@ -930,6 +976,243 @@ public class EchaDatabase extends SQLiteOpenHelper {
         return result;
     }
 
+    // ── Taxonomy extract (full enrichment for all posts) ───────────
+
+    public JSONObject getTaxonomyExtract() throws JSONException {
+        JSONObject result = new JSONObject();
+        SQLiteDatabase db = getReadableDatabase();
+
+        // Total counts
+        Cursor cTotal = db.rawQuery("SELECT COUNT(*) FROM posts", null);
+        cTotal.moveToFirst(); result.put("totalPosts", cTotal.getInt(0)); cTotal.close();
+
+        Cursor cEnriched = db.rawQuery("SELECT COUNT(*) FROM post_enriched", null);
+        cEnriched.moveToFirst(); result.put("totalEnriched", cEnriched.getInt(0)); cEnriched.close();
+
+        // ── Level 1: Domains ──
+        JSONArray domainStats = new JSONArray();
+        Cursor cDom = db.rawQuery(
+                "SELECT domains FROM post_enriched WHERE domains != '[]' AND domains != ''", null);
+        Map<String, Integer> domainCounts = new LinkedHashMap<>();
+        while (cDom.moveToNext()) {
+            try {
+                JSONArray doms = new JSONArray(cDom.getString(0));
+                for (int i = 0; i < doms.length(); i++) {
+                    String d = doms.getString(i).trim();
+                    if (!d.isEmpty()) domainCounts.merge(d, 1, Integer::sum);
+                }
+            } catch (Exception ignored) {}
+        }
+        cDom.close();
+        for (Map.Entry<String, Integer> e : domainCounts.entrySet()) {
+            JSONObject o = new JSONObject();
+            o.put("name", e.getKey()); o.put("count", e.getValue());
+            domainStats.put(o);
+        }
+        result.put("domains", domainStats);
+
+        // ── Level 2: Themes (mainTopics + secondaryTopics) ──
+        JSONArray themeStats = new JSONArray();
+        Cursor cThemes = db.rawQuery(
+                "SELECT mainTopics, secondaryTopics FROM post_enriched", null);
+        Map<String, int[]> themeCounts = new LinkedHashMap<>(); // [main, secondary]
+        while (cThemes.moveToNext()) {
+            try {
+                JSONArray main = new JSONArray(cThemes.getString(0));
+                for (int i = 0; i < main.length(); i++) {
+                    String t = main.getString(i).trim();
+                    if (!t.isEmpty()) themeCounts.computeIfAbsent(t, k -> new int[2])[0]++;
+                }
+            } catch (Exception ignored) {}
+            try {
+                JSONArray sec = new JSONArray(cThemes.getString(1));
+                for (int i = 0; i < sec.length(); i++) {
+                    String t = sec.getString(i).trim();
+                    if (!t.isEmpty()) themeCounts.computeIfAbsent(t, k -> new int[2])[1]++;
+                }
+            } catch (Exception ignored) {}
+        }
+        cThemes.close();
+        for (Map.Entry<String, int[]> e : themeCounts.entrySet()) {
+            JSONObject o = new JSONObject();
+            o.put("name", e.getKey());
+            o.put("mainCount", e.getValue()[0]);
+            o.put("secondaryCount", e.getValue()[1]);
+            o.put("total", e.getValue()[0] + e.getValue()[1]);
+            themeStats.put(o);
+        }
+        result.put("themes", themeStats);
+
+        // ── Level 3: Subjects ──
+        JSONArray subjectStats = new JSONArray();
+        Cursor cSubj = db.rawQuery(
+                "SELECT subjects FROM post_enriched WHERE subjects != '[]' AND subjects != ''", null);
+        Map<String, Integer> subjectCounts = new LinkedHashMap<>();
+        while (cSubj.moveToNext()) {
+            try {
+                JSONArray subjs = new JSONArray(cSubj.getString(0));
+                for (int i = 0; i < subjs.length(); i++) {
+                    JSONObject s = subjs.getJSONObject(i);
+                    String label = s.optString("label", "").trim();
+                    if (!label.isEmpty()) subjectCounts.merge(label, 1, Integer::sum);
+                }
+            } catch (Exception ignored) {}
+        }
+        cSubj.close();
+        for (Map.Entry<String, Integer> e : subjectCounts.entrySet()) {
+            JSONObject o = new JSONObject();
+            o.put("label", e.getKey()); o.put("count", e.getValue());
+            subjectStats.put(o);
+        }
+        result.put("subjects", subjectStats);
+
+        // ── Level 4: Precise subjects ──
+        JSONArray preciseStats = new JSONArray();
+        Cursor cPs = db.rawQuery(
+                "SELECT preciseSubjects FROM post_enriched WHERE preciseSubjects != '[]' AND preciseSubjects != ''", null);
+        Map<String, JSONObject> preciseMap = new LinkedHashMap<>();
+        while (cPs.moveToNext()) {
+            try {
+                JSONArray pss = new JSONArray(cPs.getString(0));
+                for (int i = 0; i < pss.length(); i++) {
+                    JSONObject ps = pss.getJSONObject(i);
+                    String id = ps.optString("id", "");
+                    String statement = ps.optString("statement", id);
+                    String position = ps.optString("position", "neutre");
+                    if (id.isEmpty()) continue;
+                    JSONObject entry = preciseMap.get(id);
+                    if (entry == null) {
+                        entry = new JSONObject();
+                        entry.put("id", id);
+                        entry.put("statement", statement);
+                        entry.put("count", 0);
+                        entry.put("positions", new JSONObject());
+                        preciseMap.put(id, entry);
+                    }
+                    entry.put("count", entry.getInt("count") + 1);
+                    JSONObject positions = entry.getJSONObject("positions");
+                    positions.put(position, positions.optInt(position, 0) + 1);
+                }
+            } catch (Exception ignored) {}
+        }
+        cPs.close();
+        for (JSONObject e : preciseMap.values()) preciseStats.put(e);
+        result.put("preciseSubjects", preciseStats);
+
+        // ── Level 5: Entities (persons, organizations, institutions, countries, politicalActors) ──
+        JSONArray entityStats = new JSONArray();
+        Cursor cEnt = db.rawQuery(
+                "SELECT politicalActors, institutions FROM post_enriched", null);
+        Map<String, int[]> entityCounts = new LinkedHashMap<>(); // [politicalActor, institution]
+        while (cEnt.moveToNext()) {
+            try {
+                JSONArray actors = new JSONArray(cEnt.getString(0));
+                for (int i = 0; i < actors.length(); i++) {
+                    String a = actors.getString(i).trim();
+                    if (!a.isEmpty()) entityCounts.computeIfAbsent(a, k -> new int[]{0, 0})[0]++;
+                }
+            } catch (Exception ignored) {}
+            try {
+                JSONArray insts = new JSONArray(cEnt.getString(1));
+                for (int i = 0; i < insts.length(); i++) {
+                    String inst = insts.getString(i).trim();
+                    if (!inst.isEmpty()) entityCounts.computeIfAbsent(inst, k -> new int[]{0, 0})[1]++;
+                }
+            } catch (Exception ignored) {}
+        }
+        cEnt.close();
+        for (Map.Entry<String, int[]> e : entityCounts.entrySet()) {
+            JSONObject o = new JSONObject();
+            o.put("name", e.getKey());
+            o.put("type", e.getValue()[0] > 0 ? "politicalActor" : "institution");
+            o.put("count", e.getValue()[0] + e.getValue()[1]);
+            entityStats.put(o);
+        }
+        // Also get entities from knowledge_entities table
+        Cursor cKe = db.rawQuery(
+                "SELECT canonicalName, type, mentionCount FROM knowledge_entities " +
+                "WHERE mentionCount > 0 ORDER BY mentionCount DESC LIMIT 50", null);
+        JSONArray knowledgeEntities = new JSONArray();
+        while (cKe.moveToNext()) {
+            JSONObject o = new JSONObject();
+            o.put("name", cKe.getString(0));
+            o.put("type", cKe.getString(1));
+            o.put("mentions", cKe.getInt(2));
+            knowledgeEntities.put(o);
+        }
+        cKe.close();
+        result.put("entities", entityStats);
+        result.put("knowledgeEntities", knowledgeEntities);
+
+        // ── Sample posts with full taxonomy (last 30 enriched) ──
+        JSONArray samplePosts = new JSONArray();
+        Cursor cSample = db.rawQuery(
+                "SELECT p.postId, p.username, p.caption, p.dwellTimeMs, p.attentionLevel, " +
+                "e.domains, e.mainTopics, e.secondaryTopics, e.subjects, e.preciseSubjects, " +
+                "e.politicalActors, e.institutions, e.tone, e.primaryEmotion, e.narrativeFrame, " +
+                "e.semanticSummary, e.politicalExplicitnessScore, e.polarizationScore, " +
+                "e.confidenceScore, e.mediaCategory " +
+                "FROM posts p INNER JOIN post_enriched e ON e.postId = p.id " +
+                "WHERE e.confidenceScore > 0 " +
+                "ORDER BY e.updatedAt DESC LIMIT 30", null);
+        while (cSample.moveToNext()) {
+            JSONObject post = new JSONObject();
+            post.put("postId", cSample.getString(0));
+            post.put("username", cSample.getString(1));
+            post.put("caption", cSample.getString(2));
+            post.put("dwellTimeMs", cSample.getInt(3));
+            post.put("attentionLevel", cSample.getString(4));
+            post.put("domains", cSample.getString(5));
+            post.put("mainTopics", cSample.getString(6));
+            post.put("secondaryTopics", cSample.getString(7));
+            post.put("subjects", cSample.getString(8));
+            post.put("preciseSubjects", cSample.getString(9));
+            post.put("politicalActors", cSample.getString(10));
+            post.put("institutions", cSample.getString(11));
+            post.put("tone", cSample.getString(12));
+            post.put("primaryEmotion", cSample.getString(13));
+            post.put("narrativeFrame", cSample.getString(14));
+            post.put("semanticSummary", cSample.getString(15));
+            post.put("politicalScore", cSample.getInt(16));
+            post.put("polarizationScore", cSample.getDouble(17));
+            post.put("confidenceScore", cSample.getDouble(18));
+            post.put("mediaCategory", cSample.getString(19));
+            samplePosts.put(post);
+        }
+        cSample.close();
+        result.put("samplePosts", samplePosts);
+
+        // ── Tone/Emotion/Narrative distributions ──
+        JSONArray toneStats = new JSONArray();
+        Cursor cTone = db.rawQuery(
+                "SELECT tone, COUNT(*) as cnt FROM post_enriched WHERE tone != '' GROUP BY tone ORDER BY cnt DESC", null);
+        while (cTone.moveToNext()) {
+            JSONObject o = new JSONObject(); o.put("value", cTone.getString(0)); o.put("count", cTone.getInt(1)); toneStats.put(o);
+        }
+        cTone.close();
+        result.put("tones", toneStats);
+
+        JSONArray emotionStats = new JSONArray();
+        Cursor cEmo = db.rawQuery(
+                "SELECT primaryEmotion, COUNT(*) as cnt FROM post_enriched WHERE primaryEmotion != '' GROUP BY primaryEmotion ORDER BY cnt DESC", null);
+        while (cEmo.moveToNext()) {
+            JSONObject o = new JSONObject(); o.put("value", cEmo.getString(0)); o.put("count", cEmo.getInt(1)); emotionStats.put(o);
+        }
+        cEmo.close();
+        result.put("emotions", emotionStats);
+
+        JSONArray narrativeStats = new JSONArray();
+        Cursor cNarr = db.rawQuery(
+                "SELECT narrativeFrame, COUNT(*) as cnt FROM post_enriched WHERE narrativeFrame != '' AND narrativeFrame != 'aucun' GROUP BY narrativeFrame ORDER BY cnt DESC", null);
+        while (cNarr.moveToNext()) {
+            JSONObject o = new JSONObject(); o.put("value", cNarr.getString(0)); o.put("count", cNarr.getInt(1)); narrativeStats.put(o);
+        }
+        cNarr.close();
+        result.put("narratives", narrativeStats);
+
+        return result;
+    }
+
     // ── Unenriched posts query ────────────────────────────────────
 
     public JSONArray getUnenrichedPosts(int limit) throws JSONException {
@@ -940,6 +1223,39 @@ public class EchaDatabase extends SQLiteOpenHelper {
                 "p.mediaType, p.isSponsored, p.isSuggested, p.imageUrls " +
                 "FROM posts p LEFT JOIN post_enriched e ON e.postId = p.id " +
                 "WHERE e.id IS NULL AND length(p.allText) > 10 " +
+                "ORDER BY p.createdAt DESC LIMIT ?",
+                new String[]{String.valueOf(limit)});
+        while (c.moveToNext()) {
+            JSONObject post = new JSONObject();
+            post.put("id", c.getString(c.getColumnIndexOrThrow("id")));
+            post.put("postId", c.getString(c.getColumnIndexOrThrow("postId")));
+            post.put("username", c.getString(c.getColumnIndexOrThrow("username")));
+            post.put("caption", c.getString(c.getColumnIndexOrThrow("caption")));
+            post.put("fullCaption", c.getString(c.getColumnIndexOrThrow("fullCaption")));
+            post.put("hashtags", c.getString(c.getColumnIndexOrThrow("hashtags")));
+            post.put("imageAlts", c.getString(c.getColumnIndexOrThrow("imageAlts")));
+            post.put("allText", c.getString(c.getColumnIndexOrThrow("allText")));
+            post.put("ocrText", c.getString(c.getColumnIndexOrThrow("ocrText")));
+            post.put("mlkitLabels", c.getString(c.getColumnIndexOrThrow("mlkitLabels")));
+            post.put("mediaType", c.getString(c.getColumnIndexOrThrow("mediaType")));
+            post.put("isSponsored", c.getInt(c.getColumnIndexOrThrow("isSponsored")) == 1);
+            post.put("isSuggested", c.getInt(c.getColumnIndexOrThrow("isSuggested")) == 1);
+            post.put("imageUrls", c.getString(c.getColumnIndexOrThrow("imageUrls")));
+            result.put(post);
+        }
+        c.close();
+        return result;
+    }
+
+    public JSONArray getRulesOnlyPosts(int limit) throws JSONException {
+        JSONArray result = new JSONArray();
+        Cursor c = getReadableDatabase().rawQuery(
+                "SELECT p.id, p.postId, p.username, p.caption, p.fullCaption, " +
+                "p.hashtags, p.imageAlts, p.allText, p.ocrText, p.mlkitLabels, " +
+                "p.mediaType, p.isSponsored, p.isSuggested, p.imageUrls, p.videoUrl " +
+                "FROM posts p INNER JOIN post_enriched e ON e.postId = p.id " +
+                "WHERE (e.provider = 'rules' OR e.provider = 'skipped') " +
+                "AND length(p.allText) > 10 " +
                 "ORDER BY p.createdAt DESC LIMIT ?",
                 new String[]{String.valueOf(limit)});
         while (c.moveToNext()) {
@@ -1313,7 +1629,157 @@ public class EchaDatabase extends SQLiteOpenHelper {
         cStance.close();
         stats.put("stanceDistribution", stanceDistrib);
 
+        // Total edges
+        Cursor cEdges = db.rawQuery("SELECT COUNT(*) FROM knowledge_edges", null);
+        cEdges.moveToFirst(); stats.put("totalEdges", cEdges.getInt(0)); cEdges.close();
+
+        // ── Graph nodes + edges for force-directed visualization ──
+        // Nodes: top 40 entities by mentions (exclude Audience)
+        JSONArray graphNodes = new JSONArray();
+        Cursor cNodes = db.rawQuery(
+                "SELECT id, canonicalName, type, mentionCount FROM knowledge_entities " +
+                "WHERE type != 'Audience' AND mentionCount > 0 " +
+                "ORDER BY mentionCount DESC LIMIT 40", null);
+        Set<String> nodeIds = new LinkedHashSet<>();
+        while (cNodes.moveToNext()) {
+            JSONObject n = new JSONObject();
+            n.put("id", cNodes.getString(0));
+            n.put("name", cNodes.getString(1));
+            n.put("type", cNodes.getString(2));
+            n.put("mentions", cNodes.getInt(3));
+            graphNodes.put(n);
+            nodeIds.add(cNodes.getString(0));
+        }
+        cNodes.close();
+        stats.put("graphNodes", graphNodes);
+
+        // Edges: structural edges between visible nodes + co-occurrence edges
+        JSONArray graphEdges = new JSONArray();
+        // Structural edges from knowledge_edges
+        if (!nodeIds.isEmpty()) {
+            Cursor cGE = db.rawQuery(
+                    "SELECT ke.sourceId, ke.targetId, ke.relation, ke.weight " +
+                    "FROM knowledge_edges ke " +
+                    "WHERE ke.sourceId IN (SELECT id FROM knowledge_entities WHERE mentionCount > 0) " +
+                    "AND ke.targetId IN (SELECT id FROM knowledge_entities WHERE mentionCount > 0)", null);
+            while (cGE.moveToNext()) {
+                String src = cGE.getString(0);
+                String tgt = cGE.getString(1);
+                if (nodeIds.contains(src) && nodeIds.contains(tgt)) {
+                    JSONObject e = new JSONObject();
+                    e.put("source", src);
+                    e.put("target", tgt);
+                    e.put("relation", cGE.getString(2));
+                    e.put("weight", cGE.getDouble(3));
+                    graphEdges.put(e);
+                }
+            }
+            cGE.close();
+        }
+        // Co-occurrence edges (entities seen in same posts ≥2 times)
+        Cursor cCoEdge = db.rawQuery(
+                "SELECT o1.entityId, o2.entityId, COUNT(*) as co " +
+                "FROM observations o1 " +
+                "JOIN observations o2 ON o1.postId = o2.postId AND o1.entityId < o2.entityId " +
+                "JOIN knowledge_entities ke1 ON o1.entityId = ke1.id " +
+                "JOIN knowledge_entities ke2 ON o2.entityId = ke2.id " +
+                "WHERE ke1.type NOT IN ('Audience', 'Emotion') " +
+                "AND ke2.type NOT IN ('Audience', 'Emotion') " +
+                "GROUP BY o1.entityId, o2.entityId HAVING co >= 2 " +
+                "ORDER BY co DESC LIMIT 60", null);
+        while (cCoEdge.moveToNext()) {
+            String src = cCoEdge.getString(0);
+            String tgt = cCoEdge.getString(1);
+            if (nodeIds.contains(src) && nodeIds.contains(tgt)) {
+                JSONObject e = new JSONObject();
+                e.put("source", src);
+                e.put("target", tgt);
+                e.put("relation", "coOccurrence");
+                e.put("weight", cCoEdge.getInt(2));
+                graphEdges.put(e);
+            }
+        }
+        cCoEdge.close();
+        stats.put("graphEdges", graphEdges);
+
+        // ── Timeline: entity mentions grouped by week ──
+        JSONArray timeline = new JSONArray();
+        Cursor cTL = db.rawQuery(
+                "SELECT strftime('%Y-W%W', o.createdAt / 1000, 'unixepoch') as week, " +
+                "ke.canonicalName, COUNT(*) as cnt " +
+                "FROM observations o " +
+                "JOIN knowledge_entities ke ON o.entityId = ke.id " +
+                "WHERE ke.type NOT IN ('Audience', 'Emotion') " +
+                "GROUP BY week, ke.canonicalName " +
+                "ORDER BY week DESC, cnt DESC", null);
+        // Pivot: group by week
+        Map<String, JSONArray> weekMap = new LinkedHashMap<>();
+        while (cTL.moveToNext()) {
+            String week = cTL.getString(0);
+            JSONArray ents = weekMap.get(week);
+            if (ents == null) { ents = new JSONArray(); weekMap.put(week, ents); }
+            if (ents.length() < 8) { // top 8 per week
+                JSONObject item = new JSONObject();
+                item.put("name", cTL.getString(1));
+                item.put("count", cTL.getInt(2));
+                ents.put(item);
+            }
+        }
+        cTL.close();
+        for (Map.Entry<String, JSONArray> entry : weekMap.entrySet()) {
+            JSONObject weekObj = new JSONObject();
+            weekObj.put("week", entry.getKey());
+            weekObj.put("entities", entry.getValue());
+            timeline.put(weekObj);
+        }
+        stats.put("timeline", timeline);
+
         return stats;
+    }
+
+    /**
+     * Save structural edges from the ontology (Person→Org, Theme→Domain, etc.)
+     */
+    public void saveStructuralEdges(JSONArray edges) throws JSONException {
+        SQLiteDatabase wdb = getWritableDatabase();
+        long now = System.currentTimeMillis();
+        int saved = 0;
+
+        wdb.beginTransaction();
+        try {
+            for (int i = 0; i < edges.length(); i++) {
+                JSONObject edge = edges.getJSONObject(i);
+                String srcName = edge.optString("sourceCanonical", "");
+                String srcType = edge.optString("sourceType", "");
+                String tgtName = edge.optString("targetCanonical", "");
+                String tgtType = edge.optString("targetType", "");
+                String relation = edge.optString("relation", "");
+                double weight = edge.optDouble("weight", 1.0);
+
+                if (srcName.isEmpty() || tgtName.isEmpty() || relation.isEmpty()) continue;
+
+                // Resolve or create source entity
+                String srcId = resolveEntity(srcName, srcType);
+                String tgtId = resolveEntity(tgtName, tgtType);
+                if (srcId == null || tgtId == null) continue;
+
+                // Insert edge (IGNORE conflict = skip duplicates)
+                String edgeId = "se_" + now + "_" + i;
+                ContentValues cv = new ContentValues();
+                cv.put("id", edgeId);
+                cv.put("sourceId", srcId);
+                cv.put("targetId", tgtId);
+                cv.put("relation", relation);
+                cv.put("weight", weight);
+                cv.put("createdAt", now);
+                wdb.insertWithOnConflict("knowledge_edges", null, cv, SQLiteDatabase.CONFLICT_IGNORE);
+                saved++;
+            }
+            wdb.setTransactionSuccessful();
+        } finally {
+            wdb.endTransaction();
+        }
+        Log.i(TAG, "Saved " + saved + " structural edges");
     }
 
     private static String canonicalize(String name) {

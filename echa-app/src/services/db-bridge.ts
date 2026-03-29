@@ -262,3 +262,28 @@ export async function resetAllEnrichments(): Promise<number> {
 export function safeParse(json: string | null | undefined): string[] {
   try { return JSON.parse(json || '[]'); } catch { return []; }
 }
+
+// ── Ontology resolution for Wrapped display ─────────────────
+
+import { resolveEntityLocal } from './ontology.js';
+
+export interface ResolvedEntity {
+  raw: string;
+  canonical: string;
+  type: string;
+  count: number;
+}
+
+/** Resolve raw topic/actor names to canonical forms via ontology */
+export function resolveEntities(items: Array<{ topic?: string; narrative?: string; emotion?: string; username?: string; count: number }>): ResolvedEntity[] {
+  return items.map(item => {
+    const raw = item.topic || item.narrative || item.emotion || item.username || '';
+    const resolved = resolveEntityLocal(raw);
+    return {
+      raw,
+      canonical: resolved?.canonical || raw.replace(/_/g, ' '),
+      type: resolved?.type || 'Unknown',
+      count: item.count,
+    };
+  });
+}

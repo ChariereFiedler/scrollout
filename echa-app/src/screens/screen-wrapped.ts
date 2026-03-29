@@ -1,18 +1,22 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { customElement, state } from 'lit/decorators.js';
-import { getCognitiveThemes, getStats, type CognitiveThemeRow, type DbStats } from '../services/db-bridge.js';
+import { getStats, type DbStats, resolveEntities, type ResolvedEntity } from '../services/db-bridge.js';
+import { resolveEntityLocal, ENTITY_DICTIONARY } from '../services/ontology.js';
 
-/** Domain → color mapping (Scrollout palette) */
+// ── Constants ───────────────────────────────────────────────
+
+const TOTAL_SLIDES = 9;
+
 const DOMAIN_COLORS: Record<string, string> = {
-  culture_divertissement: '#8B44E8',
-  lifestyle_bienetre: '#88EEBB',
-  politique_societe: '#FF2222',
-  information_savoirs: '#88CCFF',
-  ecologie_environnement: '#6BE88B',
-  economie_travail: '#FFE94A',
-  sport: '#FF7B33',
-  technologie: '#6B6BFF',
+  culture_divertissement: '#8B22CC',
+  lifestyle_bienetre: '#90DDAA',
+  politique_societe: '#FF0000',
+  information_savoirs: '#B0E0FF',
+  ecologie_environnement: '#90EE90',
+  economie_travail: '#FFFF66',
+  sport: '#FF6B00',
+  technologie: '#5B3FE8',
 };
 
 function domainLabel(d: string): string {
@@ -27,7 +31,39 @@ function domainLabel(d: string): string {
   return map[d] || d;
 }
 
-/** Inline Lucide-style SVG icons (24x24, stroke) */
+// ── Emotion → color + icon mapping ──────────────────────────
+
+const EMOTION_META: Record<string, { color: string; icon: string }> = {
+  anger:    { color: '#FF0000', icon: '<path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14 0-5.5 3-7 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.15.5-2.5 1.5-3.5z"/>' },
+  fear:     { color: '#9B59B6', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
+  joy:      { color: '#FFFF66', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
+  hope:     { color: '#90EE90', icon: '<path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 00-8 0"/>' },
+  disgust:  { color: '#2ECC71', icon: '<circle cx="12" cy="12" r="10"/><path d="M16 16s-1.5-2-4-2-4 2-4 2"/><path d="M7.5 8l2.5 1 2.5-1"/><path d="M16.5 8l-2.5 1-2.5-1"/>' },
+  sadness:  { color: '#3498DB', icon: '<path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5S5 13 5 15a7 7 0 007 7z"/>' },
+  surprise: { color: '#FF6B00', icon: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
+  contempt: { color: '#95A5A6', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15c1 1 3.5 1 5-1"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
+  neutral:  { color: '#BDC3C7', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><path d="M9 9h.01"/><path d="M15 9h.01"/>' },
+};
+
+// ── Narrative → icon mapping ────────────────────────────────
+
+const NARRATIVE_META: Record<string, { color: string; icon: string; label: string }> = {
+  apocalyptic:       { color: '#FF0000', icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>', label: 'Apocalyptique' },
+  hero_journey:      { color: '#5B3FE8', icon: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>', label: 'Heroique' },
+  oppression:        { color: '#9B59B6', icon: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>', label: 'Oppression' },
+  meritocracy:       { color: '#FFFF66', icon: '<path d="M6 9H4.5a2.5 2.5 0 010-5H6"/><path d="M18 9h1.5a2.5 2.5 0 000-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 1012 0V2z"/>', label: 'Meritocratie' },
+  us_vs_them:        { color: '#FF6B00', icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>', label: 'Nous vs Eux' },
+  victim:            { color: '#3498DB', icon: '<path d="M12 22a7 7 0 007-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5S5 13 5 15a7 7 0 007 7z"/>', label: 'Victimaire' },
+  resistance:        { color: '#E74C3C', icon: '<path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z"/><path d="M14 2v6h6"/>', label: 'Resistance' },
+  progress:          { color: '#90EE90', icon: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>', label: 'Progres' },
+  nostalgia:         { color: '#D4A76A', icon: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>', label: 'Nostalgie' },
+  fear_mongering:    { color: '#8E44AD', icon: '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>', label: 'Alarmisme' },
+  empowerment:       { color: '#FF6B00', icon: '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>', label: 'Empowerment' },
+  conspiracy:        { color: '#2C3E50', icon: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>', label: 'Complotisme' },
+};
+
+// ── Lucide SVG helper ───────────────────────────────────────
+
 const icon = (path: string, size = 20) => html`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex-shrink:0;">${unsafeSVG(path)}</svg>`;
 
 const ICONS = {
@@ -47,6 +83,10 @@ const ICONS = {
   gauge: '<path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 6v6l4 2"/>',
   flame: '<path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.07-2.14 0-5.5 3-7 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.15.5-2.5 1.5-3.5z"/>',
   clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0016.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 002 8.5c0 2.3 1.5 4.05 3 5.5l7 7z"/>',
+  brain: '<path d="M9.5 2A2.5 2.5 0 0112 4.5v15a2.5 2.5 0 01-4.96.44A2.5 2.5 0 015 17.5a2.5 2.5 0 01.49-4.78A2.5 2.5 0 014 10.5a2.5 2.5 0 013.92-2.06A2.5 2.5 0 019.5 2z"/><path d="M14.5 2A2.5 2.5 0 0012 4.5v15a2.5 2.5 0 004.96.44A2.5 2.5 0 0019 17.5a2.5 2.5 0 01-.49-4.78A2.5 2.5 0 0020 10.5a2.5 2.5 0 00-3.92-2.06A2.5 2.5 0 0014.5 2z"/>',
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51l-6.82 3.98"/>',
+  sparkles: '<path d="M9.937 15.5A2 2 0 008.5 14.063l-6.135-1.582a.5.5 0 010-.962L8.5 9.936A2 2 0 009.937 8.5l1.582-6.135a.5.5 0 01.962 0L14.063 8.5A2 2 0 0015.5 9.937l6.135 1.582a.5.5 0 010 .962L15.5 14.063a2 2 0 00-1.437 1.437l-1.582 6.135a.5.5 0 01-.962 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
 };
 
 function pct(n: number, total: number): number {
@@ -59,105 +99,30 @@ function formatDwell(ms: number): string {
   return `${min}min`;
 }
 
-interface WrappedIntroTopic {
-  id: string;
-  label: string;
-  pct: number;
-  dwellMs: number;
-}
-
-const EDITORIAL_TOPIC_LABELS: Record<string, string> = {
-  actualite: 'infos',
-  information: 'infos',
-  informations: 'infos',
-  politique: 'opinions',
-  debat_public: 'opinions',
-  idees: 'opinions',
-  culture: 'culture',
-  divertissement: 'divertissement',
-  humour: 'divertissement',
-  lifestyle: 'lifestyle',
-  beaute: 'beaute',
-  sport: 'sport',
-  economie: 'business',
-  business: 'business',
-  technologie: 'tech',
-  gaming: 'gaming',
-  jeux_video: 'gaming',
-  education: 'education',
-  identite: 'societe',
-  securite: 'societe',
-  sante: 'sante',
-  ecologie: 'ecologie',
-};
-
-function normalizeTopicKey(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
-function editorialTopicLabel(value: string): string {
-  const normalized = normalizeTopicKey(value);
-  return EDITORIAL_TOPIC_LABELS[normalized] || value.toLowerCase();
-}
-
-function withFrenchPartitive(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  return /^[aeiouyh]/i.test(trimmed) ? `d'${trimmed}` : `de ${trimmed}`;
-}
-
-type WrappedTeaser = {
-  id: string;
-  rawLabel: string;
-  label: string;
-  dwellMs: number;
-  pct: number;
-};
+// ── Component ───────────────────────────────────────────────
 
 @customElement('screen-wrapped')
 export class ScreenWrapped extends LitElement {
   static styles = css`
-    @font-face {
-      font-family: 'Averia Sans Libre';
-      src: url('/fonts/AveriaSansLibre-Regular.ttf') format('truetype');
-      font-weight: 400;
-      font-style: normal;
-      font-display: swap;
-    }
-
-    @font-face {
-      font-family: 'Averia Sans Libre';
-      src: url('/fonts/AveriaSansLibre-Bold.ttf') format('truetype');
-      font-weight: 700 900;
-      font-style: normal;
-      font-display: swap;
-    }
-
     :host {
       display: block;
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: 'Averia Sans Libre', 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'Averia Sans Libre', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       -webkit-font-smoothing: antialiased;
     }
 
     .slides {
       display: flex;
-      width: 800%;
+      width: ${TOTAL_SLIDES * 100}%;
       height: 100%;
       transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
       touch-action: pan-y;
     }
 
     .slide {
-      width: calc(100% / 8);
+      width: calc(100% / ${TOTAL_SLIDES});
       height: 100%;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
@@ -167,22 +132,16 @@ export class ScreenWrapped extends LitElement {
       box-sizing: border-box;
     }
 
-    .slide-0 {
-      position: relative;
-      background:
-        radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.35), transparent 14%),
-        linear-gradient(180deg, #f3efe0 0%, #ede8d7 100%);
-      color: #151112;
-    }
-
-    /* ── Light backgrounds per slide ── */
+    /* ── Slide backgrounds ── */
     .slide-1 { background: linear-gradient(180deg, #fafafa 0%, #f0f0f5 100%); }
     .slide-2 { background: linear-gradient(180deg, #f8f8fc 0%, #eef0f8 100%); }
     .slide-3 { background: linear-gradient(180deg, #fdf9f2 0%, #f4efe5 100%); }
     .slide-4 { background: linear-gradient(180deg, #1a1a1a 0%, #111 100%); color: #f0f0f0; }
-    .slide-5 { background: linear-gradient(180deg, #f5f7f2 0%, #ecefe6 100%); }
-    .slide-6 { background: linear-gradient(180deg, #0f0f1a 0%, #1a1025 100%); color: #f0f0f0; }
-    .slide-7 { background: linear-gradient(180deg, #f8f4ec 0%, #eee7db 100%); }
+    .slide-5 { background: linear-gradient(180deg, #0f0f1a 0%, #1a1025 100%); color: #f0f0f0; }
+    .slide-6 { background: linear-gradient(180deg, #f5f7f2 0%, #ecefe6 100%); }
+    .slide-7 { background: linear-gradient(180deg, #0f0f1a 0%, #1a1025 100%); color: #f0f0f0; }
+    .slide-8 { background: linear-gradient(180deg, #f8f4ec 0%, #eee7db 100%); }
+    .slide-9 { background: linear-gradient(180deg, #111 0%, #1a1025 100%); color: #f0f0f0; }
 
     /* ── Typography ── */
     .eyebrow {
@@ -194,216 +153,17 @@ export class ScreenWrapped extends LitElement {
       color: #999;
       margin-bottom: 12px;
     }
-    .slide-4 .eyebrow { color: #88aacc; }
+    .dark-slide .eyebrow { color: #88aacc; }
 
     .title {
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Averia Sans Libre', sans-serif;
       font-weight: 900;
       font-size: 28px;
       line-height: 1;
       color: #111;
       margin-bottom: 12px;
     }
-    .slide-4 .title { color: #f0f0f0; }
-
-    .slide-0 .bubble-copy,
-    .slide-0 .intro-label,
-    .slide-0 .intro-subject,
-    .slide-0 .intro-secondary,
-    .slide-0 .intro-fallback {
-      color: #151112;
-    }
-
-    .slide-0 .bubble-stage {
-      position: relative;
-      width: 100%;
-      min-height: 430px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 24px 0 10px;
-    }
-
-    .slide-0 .bubble-stack {
-      position: relative;
-      width: min(100%, 340px);
-      height: 420px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .slide-0 .big-bubble,
-    .slide-0 .tail-bubble,
-    .slide-0 .tail-bubble::after {
-      position: absolute;
-      border-radius: 50%;
-    }
-
-    .slide-0 .big-bubble {
-      width: 276px;
-      height: 276px;
-      background: #e6b0ea;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%) scale(0.98);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-      animation: bubblePop 800ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
-    }
-
-    .slide-0 .big-bubble::before,
-    .slide-0 .tail-bubble::before {
-      content: '';
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.22);
-      filter: blur(0.5px);
-    }
-
-    .slide-0 .big-bubble::before {
-      width: 42px;
-      height: 64px;
-      right: 24px;
-      top: 24px;
-      transform: rotate(26deg);
-    }
-
-    .slide-0 .bubble-copy {
-      position: absolute;
-      inset: 34px 24px 34px 24px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      text-align: left;
-      flex-direction: column;
-      font-family: 'Averia Sans Libre', 'Outfit', sans-serif;
-      font-weight: 900;
-      font-size: 32px;
-      line-height: 0.9;
-      letter-spacing: -0.04em;
-    }
-
-    .slide-0 .bubble-copy span {
-      display: block;
-    }
-
-    .slide-0 .tail-bubble {
-      background: #e6b0ea;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-      animation: bubbleFloat 5s ease-in-out infinite;
-    }
-
-    .slide-0 .tail-bubble::before {
-      width: 18%;
-      height: 28%;
-      right: 16%;
-      top: 12%;
-      transform: rotate(24deg);
-    }
-
-    .slide-0 .tail-bubble::after {
-      inset: 0;
-      content: '';
-      background: transparent;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-    }
-
-    .slide-0 .tail-1 {
-      width: 92px;
-      height: 92px;
-      left: 205px;
-      top: 256px;
-      animation-delay: 180ms;
-    }
-
-    .slide-0 .tail-2 {
-      width: 58px;
-      height: 58px;
-      left: 164px;
-      top: 350px;
-      animation-delay: 340ms;
-    }
-
-    .slide-0 .tail-3 {
-      width: 28px;
-      height: 28px;
-      left: 140px;
-      top: 414px;
-      animation-delay: 500ms;
-    }
-
-    .slide-0 .intro-panel {
-      margin-top: auto;
-      padding-top: 8px;
-      text-align: center;
-    }
-
-    .slide-0 .intro-label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 8px;
-    }
-
-    .slide-0 .intro-stats {
-      display: grid;
-      gap: 6px;
-      justify-items: center;
-    }
-
-    .slide-0 .intro-topline {
-      font-family: 'Averia Sans Libre', 'Outfit', sans-serif;
-      font-size: 20px;
-      font-weight: 900;
-      line-height: 1;
-      margin-bottom: 4px;
-    }
-
-    .slide-0 .intro-main {
-      display: grid;
-      justify-items: center;
-      gap: 2px;
-    }
-
-    .slide-0 .intro-pct {
-      font-family: 'Outfit', sans-serif;
-      font-size: 90px;
-      line-height: 0.9;
-      font-weight: 900;
-      letter-spacing: -0.07em;
-    }
-
-    .slide-0 .intro-subject {
-      font-family: 'Averia Sans Libre', 'Outfit', sans-serif;
-      font-size: 30px;
-      line-height: 0.95;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-    }
-
-    .slide-0 .intro-secondary {
-      font-family: 'Averia Sans Libre', 'Outfit', sans-serif;
-      font-size: 22px;
-      font-weight: 900;
-      line-height: 1;
-      letter-spacing: -0.02em;
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .slide-0 .intro-secondary span {
-      white-space: nowrap;
-    }
-
-    .slide-0 .intro-fallback {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      opacity: 0.72;
-    }
+    .dark-slide .title { color: #f0f0f0; }
 
     .body-text {
       font-size: 13px;
@@ -411,7 +171,7 @@ export class ScreenWrapped extends LitElement {
       color: #555;
       margin-bottom: 14px;
     }
-    .slide-4 .body-text { color: #aaa; }
+    .dark-slide .body-text { color: #aaa; }
 
     /* ── Hero stat ── */
     .hero {
@@ -421,7 +181,7 @@ export class ScreenWrapped extends LitElement {
       margin-bottom: 16px;
     }
     .hero-big {
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Averia Sans Libre', sans-serif;
       font-weight: 900;
       font-size: 96px;
       line-height: 0.88;
@@ -447,7 +207,7 @@ export class ScreenWrapped extends LitElement {
       padding: 16px;
     }
     .stat-card .val {
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Averia Sans Libre', sans-serif;
       font-weight: 700;
       font-size: 22px;
       line-height: 1;
@@ -500,18 +260,18 @@ export class ScreenWrapped extends LitElement {
     .bubble.ghost .b-label { color: #999; text-shadow: none; font-weight: 600; }
     .bubble.ghost .b-count { color: #aaa; }
 
-    /* ── Info cards (bias, contradictions) ── */
+    /* ── Info cards ── */
     .info-card {
       border-radius: 20px;
       padding: 18px;
       margin-bottom: 12px;
     }
     .info-card.dark { background: #111; color: #f0f0f0; }
-    .info-card.accent { background: #6B6BFF; color: #fff; }
-    .info-card.orange { background: #FF7B33; color: #fff; }
-    .info-card.yellow { background: #FFE94A; color: #111; }
-    .info-card.red { background: #FF2222; color: #fff; }
-    .info-card.mint { background: #6BE88B; color: #111; }
+    .info-card.accent { background: #5B3FE8; color: #fff; }
+    .info-card.orange { background: #FF6B00; color: #fff; }
+    .info-card.yellow { background: #FFFF66; color: #111; }
+    .info-card.red { background: #FF0000; color: #fff; }
+    .info-card.mint { background: #90EE90; color: #111; }
     .info-card.surface { background: #f0ece3; color: #333; }
     .info-card .card-eyebrow {
       font-family: 'JetBrains Mono', monospace;
@@ -533,14 +293,14 @@ export class ScreenWrapped extends LitElement {
     }
     .info-card .card-row svg { margin-top: 1px; }
 
-    /* ── Metric blocks (slide 5) ── */
+    /* ── Metric blocks ── */
     .metric-block {
       border-radius: 24px;
       padding: 20px;
       margin-bottom: 12px;
     }
     .metric-block .m-val {
-      font-family: 'Outfit', sans-serif;
+      font-family: 'Averia Sans Libre', sans-serif;
       font-weight: 900;
       font-size: 48px;
       line-height: 1;
@@ -550,18 +310,6 @@ export class ScreenWrapped extends LitElement {
       font-weight: 600;
       line-height: 1.2;
       margin-top: 6px;
-    }
-
-    /* ── Action cards (slide 6) ── */
-    .action-card {
-      border-radius: 20px;
-      padding: 18px;
-      margin-bottom: 10px;
-    }
-    .action-card .a-text {
-      font-size: 14px;
-      font-weight: 700;
-      line-height: 1.2;
     }
 
     /* ── Domain bars ── */
@@ -602,6 +350,95 @@ export class ScreenWrapped extends LitElement {
       color: #777;
     }
 
+    /* ── Narrative/Emotion chips ── */
+    .chip-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-radius: 16px;
+      padding: 14px 16px;
+    }
+    .chip-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .chip-label {
+      font-weight: 700;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+    .chip-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+    .chip-bar {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.15);
+      margin-top: 4px;
+    }
+    .chip-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    /* ── Compass ── */
+    .compass-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 24px;
+      background: #222;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .compass-axis {
+      position: absolute;
+      background: rgba(255,255,255,0.08);
+    }
+    .compass-axis.h { width: 100%; height: 1px; top: 50%; }
+    .compass-axis.v { height: 100%; width: 1px; left: 50%; }
+    .compass-label {
+      position: absolute;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+    }
+    .compass-dot {
+      position: absolute;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 20px var(--dot-color);
+    }
+    .compass-quadrant {
+      position: absolute;
+      width: 50%;
+      height: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.15);
+      text-align: center;
+      padding: 12px;
+    }
+
     /* ── Footer nav ── */
     .spacer { flex: 1; }
 
@@ -613,27 +450,22 @@ export class ScreenWrapped extends LitElement {
     }
     .dots {
       display: flex;
-      gap: 6px;
+      gap: 5px;
     }
     .dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: #ccc;
       transition: all 0.3s;
     }
     .dot.active {
-      background: #6B6BFF;
-      width: 20px;
+      background: #5B3FE8;
+      width: 18px;
       border-radius: 4px;
     }
-    .slide-4 .dot { background: #444; }
-    .slide-4 .dot.active { background: #6B6BFF; }
-    .slide-6 .dot { background: #444; }
-    .slide-6 .dot.active { background: #6B6BFF; }
-    .slide-6 .eyebrow { color: #88aacc; }
-    .slide-6 .title { color: #f0f0f0; }
-    .slide-6 .body-text { color: #aaa; }
+    .dark-slide .dot { background: #444; }
+    .dark-slide .dot.active { background: #5B3FE8; }
 
     .btn-next {
       display: flex;
@@ -644,7 +476,7 @@ export class ScreenWrapped extends LitElement {
       border: none;
       border-radius: 999px;
       padding: 10px 18px;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Averia Sans Libre', sans-serif;
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
@@ -652,12 +484,8 @@ export class ScreenWrapped extends LitElement {
       -webkit-tap-highlight-color: transparent;
     }
     .btn-next:active { opacity: 0.7; }
-    .slide-4 .btn-next { background: #f0f0f0; color: #111; }
-    .slide-6 .btn-next { background: #f0f0f0; color: #111; }
-    .slide-6 .btn-back { color: #666; }
-    .slide-6 .close-btn { background: rgba(255,255,255,0.15); }
-    .slide-6 .close-btn svg { stroke: #aaa; }
-    .btn-next.finish { background: #6B6BFF; color: #fff; }
+    .dark-slide .btn-next { background: #f0f0f0; color: #111; }
+    .btn-next.finish { background: #5B3FE8; color: #fff; }
 
     .btn-back {
       background: none;
@@ -669,7 +497,7 @@ export class ScreenWrapped extends LitElement {
       padding: 8px;
       -webkit-tap-highlight-color: transparent;
     }
-    .slide-4 .btn-back { color: #666; }
+    .dark-slide .btn-back { color: #666; }
 
     /* ── Close button ── */
     .close-btn {
@@ -690,33 +518,33 @@ export class ScreenWrapped extends LitElement {
     }
     .close-btn svg { width: 20px; height: 20px; stroke: #555; stroke-width: 2.5; }
     .close-btn:active { opacity: 0.5; }
-    .slide-4 .close-btn { background: rgba(255,255,255,0.15); }
-    .slide-4 .close-btn svg { stroke: #aaa; }
+    .dark-slide .close-btn { background: rgba(255,255,255,0.15); }
+    .dark-slide .close-btn svg { stroke: #aaa; }
 
-    @keyframes bubblePop {
-      0% {
-        opacity: 0;
-        transform: translateX(-50%) scale(0.72);
-      }
-      65% {
-        opacity: 1;
-        transform: translateX(-50%) scale(1.04);
-      }
-      100% {
-        opacity: 1;
-        transform: translateX(-50%) scale(1);
-      }
+    /* ── Share button ── */
+    .share-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px;
+      border-radius: 16px;
+      border: none;
+      background: linear-gradient(135deg, #5B3FE8 0%, #8B22CC 100%);
+      color: #fff;
+      font-family: 'Averia Sans Libre', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 12px;
+      -webkit-tap-highlight-color: transparent;
     }
-
-    @keyframes bubbleFloat {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
-    }
+    .share-btn:active { opacity: 0.8; }
   `;
 
-  @state() private currentSlide = 0;
+  @state() currentSlide = 0;
   @state() private stats: DbStats | null = null;
-  @state() private wrappedThemes: WrappedTeaser[] = [];
   @state() private loading = true;
 
   private touchStartX = 0;
@@ -729,53 +557,11 @@ export class ScreenWrapped extends LitElement {
 
   private async loadData() {
     try {
-      const stats = await getStats();
-      this.stats = stats;
-      try {
-        const cognitive = await getCognitiveThemes();
-        this.wrappedThemes = this.buildIntroThemes(cognitive.themes, stats);
-      } catch (themeError) {
-        console.warn('[Wrapped] Failed to load cognitive themes:', themeError);
-        this.wrappedThemes = this.buildIntroThemes([], stats);
-      }
+      this.stats = await getStats();
     } catch (e) {
       console.warn('[Wrapped] Failed to load stats:', e);
     }
     this.loading = false;
-  }
-
-  private buildIntroThemes(themes: CognitiveThemeRow[], stats: DbStats): WrappedTeaser[] {
-    const mainTopics = themes
-      .filter(theme => theme.source === 'mainTopics')
-      .sort((a, b) => b.totalDwellTimeMs - a.totalDwellTimeMs)
-      .slice(0, 3);
-
-    if (mainTopics.length > 0) {
-      const total = mainTopics.reduce((sum, theme) => sum + theme.totalDwellTimeMs, 0) || 1;
-      return mainTopics.map((theme, index) => ({
-        id: theme.themeId || `${theme.themeLabel}-${index}`,
-        rawLabel: theme.themeLabel,
-        label: editorialTopicLabel(theme.themeLabel),
-        dwellMs: theme.totalDwellTimeMs,
-        pct: Math.round((theme.totalDwellTimeMs / total) * 100),
-      }));
-    }
-
-    const fallback = (stats.topTopics || [])
-      .slice(0, 3)
-      .map((topic, index) => ({
-        id: `${topic.topic}-${index}`,
-        rawLabel: topic.topic,
-        label: editorialTopicLabel(topic.topic),
-        dwellMs: topic.count,
-        pct: 0,
-      }));
-
-    const total = fallback.reduce((sum, theme) => sum + theme.dwellMs, 0) || 1;
-    return fallback.map(theme => ({
-      ...theme,
-      pct: Math.round((theme.dwellMs / total) * 100),
-    }));
   }
 
   private get totalEnriched(): number { return this.stats?.totalEnriched || 0; }
@@ -799,8 +585,8 @@ export class ScreenWrapped extends LitElement {
     return this.stats?.avgPolarization ?? 0;
   }
 
-  private go(slide: number) {
-    this.currentSlide = Math.max(0, Math.min(7, slide));
+  go(slide: number) {
+    this.currentSlide = Math.max(0, Math.min(TOTAL_SLIDES - 1, slide));
   }
 
   private onTouchStart(e: TouchEvent) {
@@ -820,15 +606,33 @@ export class ScreenWrapped extends LitElement {
     this.touchDelta = 0;
   }
 
-  private close() {
+  close() {
     this.dispatchEvent(new CustomEvent('close-wrapped', { bubbles: true, composed: true }));
+  }
+
+  private async shareWrapped() {
+    const s = this.stats;
+    if (!s) return;
+    const text = [
+      `Scrollout Wrapped 2026`,
+      `${s.totalPosts} posts analyses, ${s.totalEnriched} enrichis`,
+      `Top: ${domainLabel(this.topDomain.domain)} (${this.topDomain.pct}%)`,
+      `Polarisation: ${Math.round(this.avgPolarization * 100)}%`,
+      `${formatDwell(s.totalDwellMs)} de scroll`,
+    ].join('\n');
+
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Mon Scrollout Wrapped', text }); } catch {}
+    } else {
+      // Fallback: copy to clipboard
+      try { await navigator.clipboard.writeText(text); } catch {}
+    }
   }
 
   render() {
     if (this.loading) {
       return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#fafafa;color:#999;font-size:13px;">Chargement...</div>`;
     }
-
     const s = this.stats;
     if (!s) {
       return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#fafafa;color:#999;font-size:13px;">Pas de donnees disponibles</div>`;
@@ -836,90 +640,46 @@ export class ScreenWrapped extends LitElement {
 
     return html`
       <div class="slides"
-        style="transform: translateX(-${this.currentSlide * (100 / 8)}%)"
+        style="transform: translateX(-${this.currentSlide * (100 / TOTAL_SLIDES)}%)"
         @touchstart=${this.onTouchStart}
         @touchmove=${this.onTouchMove}
         @touchend=${this.onTouchEnd}
       >
-        ${this.renderIntroSlide()}
         ${this.renderSlide1(s)}
         ${this.renderSlide2(s)}
         ${this.renderSlide3(s)}
-        ${this.renderSlide4(s)}
-        ${this.renderSlide5(s)}
-        ${this.renderSlide6Records(s)}
-        ${this.renderSlide7(s)}
+        ${this.renderSlide4Narratives(s)}
+        ${this.renderSlide5Emotions(s)}
+        ${this.renderSlide6Compass(s)}
+        ${this.renderSlide7Ego(s)}
+        ${this.renderSlide8Records(s)}
+        ${this.renderSlide9Exit(s)}
       </div>
     `;
   }
 
-  private renderFooter(slide: number, isDark = false) {
+  private closeBtn() {
+    return html`<button class="close-btn" @click=${this.close}>
+      <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>`;
+  }
+
+  private renderFooter(slide: number) {
+    const last = TOTAL_SLIDES - 1;
     return html`
       <div class="spacer"></div>
       <div class="footer">
         ${slide > 0
-          ? html`<button class="btn-back" @click=${() => this.go(slide - 1)}>← Retour</button>`
+          ? html`<button class="btn-back" @click=${() => this.go(slide - 1)}>${'\u2190'} Retour</button>`
           : html`<span></span>`
         }
         <div class="dots">
-          ${[0, 1, 2, 3, 4, 5, 6, 7].map(i => html`<div class="dot ${i === slide ? 'active' : ''}"></div>`)}
+          ${Array.from({ length: TOTAL_SLIDES }, (_, i) => html`<div class="dot ${i === slide ? 'active' : ''}"></div>`)}
         </div>
-        ${slide < 7
-          ? html`<button class="btn-next" @click=${() => this.go(slide + 1)}>Suivant <span>→</span></button>`
+        ${slide < last
+          ? html`<button class="btn-next" @click=${() => this.go(slide + 1)}>Suivant <span>${'\u2192'}</span></button>`
           : html`<button class="btn-next finish" @click=${this.close}>Fermer</button>`
         }
-      </div>
-    `;
-  }
-
-  // ── Slide 0: Wrapped opener ───────────────────────────────
-  private renderIntroSlide() {
-    const themes = this.wrappedThemes;
-    const top1 = themes[0] || null;
-    const top2 = themes[1] || null;
-    const top3 = themes[2] || null;
-    const hasData = Boolean(top1);
-
-    const topLabel = top1 ? withFrenchPartitive(top1.label) : 'de contenus';
-
-    return html`
-      <div class="slide slide-0">
-        <button class="close-btn" @click=${this.close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="bubble-stage">
-          <div class="bubble-stack" aria-hidden="true">
-            <div class="big-bubble">
-              <div class="bubble-copy">
-                <span>Tu</span>
-                <span>t’informes</span>
-                <span>moins que</span>
-                <span>tu ne le</span>
-                <span>penses.</span>
-              </div>
-            </div>
-            <div class="tail-bubble tail-1"></div>
-            <div class="tail-bubble tail-2"></div>
-            <div class="tail-bubble tail-3"></div>
-          </div>
-        </div>
-
-        <div class="intro-panel">
-          <div class="intro-label">Tu es exposé majoritairement à :</div>
-          <div class="intro-stats">
-            <div class="intro-main">
-              <div class="intro-pct">${top1 ? `${top1.pct}%` : '--%'}</div>
-              <div class="intro-subject">${top1 ? topLabel : 'de contenus'}</div>
-            </div>
-            <div class="intro-secondary">
-              ${top2 ? html`<span>${top2.label} ${top2.pct}%</span>` : ''}
-              ${top3 ? html`<span>${top3.label} ${top3.pct}%</span>` : ''}
-            </div>
-            ${!hasData ? html`<div class="intro-fallback">Les sujets apparaîtront après quelques posts analysés.</div>` : ''}
-          </div>
-        </div>
-
-        ${this.renderFooter(0)}
       </div>
     `;
   }
@@ -932,11 +692,9 @@ export class ScreenWrapped extends LitElement {
 
     return html`
       <div class="slide slide-1">
-        <button class="close-btn" @click=${this.close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
+        ${this.closeBtn()}
         <div class="eyebrow">${icon(ICONS.target, 14)} Scrollout Wrapped / 2026</div>
-        <div class="title">Ton feed n'etait pas neutre. Il avait un centre de gravite.</div>
+        <div class="title">Ton feed avait un centre de gravite.</div>
         <div class="body-text">${this.totalPosts} posts, ${this.totalEnriched} enrichis. Ton attention gravitait autour de ${domainLabel(top.domain).toLowerCase()}.</div>
 
         <div class="hero">
@@ -945,17 +703,17 @@ export class ScreenWrapped extends LitElement {
         </div>
 
         <div class="cards-row">
-          <div class="stat-card" style="background:#6B6BFF;color:#fff;">
+          <div class="stat-card" style="background:#5B3FE8;color:#fff;">
             <div class="val">${polPct}%</div>
-            <div class="lbl">posts politiques</div>
+            <div class="lbl">${icon(ICONS.shield, 14)} politique</div>
           </div>
-          <div class="stat-card" style="background:#FF7B33;color:#fff;">
+          <div class="stat-card" style="background:#FF6B00;color:#fff;">
             <div class="val">${polarPct}%</div>
-            <div class="lbl">polarisation moy.</div>
+            <div class="lbl">${icon(ICONS.zap, 14)} polarisation</div>
           </div>
         </div>
 
-        ${this.renderFooter(1)}
+        ${this.renderFooter(0)}
       </div>
     `;
   }
@@ -965,24 +723,17 @@ export class ScreenWrapped extends LitElement {
     const domains = s.topDomains || [];
     const maxCount = domains[0]?.count || 1;
     const total = domains.reduce((acc, d) => acc + d.count, 0);
-
-    // Position bubbles in a cluster layout
     const positions = [
-      { x: 20, y: 15, s: 1 },      // biggest, center-left
-      { x: 55, y: 10, s: 0.7 },     // top-right
-      { x: 10, y: 55, s: 0.65 },    // left-center
-      { x: 55, y: 50, s: 0.55 },    // right-center
-      { x: 30, y: 72, s: 0.5 },     // bottom-left
-      { x: 62, y: 72, s: 0.45 },    // bottom-right
+      { x: 20, y: 15, s: 1 }, { x: 55, y: 10, s: 0.7 },
+      { x: 10, y: 55, s: 0.65 }, { x: 55, y: 50, s: 0.55 },
+      { x: 30, y: 72, s: 0.5 }, { x: 62, y: 72, s: 0.45 },
     ];
 
     return html`
       <div class="slide slide-2">
-        <button class="close-btn" @click=${this.close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="eyebrow">${icon(ICONS.map, 14)} 02 / La carte de ta bulle</div>
-        <div class="title">Voici a quoi ressemble ta bulle mise a plat.</div>
+        ${this.closeBtn()}
+        <div class="eyebrow">${icon(ICONS.map, 14)} 02 / Ta bulle</div>
+        <div class="title">Ta bulle, mise a plat.</div>
         <div class="body-text">Dense = recurrent. Pale = angle mort.</div>
 
         <div class="bubble-map">
@@ -995,23 +746,14 @@ export class ScreenWrapped extends LitElement {
 
             return html`
               <div class="bubble ${isSmall ? 'ghost' : ''}"
-                style="
-                  left: ${pos.x}%;
-                  top: ${pos.y}%;
-                  width: ${size}px;
-                  height: ${size}px;
-                  background: ${isSmall ? 'transparent' : color};
-                  box-shadow: ${isSmall ? 'none' : `0 8px 24px ${color}44`};
-                  font-size: ${Math.max(10, size / 8)}px;
-                ">
+                style="left:${pos.x}%;top:${pos.y}%;width:${size}px;height:${size}px;background:${isSmall ? 'transparent' : color};box-shadow:${isSmall ? 'none' : `0 8px 24px ${color}44`};font-size:${Math.max(10, size / 8)}px;">
                 <span class="b-label">${domainLabel(d.domain).split(' ')[0]}</span>
                 <span class="b-count">${d.count} · ${pct(d.count, total)}%</span>
               </div>
             `;
           })}
         </div>
-
-        ${this.renderFooter(2)}
+        ${this.renderFooter(1)}
       </div>
     `;
   }
@@ -1021,34 +763,31 @@ export class ScreenWrapped extends LitElement {
     const domains = s.topDomains || [];
     const total = domains.reduce((acc, d) => acc + d.count, 0);
     const topPct = total ? Math.round((domains[0]?.count || 0) / total * 100) : 0;
-
-    // Detect bias vectors from data
     const topics = s.topTopics || [];
-    const topTopicNames = topics.slice(0, 3).map(t => t.topic);
 
     return html`
       <div class="slide slide-3">
-        <button class="close-btn" @click=${this.close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
+        ${this.closeBtn()}
         <div class="eyebrow">${icon(ICONS.alertTriangle, 14)} 03 / Tes biais</div>
-        <div class="title">Le biais ici ressemble moins a de l'extremisme qu'a une surexposition selective.</div>
+        <div class="title">Surexposition selective, pas extremisme.</div>
 
         <div class="info-card dark">
-          <div class="card-eyebrow">Biais de renforcement</div>
-          <div class="card-text">Le feed valide le meme cadre (${topPct}% concentre).</div>
+          <div class="card-row">${icon(ICONS.eye, 18)}<div>
+            <div class="card-eyebrow">Renforcement</div>
+            <div class="card-text">${topPct}% concentre dans un seul cadre.</div>
+          </div></div>
         </div>
 
         <div class="info-card accent">
-          <div class="card-text">Le politique reste peripherique, pas central.</div>
+          <div class="card-row">${icon(ICONS.shield, 18)}<div>
+            <div class="card-text">Le politique reste peripherique.</div>
+          </div></div>
         </div>
 
         <div class="info-card surface">
-          <div class="card-eyebrow">Tes 3 vecteurs de biais les plus forts</div>
+          <div class="card-eyebrow">${icon(ICONS.barChart, 12)} Vecteurs de biais</div>
           <div class="card-text">
-            1. ${topTopicNames[0] || 'Divertissement'} d'abord<br>
-            2. ${topTopicNames[1] || 'Culture'} en echo<br>
-            3. Faible exposition aux domaines minoritaires
+            ${topics.slice(0, 3).map((t, i) => html`<div style="margin-top:4px;">${i + 1}. ${t.topic}</div>`)}
           </div>
         </div>
 
@@ -1060,104 +799,200 @@ export class ScreenWrapped extends LitElement {
               <div class="bar-row">
                 <div class="bar-label">${domainLabel(d.domain)}</div>
                 <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${color}"></div></div>
-                <div class="bar-val">${d.count} (${w}%)</div>
+                <div class="bar-val">${w}%</div>
               </div>
             `;
           })}
         </div>
+        ${this.renderFooter(2)}
+      </div>
+    `;
+  }
+
+  // ── Slide 4: Narratives ───────────────────────────────────
+  private renderSlide4Narratives(s: DbStats) {
+    const narratives = s.topNarratives || [];
+    const maxCount = narratives[0]?.count || 1;
+
+    return html`
+      <div class="slide slide-4 dark-slide">
+        ${this.closeBtn()}
+        <div class="eyebrow">${icon(ICONS.bookOpen, 14)} 04 / Recits dominants</div>
+        <div class="title">Les histoires que ton feed te raconte.</div>
+        <div class="body-text">Chaque contenu porte un cadre narratif. Voici ceux qui reviennent.</div>
+
+        <div class="chip-grid">
+          ${narratives.length === 0 ? html`
+            <div class="info-card" style="background:#222;color:#888;">
+              <div class="card-row">${icon(ICONS.sparkles, 18)}<div>
+                <div class="card-text">Pas encore assez de donnees narratives.</div>
+              </div></div>
+            </div>
+          ` : narratives.slice(0, 5).map(n => {
+            const meta = NARRATIVE_META[n.narrative] || { color: '#5B3FE8', icon: ICONS.bookOpen, label: n.narrative.replace(/_/g, ' ') };
+            const w = Math.round((n.count / maxCount) * 100);
+            return html`
+              <div class="chip" style="background:${meta.color}22;">
+                <div class="chip-icon" style="background:${meta.color};color:#fff;">
+                  ${icon(meta.icon, 20)}
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div class="chip-label" style="color:${meta.color};">${meta.label}</div>
+                  <div class="chip-count" style="color:${meta.color}AA;">${n.count} posts</div>
+                  <div class="chip-bar"><div class="chip-bar-fill" style="width:${w}%;background:${meta.color};"></div></div>
+                </div>
+              </div>
+            `;
+          })}
+        </div>
+
+        ${narratives.length > 0 ? html`
+          <div class="info-card" style="background:#222;color:#f0f0f0;">
+            <div class="card-row">${icon(ICONS.brain, 18)}<div>
+              <div class="card-text">Ton cadre dominant : ${NARRATIVE_META[narratives[0]?.narrative]?.label || narratives[0]?.narrative}</div>
+            </div></div>
+          </div>
+        ` : nothing}
 
         ${this.renderFooter(3)}
       </div>
     `;
   }
 
-  // ── Slide 4: Contradictions (dark) ────────────────────────
-  private renderSlide4(s: DbStats) {
-    const diversity = s.topDomains?.length || 0;
-    const sponsored = s.sponsoredStats;
+  // ── Slide 5: Emotions ─────────────────────────────────────
+  private renderSlide5Emotions(s: DbStats) {
+    const emotions = s.topEmotions || [];
+    const maxCount = emotions[0]?.count || 1;
 
     return html`
-      <div class="slide slide-4">
-        <button class="close-btn" @click=${this.close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="eyebrow">${icon(ICONS.zap, 14)} 04 / Contradictions</div>
-        <div class="title">Ton feed n'est pas juste biaise. Il est coherent contre toi.</div>
+      <div class="slide slide-5 dark-slide">
+        ${this.closeBtn()}
+        <div class="eyebrow">${icon(ICONS.heart, 14)} 05 / Emotions</div>
+        <div class="title">Ce que ton feed te fait ressentir.</div>
+        <div class="body-text">L'emotion dominante de chaque post, aggregee.</div>
 
-        <div class="info-card" style="background:#222;color:#f0f0f0;">
-          <div class="card-text">Perspective Gap : tu vois surtout une version locale du monde.</div>
+        <div class="chip-grid">
+          ${emotions.length === 0 ? html`
+            <div class="info-card" style="background:#222;color:#888;">
+              <div class="card-row">${icon(ICONS.sparkles, 18)}<div>
+                <div class="card-text">Pas encore de donnees emotionnelles.</div>
+              </div></div>
+            </div>
+          ` : emotions.slice(0, 6).map(e => {
+            const meta = EMOTION_META[e.emotion] || { color: '#BDC3C7', icon: EMOTION_META.neutral.icon };
+            const w = Math.round((e.count / maxCount) * 100);
+            return html`
+              <div class="chip" style="background:${meta.color}18;">
+                <div class="chip-icon" style="background:${meta.color};color:#fff;">
+                  ${icon(meta.icon, 20)}
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div class="chip-label" style="color:${meta.color};">${e.emotion}</div>
+                  <div class="chip-count" style="color:${meta.color}AA;">${e.count} posts · ${pct(e.count, this.totalEnriched)}%</div>
+                  <div class="chip-bar"><div class="chip-bar-fill" style="width:${w}%;background:${meta.color};"></div></div>
+                </div>
+              </div>
+            `;
+          })}
         </div>
 
-        <div class="info-card" style="background:#FF7B33;color:#fff;">
-          <div class="card-text">L'algo te sert ce qui te garde, pas ce qui t'ouvre.</div>
-        </div>
-
-        <div class="info-card accent">
-          <div class="card-text">${formatDwell(s.totalDwellMs)} de scroll, le temps long part sur l'emotionnel.</div>
-        </div>
-
-        ${sponsored?.sponsored ? html`
-          <div class="info-card" style="background:#333;color:#ccc;">
-            <div class="card-eyebrow">Sponsored vs Organic</div>
-            <div class="card-text">${sponsored.sponsored.count} posts sponsorises, ${Math.round(sponsored.sponsored.avgDwellMs / 1000)}s de dwell moyen.</div>
+        ${emotions.length >= 2 ? html`
+          <div class="cards-row">
+            <div class="stat-card" style="background:${EMOTION_META[emotions[0]?.emotion]?.color || '#5B3FE8'};color:#fff;">
+              <div class="val">#1</div>
+              <div class="lbl">${emotions[0].emotion}</div>
+            </div>
+            <div class="stat-card" style="background:${EMOTION_META[emotions[1]?.emotion]?.color || '#FF6B00'};color:#fff;">
+              <div class="val">#2</div>
+              <div class="lbl">${emotions[1].emotion}</div>
+            </div>
           </div>
-        ` : ''}
+        ` : nothing}
 
-        ${this.renderFooter(4, true)}
+        ${this.renderFooter(4)}
       </div>
     `;
   }
 
-  // ── Slide 5: Ego Metrics ──────────────────────────────────
-  private renderSlide5(s: DbStats) {
-    // Bubble score = % top domain + second domain
-    const domains = s.topDomains || [];
-    const total = domains.reduce((acc, d) => acc + d.count, 0);
-    const top2 = domains.slice(0, 2).reduce((acc, d) => acc + d.count, 0);
-    const bubbleScore = pct(top2, total);
+  // ── Slide 6: Political Compass ────────────────────────────
+  private renderSlide6Compass(s: DbStats) {
+    const axes = s.axes || { economic: 0, societal: 0, authority: 0, system: 0 };
+    // Map axes (-1..+1) → position (5%..95%)
+    const cx = 50 + (axes.economic * 40);
+    const cy = 50 - (axes.societal * 40); // inverted Y
+    const dotSize = 18;
 
-    // Attention stats
-    const attn = s.attention || {};
-    const engaged = attn['engaged'] || 0;
-    const skipped = attn['skipped'] || 0;
-    const skipRate = pct(skipped, this.totalPosts);
+    // Determine quadrant label
+    const quadrant = axes.economic >= 0
+      ? (axes.societal >= 0 ? 'Liberal-Marche' : 'Conservateur-Marche')
+      : (axes.societal >= 0 ? 'Liberal-Social' : 'Conservateur-Social');
 
-    // Signals
-    const signals = s.signals;
-    const totalSignals = signals?.total || 0;
+    // Find closest political actor via ontology
+    const closestActors = ENTITY_DICTIONARY
+      .filter(e => e.type === 'Organization' && e.edges?.some(ed => ed.relation === 'belongsTo' && ed.target === 'politique'))
+      .slice(0, 4);
 
     return html`
-      <div class="slide slide-5">
-        <button class="close-btn" @click=${this.close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="eyebrow">${icon(ICONS.barChart, 14)} 05 / Ego metrics</div>
-        <div class="title">Les chiffres qui piquent (et qui se partagent).</div>
+      <div class="slide slide-6">
+        ${this.closeBtn()}
+        <div class="eyebrow">${icon(ICONS.compass, 14)} 06 / Boussole politique</div>
+        <div class="title">Ou se situe ton feed ?</div>
+        <div class="body-text">Position moyenne selon les axes economique et societal.</div>
+
+        <div class="compass-container">
+          <!-- Axes -->
+          <div class="compass-axis h"></div>
+          <div class="compass-axis v"></div>
+
+          <!-- Quadrant labels -->
+          <div class="compass-quadrant" style="top:0;left:0;">Liberal Social</div>
+          <div class="compass-quadrant" style="top:0;right:0;">Liberal Marche</div>
+          <div class="compass-quadrant" style="bottom:0;left:0;">Conservateur Social</div>
+          <div class="compass-quadrant" style="bottom:0;right:0;">Conservateur Marche</div>
+
+          <!-- Axis labels -->
+          <div class="compass-label" style="top:4px;left:50%;transform:translateX(-50%);">${icon(ICONS.sparkles, 10)} Progressiste</div>
+          <div class="compass-label" style="bottom:4px;left:50%;transform:translateX(-50%);">Conservateur</div>
+          <div class="compass-label" style="left:4px;top:50%;transform:translateY(-50%) rotate(-90deg);transform-origin:left center;">Etatiste</div>
+          <div class="compass-label" style="right:4px;top:50%;transform:translateY(-50%) rotate(90deg);transform-origin:right center;">Marche</div>
+
+          <!-- User dot -->
+          <div class="compass-dot" style="
+            left:${cx}%;
+            top:${cy}%;
+            width:${dotSize}px;
+            height:${dotSize}px;
+            background:#5B3FE8;
+            --dot-color:rgba(107,107,255,0.5);
+          "></div>
+          <!-- Glow ring -->
+          <div class="compass-dot" style="
+            left:${cx}%;
+            top:${cy}%;
+            width:${dotSize + 14}px;
+            height:${dotSize + 14}px;
+            background:transparent;
+            border:2px solid rgba(107,107,255,0.3);
+            --dot-color:transparent;
+          "></div>
+        </div>
+
+        <div class="info-card" style="background:#f0f0f0;color:#333;">
+          <div class="card-row">${icon(ICONS.compass, 18)}<div>
+            <div class="card-eyebrow">Position dominante</div>
+            <div class="card-text">${quadrant}</div>
+          </div></div>
+        </div>
 
         <div class="cards-row">
-          <div class="metric-block" style="background:#111;color:#f0f0f0;flex:1;">
-            <div class="m-val" style="color:#6B6BFF;">${bubbleScore}%</div>
-            <div class="m-desc" style="color:#aaa;">Bubble Score</div>
+          <div class="stat-card" style="background:#111;color:#f0f0f0;">
+            <div class="val" style="color:#5B3FE8;">${axes.economic >= 0 ? '+' : ''}${axes.economic.toFixed(2)}</div>
+            <div class="lbl">Axe economique</div>
           </div>
-          <div class="metric-block" style="background:#FFE94A;color:#111;flex:1;">
-            <div class="m-val">${engaged}</div>
-            <div class="m-desc">posts ou tu es reste engage (> 5s).</div>
+          <div class="stat-card" style="background:#111;color:#f0f0f0;">
+            <div class="val" style="color:#FF6B00;">${axes.societal >= 0 ? '+' : ''}${axes.societal.toFixed(2)}</div>
+            <div class="lbl">Axe societal</div>
           </div>
-        </div>
-
-        <div class="metric-block" style="background:#6B6BFF;color:#fff;">
-          <div class="m-desc" style="color:#fff;">${skipRate}% skip rate, ${skipped} posts zappes.</div>
-        </div>
-
-        ${totalSignals > 0 ? html`
-          <div class="metric-block" style="background:#FF2222;color:#fff;">
-            <div class="m-val">${totalSignals}</div>
-            <div class="m-desc" style="color:rgba(255,255,255,0.9);">signaux de polarisation detectes.</div>
-          </div>
-        ` : ''}
-
-        <div class="metric-block" style="background:#f0f0f0;color:#333;">
-          <div class="m-desc"><strong>${s.totalSessions} sessions</strong> analysees, <strong>${formatDwell(s.totalDwellMs)}</strong> de scroll total.</div>
         </div>
 
         ${this.renderFooter(5)}
@@ -1165,55 +1000,85 @@ export class ScreenWrapped extends LitElement {
     `;
   }
 
-  // ── Slide 6: Records de Scroll ─────────────────────────────
-  private renderSlide6Records(s: DbStats) {
+  // ── Slide 7: Ego Metrics ──────────────────────────────────
+  private renderSlide7Ego(s: DbStats) {
+    const domains = s.topDomains || [];
+    const total = domains.reduce((acc, d) => acc + d.count, 0);
+    const top2 = domains.slice(0, 2).reduce((acc, d) => acc + d.count, 0);
+    const bubbleScore = pct(top2, total);
+    const attn = s.attention || {};
+    const engaged = attn['engaged'] || 0;
+    const skipped = attn['skipped'] || 0;
+    const skipRate = pct(skipped, this.totalPosts);
+    const signals = s.signals;
+    const totalSignals = signals?.total || 0;
+
+    return html`
+      <div class="slide slide-7 dark-slide">
+        ${this.closeBtn()}
+        <div class="eyebrow">${icon(ICONS.barChart, 14)} 07 / Ego metrics</div>
+        <div class="title">Les chiffres qui piquent.</div>
+
+        <div class="cards-row">
+          <div class="metric-block" style="background:#222;color:#f0f0f0;flex:1;">
+            <div class="m-val" style="color:#5B3FE8;">${bubbleScore}%</div>
+            <div class="m-desc" style="color:#aaa;">${icon(ICONS.target, 14)} Bubble Score</div>
+          </div>
+          <div class="metric-block" style="background:#FFFF66;color:#111;flex:1;">
+            <div class="m-val">${engaged}</div>
+            <div class="m-desc">${icon(ICONS.eye, 14)} engages (> 5s)</div>
+          </div>
+        </div>
+
+        <div class="metric-block" style="background:#5B3FE8;color:#fff;">
+          <div class="m-desc">${icon(ICONS.zap, 16)} ${skipRate}% skip rate — ${skipped} posts zappes</div>
+        </div>
+
+        ${totalSignals > 0 ? html`
+          <div class="metric-block" style="background:#FF0000;color:#fff;">
+            <div class="m-val">${totalSignals}</div>
+            <div class="m-desc">${icon(ICONS.alertTriangle, 16)} signaux de polarisation</div>
+          </div>
+        ` : nothing}
+
+        <div class="metric-block" style="background:#333;color:#ccc;">
+          <div class="m-desc">${icon(ICONS.clock, 14)} ${s.totalSessions} sessions, ${formatDwell(s.totalDwellMs)} de scroll total</div>
+        </div>
+
+        ${this.renderFooter(6)}
+      </div>
+    `;
+  }
+
+  // ── Slide 8: Records ──────────────────────────────────────
+  private renderSlide8Records(s: DbStats) {
     const scrollMeters = s.totalPosts * 0.15;
     const scrollKm = scrollMeters / 1000;
     const dwellHours = (s.totalDwellMs || 1) / 3600000;
     const scrollSpeed = scrollMeters / dwellHours;
     const totalMin = Math.round((s.totalDwellMs || 0) / 60000);
     const postsPerSession = s.totalSessions > 0 ? Math.round(s.totalPosts / s.totalSessions) : s.totalPosts;
-
     const distanceText = scrollKm >= 1 ? `${scrollKm.toFixed(1)} km` : `${Math.round(scrollMeters)} m`;
-
-    const distanceMetaphor = scrollMeters < 50
-      ? 'une piscine olympique du pouce'
-      : scrollMeters < 100
-      ? 'un terrain de foot, parcouru au pouce'
-      : scrollMeters < 324
-      ? `encore ${Math.round(324 - scrollMeters)}m avant la Tour Eiffel`
-      : scrollMeters < 1000
-      ? 'tu as depasse la Tour Eiffel. En scrollant.'
+    const distanceMetaphor = scrollMeters < 50 ? 'une piscine olympique du pouce'
+      : scrollMeters < 100 ? 'un terrain de foot, parcouru au pouce'
+      : scrollMeters < 324 ? `encore ${Math.round(324 - scrollMeters)}m avant la Tour Eiffel`
+      : scrollMeters < 1000 ? 'tu as depasse la Tour Eiffel. En scrollant.'
       : `plus loin qu'un jogging matinal`;
-
     const speedAnimal = scrollSpeed < 53
       ? { name: 'escargot', speed: '53 m/h', verdict: 'Il te bat.' }
-      : scrollSpeed < 270
-      ? { name: 'tortue de mer', speed: '270 m/h', verdict: 'Tu te rapproches.' }
-      : scrollSpeed < 1000
-      ? { name: 'canard', speed: '1 km/h', verdict: 'Presque.' }
-      : scrollSpeed < 5000
-      ? { name: 'hirondelle', speed: '5 km/h', verdict: 'Depasse.' }
+      : scrollSpeed < 270 ? { name: 'tortue de mer', speed: '270 m/h', verdict: 'Tu te rapproches.' }
+      : scrollSpeed < 1000 ? { name: 'canard', speed: '1 km/h', verdict: 'Presque.' }
+      : scrollSpeed < 5000 ? { name: 'hirondelle', speed: '5 km/h', verdict: 'Depasse.' }
       : { name: 'guepard', speed: '120 km/h', verdict: 'Ton pouce est une legende.' };
-
-    const timeEquiv = totalMin < 5 ? 'un espresso'
-      : totalMin < 15 ? 'un episode de podcast'
-      : totalMin < 30 ? 'une sieste royale'
-      : totalMin < 60 ? 'un episode de serie'
-      : totalMin < 120 ? 'un film complet'
-      : `${Math.round(totalMin / 60)} films`;
+    const timeEquiv = totalMin < 5 ? 'un espresso' : totalMin < 15 ? 'un podcast' : totalMin < 30 ? 'une sieste' : totalMin < 60 ? 'un episode' : totalMin < 120 ? 'un film' : `${Math.round(totalMin / 60)} films`;
 
     return html`
-      <div class="slide slide-6">
-        <button class="close-btn" @click=${this.close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="eyebrow">${icon(ICONS.trophy, 14)} 06 / Tes records</div>
-        <div class="title">Tu scrolles. L'algorithme compte.</div>
-        <div class="body-text">Tes stats de pouce traduites en chiffres reels.</div>
+      <div class="slide slide-8">
+        ${this.closeBtn()}
+        <div class="eyebrow">${icon(ICONS.trophy, 14)} 08 / Tes records</div>
+        <div class="title">Tu scrolles. L'algo compte.</div>
 
-        <!-- Distance hero -->
-        <div class="hero" style="background:linear-gradient(135deg, #6B6BFF 0%, #8B44E8 100%);">
+        <div class="hero" style="background:linear-gradient(135deg, #5B3FE8 0%, #8B22CC 100%);">
           <div style="display:flex;align-items:center;gap:12px;">
             ${icon(ICONS.ruler, 28)}
             <div class="hero-big" style="font-size:64px;">${distanceText}</div>
@@ -1221,50 +1086,39 @@ export class ScreenWrapped extends LitElement {
           <div class="hero-sub" style="color:rgba(255,255,255,0.8);">scrolles — ${distanceMetaphor}</div>
         </div>
 
-        <!-- Speed vs animal -->
         <div class="cards-row">
           <div class="metric-block" style="background:#111;color:#f0f0f0;flex:1;">
             <div style="display:flex;align-items:center;gap:8px;">
               ${icon(ICONS.gauge, 20)}
-              <div class="m-val" style="color:#FFE94A;font-size:36px;">${Math.round(scrollSpeed)}</div>
+              <div class="m-val" style="color:#FFFF66;font-size:36px;">${Math.round(scrollSpeed)}</div>
             </div>
-            <div class="m-desc" style="color:#aaa;">m/h — vitesse de scroll</div>
-            <div class="m-desc" style="color:#FFE94A;margin-top:4px;">vs ${speedAnimal.name} (${speedAnimal.speed}). ${speedAnimal.verdict}</div>
+            <div class="m-desc" style="color:#aaa;">m/h de scroll</div>
+            <div class="m-desc" style="color:#FFFF66;margin-top:4px;">vs ${speedAnimal.name}. ${speedAnimal.verdict}</div>
           </div>
         </div>
 
         <div class="cards-row">
-          <div class="stat-card" style="background:#FF7B33;color:#fff;flex:1;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              ${icon(ICONS.flame, 16)}
-              <div class="val">${s.totalPosts}</div>
-            </div>
-            <div class="lbl">contenus engloutis</div>
+          <div class="stat-card" style="background:#FF6B00;color:#fff;flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;">${icon(ICONS.flame, 16)}<div class="val">${s.totalPosts}</div></div>
+            <div class="lbl">contenus</div>
           </div>
-          <div class="stat-card" style="background:#6BE88B;color:#111;flex:1;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              ${icon(ICONS.zap, 16)}
-              <div class="val">${postsPerSession}</div>
-            </div>
+          <div class="stat-card" style="background:#90EE90;color:#111;flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;">${icon(ICONS.zap, 16)}<div class="val">${postsPerSession}</div></div>
             <div class="lbl">posts / session</div>
           </div>
         </div>
 
-        <div class="info-card" style="background:#222;color:#f0f0f0;">
-          <div class="card-row">
-            ${icon(ICONS.clock, 16)}
-            <div class="card-text">${totalMin > 0 ? `${totalMin} min` : '<1 min'} de scroll cumule — l'equivalent de ${timeEquiv}.</div>
-          </div>
+        <div class="info-card" style="background:#111;color:#f0f0f0;">
+          <div class="card-row">${icon(ICONS.clock, 16)}<div class="card-text">${totalMin > 0 ? `${totalMin} min` : '<1 min'} = ${timeEquiv}</div></div>
         </div>
 
-        ${this.renderFooter(6, true)}
+        ${this.renderFooter(7)}
       </div>
     `;
   }
 
-  // ── Slide 7: Escape Routes ────────────────────────────────
-  private renderSlide7(s: DbStats) {
-    // Find missing/weak domains
+  // ── Slide 9: Exit + Share ─────────────────────────────────
+  private renderSlide9Exit(s: DbStats) {
     const domains = s.topDomains || [];
     const present = new Set(domains.map(d => d.domain));
     const allDomains = Object.keys(DOMAIN_COLORS);
@@ -1272,37 +1126,45 @@ export class ScreenWrapped extends LitElement {
     const weak = domains.filter(d => d.count <= 3).map(d => domainLabel(d.domain));
 
     return html`
-      <div class="slide slide-7">
-        <button class="close-btn" @click=${this.close}>
-          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="eyebrow">${icon(ICONS.shuffle, 14)} 07 / Sorties de bulle</div>
-        <div class="title">Sortir de bulle = ajouter des mondes, pas juste des opposants.</div>
-        <div class="body-text">3 contenus absents + 3 comptes hors-cluster, pendant 14 jours.</div>
+      <div class="slide slide-9 dark-slide">
+        ${this.closeBtn()}
+        <div class="eyebrow">${icon(ICONS.shuffle, 14)} 09 / Sortie de bulle</div>
+        <div class="title">Sortir = ajouter des mondes.</div>
+        <div class="body-text">3 contenus absents + 3 comptes hors-cluster, 14 jours.</div>
 
-        <div class="action-card" style="background:#111;color:#f0f0f0;">
-          <div class="a-text">1. Format long factuel. Casse la boucle du drama court.</div>
+        <div class="info-card" style="background:#222;color:#f0f0f0;">
+          <div class="card-row">${icon(ICONS.bookOpen, 18)}<div>
+            <div class="card-text">1. Format long factuel — casse le drama court.</div>
+          </div></div>
         </div>
 
-        <div class="action-card" style="background:#6B6BFF;color:#fff;">
-          <div class="a-text">2. Comptes hors-cluster. Expose des cadres narratifs incompatibles.</div>
+        <div class="info-card accent">
+          <div class="card-row">${icon(ICONS.users, 18)}<div>
+            <div class="card-text">2. Comptes hors-cluster — cadres narratifs incompatibles.</div>
+          </div></div>
         </div>
 
-        <div class="action-card" style="background:#FFE94A;color:#111;">
-          <div class="a-text">3. Sources anti-confirmation. Contredis tes automatismes.</div>
+        <div class="info-card" style="background:#FFFF66;color:#111;">
+          <div class="card-row">${icon(ICONS.eye, 18)}<div>
+            <div class="card-text">3. Sources anti-confirmation.</div>
+          </div></div>
         </div>
 
         ${weak.length > 0 || missing.length > 0 ? html`
-          <div class="info-card surface">
-            <div class="card-eyebrow">Zones sous-exposees</div>
-            <div class="card-text">
-              ${weak.map(w => html`<span style="display:inline-block;background:#e4e4ec;border-radius:999px;padding:3px 10px;font-size:12px;margin:2px 3px;">${w}</span>`)}
-              ${missing.map(m => html`<span style="display:inline-block;border:1.5px dashed #ccc;border-radius:999px;padding:3px 10px;font-size:12px;margin:2px 3px;color:#999;">${domainLabel(m)}</span>`)}
+          <div class="info-card" style="background:#1a1a2e;color:#ccc;">
+            <div class="card-eyebrow">${icon(ICONS.map, 12)} Zones sous-exposees</div>
+            <div class="card-text" style="margin-top:6px;">
+              ${weak.map(w => html`<span style="display:inline-block;background:#333;border-radius:999px;padding:3px 10px;font-size:12px;margin:2px 3px;">${w}</span>`)}
+              ${missing.map(m => html`<span style="display:inline-block;border:1.5px dashed #444;border-radius:999px;padding:3px 10px;font-size:12px;margin:2px 3px;color:#666;">${domainLabel(m)}</span>`)}
             </div>
           </div>
-        ` : ''}
+        ` : nothing}
 
-        ${this.renderFooter(7)}
+        <button class="share-btn" @click=${this.shareWrapped}>
+          ${icon(ICONS.share, 20)} Partager mon Wrapped
+        </button>
+
+        ${this.renderFooter(8)}
       </div>
     `;
   }

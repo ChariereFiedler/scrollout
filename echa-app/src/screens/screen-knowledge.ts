@@ -1,34 +1,219 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, query } from 'lit/decorators.js';
 import { theme, scrolloutDots } from '../styles/theme.js';
 import { getGraphStats, backfillGraph, type GraphStats } from '../services/graph-ingest-mobile.js';
 
 const ico = (path: string, size = 18, color = 'currentColor') => html`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;flex-shrink:0;">${unsafeSVG(path)}</svg>`;
 
-// ── Entity type config ─────────────────────────────────────────
-
-const TYPE_CONFIG: Record<string, { color: string; icon: string; label: string }> = {
-  Theme:          { color: '#6B6BFF', icon: '<circle cx="12" cy="12" r="5" stroke-width="1.5"/><circle cx="12" cy="12" r="10" stroke-dasharray="3 3" stroke-width="1"/>', label: 'Themes' },
-  Subject:        { color: '#88CCFF', icon: '<path d="M4 6h16M4 12h10M4 18h14"/>', label: 'Sujets' },
-  PreciseSubject: { color: '#8B44E8', icon: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>', label: 'Sujets precis' },
-  Person:         { color: '#FF7B33', icon: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>', label: 'Personnes' },
-  Organization:   { color: '#E88BE8', icon: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3h-8l-2 4h12l-2-4z"/>', label: 'Organisations' },
-  Institution:    { color: '#FFE94A', icon: '<path d="M3 21h18M3 7l9-4 9 4M5 7v14M19 7v14M9 21v-4a2 2 0 014 0v4M3 11h18"/>', label: 'Institutions' },
-  Country:        { color: '#88EEBB', icon: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>', label: 'Pays' },
-  Narrative:      { color: '#FF2222', icon: '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>', label: 'Narratifs' },
-  Emotion:        { color: '#6BE88B', icon: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>', label: 'Emotions' },
-  Audience:       { color: '#b0b0b0', icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>', label: 'Audiences' },
+const TYPE_CFG: Record<string, { color: string; label: string }> = {
+  Theme:          { color: '#5B3FE8', label: 'Theme' },
+  Subject:        { color: '#B0E0FF', label: 'Sujet' },
+  PreciseSubject: { color: '#8B22CC', label: 'S. precis' },
+  Person:         { color: '#FF6B00', label: 'Personne' },
+  Organization:   { color: '#DA70D6', label: 'Org.' },
+  Institution:    { color: '#FFFF66', label: 'Institution' },
+  Country:        { color: '#90DDAA', label: 'Pays' },
+  Media:          { color: '#FF6B00', label: 'Media' },
+  Domain:         { color: '#90EE90', label: 'Domaine' },
+  Narrative:      { color: '#FF0000', label: 'Narratif' },
+  Emotion:        { color: '#90EE90', label: 'Emotion' },
+  Audience:       { color: '#b0b0b0', label: 'Audience' },
 };
 
-const RELATION_LABELS: Record<string, string> = {
-  isAbout: 'Concerne',
-  mentions: 'Mentionne',
-  takesPosition: 'Prend position',
-  uses: 'Utilise',
-  evokes: 'Evoque',
-  targets: 'Cible',
-};
+// ── Force-directed graph ───────────────────────────────────────
+
+interface GNode {
+  id: string; name: string; type: string; mentions: number;
+  x: number; y: number; vx: number; vy: number; radius: number;
+}
+interface GEdge { source: string; target: string; relation: string; weight: number; }
+
+function simulate(nodes: GNode[], edges: GEdge[], width: number, height: number) {
+  const cx = width / 2, cy = height / 2;
+  // Spread nodes in a spiral for better initial layout
+  nodes.forEach((n, i) => {
+    const angle = (i / nodes.length) * Math.PI * 2 * 2.5;
+    const r = 30 + (i / nodes.length) * Math.min(width, height) * 0.35;
+    n.x = cx + Math.cos(angle) * r;
+    n.y = cy + Math.sin(angle) * r;
+    n.vx = 0; n.vy = 0;
+  });
+
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const iterations = 200;
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const alpha = 1 - iter / iterations;
+    const repulsion = 2500 * alpha;
+
+    // Repulsion — scale with node radius to prevent overlap
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const minDist = a.radius + b.radius + 12;
+        const effectiveDist = Math.max(dist, minDist * 0.5);
+        const force = repulsion / (effectiveDist * effectiveDist);
+        const fx = (dx / dist) * force, fy = (dy / dist) * force;
+        a.vx -= fx; a.vy -= fy;
+        b.vx += fx; b.vy += fy;
+
+        // Hard overlap prevention
+        if (dist < minDist) {
+          const push = (minDist - dist) * 0.3;
+          a.vx -= (dx / dist) * push; a.vy -= (dy / dist) * push;
+          b.vx += (dx / dist) * push; b.vy += (dy / dist) * push;
+        }
+      }
+    }
+
+    // Attraction along edges
+    for (const edge of edges) {
+      const a = nodeMap.get(edge.source), b = nodeMap.get(edge.target);
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const idealDist = 70 + a.radius + b.radius;
+      const force = (dist - idealDist) * 0.008 * alpha * Math.min(edge.weight, 3);
+      a.vx += (dx / dist) * force; a.vy += (dy / dist) * force;
+      b.vx -= (dx / dist) * force; b.vy -= (dy / dist) * force;
+    }
+
+    // Center gravity — weaker so the graph spreads more
+    for (const n of nodes) {
+      n.vx += (cx - n.x) * 0.008 * alpha;
+      n.vy += (cy - n.y) * 0.008 * alpha;
+    }
+
+    // Apply
+    for (const n of nodes) {
+      n.vx *= 0.8; n.vy *= 0.8;
+      n.x += n.vx; n.y += n.vy;
+      const pad = n.radius + 6;
+      n.x = Math.max(pad, Math.min(width - pad, n.x));
+      n.y = Math.max(pad, Math.min(height - pad, n.y));
+    }
+  }
+}
+
+function drawGraph(
+  ctx: CanvasRenderingContext2D, nodes: GNode[], edges: GEdge[],
+  width: number, height: number, selectedId: string | null,
+) {
+  const dpr = window.devicePixelRatio || 1;
+  ctx.clearRect(0, 0, width * dpr, height * dpr);
+  ctx.save();
+  ctx.scale(dpr, dpr);
+
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const connectedToSelected = new Set<string>();
+  if (selectedId) {
+    for (const e of edges) {
+      if (e.source === selectedId) connectedToSelected.add(e.target);
+      if (e.target === selectedId) connectedToSelected.add(e.source);
+    }
+  }
+
+  // Sort nodes by mentions so labels are drawn for top ones
+  const sortedByMentions = [...nodes].sort((a, b) => b.mentions - a.mentions);
+  const topLabelIds = new Set(sortedByMentions.slice(0, 10).map(n => n.id));
+
+  // Draw edges
+  for (const edge of edges) {
+    const a = nodeMap.get(edge.source), b = nodeMap.get(edge.target);
+    if (!a || !b) continue;
+    const isSelected = selectedId && (a.id === selectedId || b.id === selectedId);
+    const dimmed = selectedId && !isSelected;
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+
+    if (isSelected) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+    } else if (dimmed) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([]);
+    } else if (edge.relation === 'coOccurrence') {
+      const w = Math.min(edge.weight, 10);
+      ctx.strokeStyle = `rgba(107,107,255,${0.06 + w * 0.015})`;
+      ctx.lineWidth = 0.5 + w * 0.1;
+      ctx.setLineDash([]);
+    } else {
+      // Structural edge
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([4, 4]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw nodes (back to front: small first)
+  const sortedForDraw = [...nodes].sort((a, b) => a.radius - b.radius);
+  for (const n of sortedForDraw) {
+    const cfg = TYPE_CFG[n.type] || { color: '#555' };
+    const isSelected = n.id === selectedId;
+    const connected = selectedId ? connectedToSelected.has(n.id) : false;
+    const dimmed = selectedId && !isSelected && !connected;
+
+    // Outer glow for selected
+    if (isSelected) {
+      const grad = ctx.createRadialGradient(n.x, n.y, n.radius, n.x, n.y, n.radius + 12);
+      grad.addColorStop(0, cfg.color + '40');
+      grad.addColorStop(1, cfg.color + '00');
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.radius + 12, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Node fill
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+    if (dimmed) {
+      ctx.fillStyle = cfg.color + '18';
+      ctx.strokeStyle = 'transparent';
+    } else {
+      // Subtle gradient
+      const grad = ctx.createRadialGradient(n.x - n.radius * 0.3, n.y - n.radius * 0.3, 0, n.x, n.y, n.radius);
+      grad.addColorStop(0, cfg.color + 'DD');
+      grad.addColorStop(1, cfg.color + '99');
+      ctx.fillStyle = grad;
+      ctx.strokeStyle = cfg.color;
+    }
+    ctx.fill();
+    ctx.lineWidth = isSelected ? 2 : 0.5;
+    ctx.stroke();
+
+    // Label — show for: selected, connected, or top 10 by mentions (when nothing selected)
+    const showLabel = isSelected || connected || (!selectedId && topLabelIds.has(n.id));
+    if (showLabel) {
+      const fontSize = isSelected ? 11 : connected ? 10 : 9;
+      ctx.font = `${isSelected ? '700' : '500'} ${fontSize}px Averia Sans Libre, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+
+      const label = n.name.length > 16 ? n.name.slice(0, 14) + '..' : n.name;
+      const labelY = n.y + n.radius + 4;
+
+      // Text shadow for readability
+      ctx.fillStyle = 'rgba(10,10,10,0.7)';
+      ctx.fillText(label, n.x + 1, labelY + 1);
+      ctx.fillStyle = dimmed ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.95)';
+      ctx.fillText(label, n.x, labelY);
+    }
+  }
+
+  ctx.restore();
+}
+
+// ── Component ──────────────────────────────────────────────────
 
 @customElement('screen-knowledge')
 export class ScreenKnowledge extends LitElement {
@@ -37,211 +222,73 @@ export class ScreenKnowledge extends LitElement {
     css`
       :host { display: block; padding: 16px; padding-bottom: 40px; }
 
-      .page-header {
-        display: flex; justify-content: space-between; align-items: center;
-        margin-bottom: 20px;
-      }
-      .page-title {
-        font-family: var(--font-heading); font-size: 22px; font-weight: 700;
-      }
-      .page-subtitle {
-        font-size: 11px; color: var(--text-muted); margin-top: 2px;
-      }
-      .refresh-btn {
-        background: var(--surface3); border: 1px solid var(--border);
-        color: var(--text-dim); padding: 6px 14px; border-radius: var(--radius-pill);
-        font-size: 10px; font-family: var(--font-mono); text-transform: uppercase;
-        letter-spacing: 0.03em; cursor: pointer;
-      }
-      .refresh-btn:active { opacity: 0.7; }
+      .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+      .title { font-family: var(--font-heading); font-size: 20px; font-weight: 700; }
+      .subtitle { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+      .refresh { background: var(--surface3); border: 1px solid var(--border); color: var(--text-dim); padding: 6px 14px; border-radius: var(--radius-pill); font-size: 10px; font-family: var(--font-mono); text-transform: uppercase; cursor: pointer; }
+      .refresh:active { opacity: 0.7; }
 
-      /* ── Stats banner ── */
-      .stats-banner {
-        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-        margin-bottom: 16px;
-      }
-      .stat-card {
-        background: var(--surface2); border-radius: var(--radius-sm);
-        padding: 14px 12px; text-align: center;
-      }
-      .stat-value {
-        font-family: var(--font-heading); font-size: 24px; font-weight: 900;
-        background: linear-gradient(135deg, var(--bleu-indigo), var(--violet));
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      }
-      .stat-label {
-        font-family: var(--font-mono); font-size: 9px; text-transform: uppercase;
-        color: var(--text-muted); letter-spacing: 0.05em; margin-top: 4px;
-      }
+      /* Banner */
+      .banner { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+      .bcard { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px 6px; text-align: center; }
+      .bval { font-family: var(--font-heading); font-size: 18px; font-weight: 900; background: linear-gradient(135deg, var(--bleu-indigo), var(--violet)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+      .blbl { font-family: var(--font-mono); font-size: 7px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.04em; margin-top: 2px; }
 
-      /* ── Section ── */
-      .section {
-        background: var(--surface2); border-radius: var(--radius);
-        padding: 16px; margin-bottom: 14px;
-      }
-      .section-label {
-        font-family: var(--font-mono); font-size: 10px; text-transform: uppercase;
-        letter-spacing: 0.04em; color: var(--text-dim);
-        margin-bottom: 12px; padding-bottom: 8px;
-        border-bottom: 1px solid var(--border);
-        display: flex; align-items: center; gap: 8px;
-      }
+      /* Graph canvas */
+      .graph-wrap { background: var(--surface2); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+      canvas { display: block; width: 100%; touch-action: none; }
+      .graph-legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--border); }
+      .legend-item { display: flex; align-items: center; gap: 4px; font-size: 9px; color: var(--text-dim); }
+      .legend-dot { width: 7px; height: 7px; border-radius: 50%; }
 
-      /* ── Entity list ── */
-      .entity-row {
-        display: flex; align-items: center; gap: 10px;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--border);
-      }
-      .entity-row:last-child { border-bottom: none; }
-      .entity-badge {
-        width: 28px; height: 28px; border-radius: 8px;
-        display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0;
-      }
-      .entity-badge svg { width: 16px; height: 16px; }
-      .entity-info { flex: 1; min-width: 0; }
-      .entity-name {
-        font-size: 13px; font-weight: 500; color: var(--text);
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      }
-      .entity-type {
-        font-family: var(--font-mono); font-size: 9px;
-        text-transform: uppercase; letter-spacing: 0.04em;
-      }
-      .entity-count {
-        font-family: var(--font-mono); font-size: 12px; font-weight: 600;
-        color: var(--text-dim); flex-shrink: 0;
-      }
-      .entity-bar {
-        height: 3px; border-radius: 2px; margin-top: 3px;
-        transition: width 0.3s ease;
-      }
+      /* Detail card */
+      .detail { background: linear-gradient(135deg, var(--surface2), var(--surface3)); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; border: 1px solid var(--border); }
+      .detail-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+      .detail-badge { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; font-family: var(--font-heading); }
+      .detail-name { font-family: var(--font-heading); font-size: 16px; font-weight: 700; }
+      .detail-type { font-family: var(--font-mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
+      .detail-stat { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+      .detail-connections { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+      .conn-tag { font-size: 10px; padding: 4px 10px; border-radius: var(--radius-pill); background: rgba(255,255,255,0.04); border: 1px solid var(--border); display: inline-flex; align-items: center; gap: 4px; }
+      .conn-rel { font-family: var(--font-mono); font-size: 7px; color: var(--text-muted); text-transform: uppercase; }
 
-      /* ── Type distribution ── */
-      .type-grid {
-        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-      }
-      .type-chip {
-        display: flex; align-items: center; gap: 6px;
-        background: var(--surface3); border-radius: var(--radius-sm);
-        padding: 10px; min-width: 0;
-      }
-      .type-dot {
-        width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-      }
-      .type-count {
-        font-family: var(--font-heading); font-size: 16px; font-weight: 700;
-        color: var(--text);
-      }
-      .type-label {
-        font-size: 9px; color: var(--text-dim); font-family: var(--font-mono);
-        text-transform: uppercase; letter-spacing: 0.03em;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      }
+      /* Section */
+      .section { background: var(--surface2); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+      .slabel { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
 
-      /* ── Co-occurrence ── */
-      .cooc-row {
-        display: flex; align-items: center; gap: 8px;
-        padding: 7px 0;
-        border-bottom: 1px solid var(--border);
-      }
+      /* Timeline */
+      .tl-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+      .tl-row:last-child { border-bottom: none; }
+      .tl-week { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); width: 70px; flex-shrink: 0; padding-top: 3px; }
+      .tl-bars { flex: 1; display: flex; gap: 4px; flex-wrap: wrap; }
+      .tl-chip { height: 22px; border-radius: 6px; display: flex; align-items: center; padding: 0 8px; font-size: 9px; font-family: var(--font-mono); font-weight: 500; color: rgba(0,0,0,0.8); white-space: nowrap; overflow: hidden; }
+
+      /* Co-occ */
+      .cooc-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
       .cooc-row:last-child { border-bottom: none; }
-      .cooc-link {
-        display: flex; align-items: center; gap: 6px;
-        flex: 1; min-width: 0; font-size: 12px;
-      }
-      .cooc-entity {
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        max-width: 38%; font-weight: 500;
-      }
-      .cooc-arrow {
-        color: var(--text-muted); font-size: 10px; flex-shrink: 0;
-      }
-      .cooc-count {
-        font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);
-        flex-shrink: 0; background: var(--surface3); padding: 2px 8px;
-        border-radius: var(--radius-pill);
-      }
+      .cooc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+      .cooc-e { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34%; font-weight: 500; }
+      .cooc-cnt { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); background: var(--surface3); padding: 2px 8px; border-radius: var(--radius-pill); margin-left: auto; flex-shrink: 0; }
 
-      /* ── Relation distribution ── */
-      .rel-bar-row {
-        display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-      }
-      .rel-label {
-        font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
-        width: 90px; text-align: right; flex-shrink: 0;
-      }
-      .rel-bar-track {
-        flex: 1; height: 8px; background: var(--surface3); border-radius: 4px;
-        overflow: hidden;
-      }
-      .rel-bar-fill {
-        height: 100%; border-radius: 4px;
-        transition: width 0.3s ease;
-      }
-      .rel-count {
-        font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);
-        width: 32px; flex-shrink: 0;
-      }
-
-      /* ── Entity group cards ── */
-      .group-card {
-        background: var(--surface3); border-radius: var(--radius-sm);
-        padding: 12px; margin-bottom: 10px;
-      }
-      .group-header {
-        display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
-      }
-      .group-title {
-        font-family: var(--font-heading); font-size: 14px; font-weight: 700;
-      }
-      .group-members {
-        display: flex; flex-wrap: wrap; gap: 6px;
-      }
-      .member-tag {
-        font-size: 11px; padding: 4px 10px; border-radius: var(--radius-pill);
-        background: rgba(255,255,255,0.06); color: var(--text);
-        border: 1px solid var(--border);
-        display: flex; align-items: center; gap: 4px;
-      }
-      .member-count {
-        font-family: var(--font-mono); font-size: 9px; color: var(--text-muted);
-      }
-
-      /* ── Empty state ── */
-      .empty {
-        text-align: center; padding: 40px 20px; color: var(--text-dim);
-      }
-      .empty-icon { margin-bottom: 12px; opacity: 0.4; }
-      .empty h3 {
-        font-family: var(--font-heading); font-size: 16px; font-weight: 700;
-        color: var(--text); margin: 0 0 6px;
-      }
-      .empty p { font-size: 12px; margin: 0; line-height: 1.5; }
-
-      /* ── Loading ── */
-      .loading {
-        text-align: center; padding: 60px 20px;
-      }
+      /* Empty/Loading */
+      .empty, .loading { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+      .empty h3 { font-family: var(--font-heading); font-size: 16px; color: var(--text); margin: 12px 0 4px; }
+      .empty p { font-size: 12px; margin: 0; }
       .loading .dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 12px; }
-      .loading .dots span {
-        width: 8px; height: 8px; border-radius: 50%;
-        animation: pulse 1.5s ease-in-out infinite;
-      }
+      .loading .dots span { width: 8px; height: 8px; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite; }
       .loading .dots span:nth-child(2) { animation-delay: .15s; }
       .loading .dots span:nth-child(3) { animation-delay: .3s; }
-      .loading .dots span:nth-child(4) { animation-delay: .45s; }
-      .loading .dots span:nth-child(5) { animation-delay: .6s; }
-      @keyframes pulse {
-        0%,100% { opacity: .3; transform: scale(.8); }
-        50% { opacity: 1; transform: scale(1.2); }
-      }
+      @keyframes pulse { 0%,100% { opacity:.3; transform:scale(.8); } 50% { opacity:1; transform:scale(1.2); } }
     `,
   ];
 
   @state() private stats: GraphStats | null = null;
   @state() private loading = true;
+  @state() private selectedNode: GNode | null = null;
+  @query('canvas') private canvas!: HTMLCanvasElement;
+
+  private graphNodes: GNode[] = [];
+  private graphEdges: GEdge[] = [];
 
   connectedCallback() {
     super.connectedCallback();
@@ -250,272 +297,238 @@ export class ScreenKnowledge extends LitElement {
 
   private async loadStats() {
     this.loading = true;
-    // Auto-backfill existing enriched posts that aren't in the graph yet
     await backfillGraph();
     this.stats = await getGraphStats();
     this.loading = false;
+    if (this.stats?.graphNodes?.length) this.buildGraph();
   }
 
-  // ── Render helpers ─────────────────────────────────────────
-
-  private renderLoading() {
-    return html`
-      <div class="loading">
-        <div class="dots">${scrolloutDots.slice(0, 5).map(c => html`<span style="background:${c}"></span>`)}</div>
-        <div style="font-size:12px;color:var(--text-dim)">Chargement du graphe...</div>
-      </div>
-    `;
+  private buildGraph() {
+    const s = this.stats!;
+    const maxMentions = Math.max(...(s.graphNodes || []).map(n => n.mentions), 1);
+    // Logarithmic scale for radius — prevents huge nodes from crushing small ones
+    this.graphNodes = (s.graphNodes || []).map(n => ({
+      ...n,
+      x: 0, y: 0, vx: 0, vy: 0,
+      radius: 5 + Math.log2(1 + n.mentions) / Math.log2(1 + maxMentions) * 16,
+    }));
+    this.graphEdges = s.graphEdges || [];
+    this.updateComplete.then(() => this.renderGraph());
   }
 
-  private renderEmpty() {
-    return html`
-      <div class="empty">
-        <div class="empty-icon">
-          ${ico('<circle cx="12" cy="12" r="5" stroke-width="1.5"/><circle cx="12" cy="12" r="10" stroke-dasharray="3 3" stroke-width="1"/><circle cx="12" cy="4" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.5" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.5" cy="16" r="1.5" fill="currentColor" stroke="none"/><circle cx="5.5" cy="8" r="1.5" fill="currentColor" stroke="none"/><circle cx="5.5" cy="16" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="20" r="1.5" fill="currentColor" stroke="none"/>', 48, 'var(--text-muted)')}
-        </div>
-        <h3>Graphe vide</h3>
-        <p>Les entites apparaitront ici au fil de l'enrichissement de vos posts.</p>
-      </div>
-    `;
+  private renderGraph() {
+    const canvas = this.canvas;
+    if (!canvas) return;
+    const w = canvas.parentElement!.getBoundingClientRect().width;
+    const h = 340;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.height = h + 'px';
+
+    simulate(this.graphNodes, this.graphEdges, w, h);
+    drawGraph(canvas.getContext('2d')!, this.graphNodes, this.graphEdges, w, h, this.selectedNode?.id || null);
   }
 
-  private renderStatsBanner(s: GraphStats) {
-    return html`
-      <div class="stats-banner">
-        <div class="stat-card">
-          <div class="stat-value">${s.totalEntities}</div>
-          <div class="stat-label">Entites</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${s.totalObservations}</div>
-          <div class="stat-label">Observations</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">${s.postsInGraph}</div>
-          <div class="stat-label">Posts lies</div>
-        </div>
-      </div>
-    `;
+  private onCanvasTap(e: MouseEvent | TouchEvent) {
+    const canvas = this.canvas;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const cx = 'touches' in e ? e.changedTouches[0].clientX : e.clientX;
+    const cy = 'touches' in e ? e.changedTouches[0].clientY : e.clientY;
+    const x = cx - rect.left, y = cy - rect.top;
+
+    let closest: GNode | null = null;
+    let minDist = Infinity;
+    for (const n of this.graphNodes) {
+      const d = Math.sqrt((n.x - x) ** 2 + (n.y - y) ** 2);
+      if (d < n.radius + 14 && d < minDist) { closest = n; minDist = d; }
+    }
+    this.selectedNode = closest?.id === this.selectedNode?.id ? null : closest;
+    drawGraph(canvas.getContext('2d')!, this.graphNodes, this.graphEdges,
+      rect.width, 340, this.selectedNode?.id || null);
   }
 
-  private renderTypeDistribution(s: GraphStats) {
-    if (!s.entityTypes?.length) return nothing;
-    return html`
-      <div class="section">
-        <div class="section-label">
-          ${ico('<circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0110 10"/>', 14, 'var(--bleu-indigo)')}
-          Repartition par type
-        </div>
-        <div class="type-grid">
-          ${s.entityTypes.map(t => {
-            const cfg = TYPE_CONFIG[t.type] || { color: '#555', label: t.type };
-            return html`
-              <div class="type-chip">
-                <div class="type-dot" style="background:${cfg.color}"></div>
-                <div>
-                  <div class="type-count">${t.count}</div>
-                  <div class="type-label">${cfg.label}</div>
-                </div>
-              </div>
-            `;
-          })}
-        </div>
-      </div>
-    `;
-  }
-
-  private renderTopEntities(s: GraphStats) {
-    if (!s.topEntities?.length) return nothing;
-    const maxMentions = s.topEntities[0]?.mentions || 1;
-    return html`
-      <div class="section">
-        <div class="section-label">
-          ${ico('<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>', 14, 'var(--jaune)')}
-          Top entites
-        </div>
-        ${s.topEntities.slice(0, 12).map(e => {
-          const cfg = TYPE_CONFIG[e.type] || { color: '#555', icon: '<circle cx="12" cy="12" r="3"/>', label: e.type };
-          const pct = Math.round((e.mentions / maxMentions) * 100);
-          return html`
-            <div class="entity-row">
-              <div class="entity-badge" style="background:${cfg.color}20">
-                <svg viewBox="0 0 24 24" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${unsafeSVG(cfg.icon)}</svg>
-              </div>
-              <div class="entity-info">
-                <div class="entity-name">${e.name}</div>
-                <div class="entity-type" style="color:${cfg.color}">${cfg.label}</div>
-                <div class="entity-bar" style="width:${pct}%;background:${cfg.color}"></div>
-              </div>
-              <div class="entity-count">${e.mentions}x</div>
-            </div>
-          `;
-        })}
-      </div>
-    `;
-  }
-
-  private renderCoOccurrences(s: GraphStats) {
-    if (!s.coOccurrences?.length) return nothing;
-    return html`
-      <div class="section">
-        <div class="section-label">
-          ${ico('<path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3M3 16v3a2 2 0 002 2h3m10 0h3a2 2 0 002-2v-3"/>', 14, 'var(--vert-menthe)')}
-          Co-occurrences
-        </div>
-        ${s.coOccurrences.slice(0, 10).map(c => {
-          const cfg1 = TYPE_CONFIG[c.type1] || { color: '#555' };
-          const cfg2 = TYPE_CONFIG[c.type2] || { color: '#555' };
-          return html`
-            <div class="cooc-row">
-              <div class="cooc-link">
-                <span class="cooc-entity" style="color:${cfg1.color}">${c.entity1}</span>
-                <span class="cooc-arrow">&harr;</span>
-                <span class="cooc-entity" style="color:${cfg2.color}">${c.entity2}</span>
-              </div>
-              <span class="cooc-count">${c.count}x</span>
-            </div>
-          `;
-        })}
-      </div>
-    `;
-  }
-
-  private renderRelationDistribution(s: GraphStats) {
-    if (!s.relationTypes?.length) return nothing;
-    const maxRel = s.relationTypes[0]?.count || 1;
-    const relColors = ['var(--bleu-indigo)', 'var(--orange)', 'var(--violet)', 'var(--vert-menthe)', 'var(--rose)', 'var(--jaune)'];
-    return html`
-      <div class="section">
-        <div class="section-label">
-          ${ico('<path d="M5 12h14M12 5l7 7-7 7"/>', 14, 'var(--orange)')}
-          Types de relations
-        </div>
-        ${s.relationTypes.map((r, i) => {
-          const pct = Math.round((r.count / maxRel) * 100);
-          const label = RELATION_LABELS[r.relation] || r.relation;
-          return html`
-            <div class="rel-bar-row">
-              <div class="rel-label">${label}</div>
-              <div class="rel-bar-track">
-                <div class="rel-bar-fill" style="width:${pct}%;background:${relColors[i % relColors.length]}"></div>
-              </div>
-              <div class="rel-count">${r.count}</div>
-            </div>
-          `;
-        })}
-      </div>
-    `;
-  }
-
-  private renderEntityGroups(s: GraphStats) {
-    if (!s.entityGroups?.length) return nothing;
-    // Only show groups with actual interesting entities (not Theme/Audience)
-    const interestingGroups = s.entityGroups.filter(g =>
-      !['Audience', 'Emotion'].includes(g.type) && g.members.length > 0,
-    );
-    if (interestingGroups.length === 0) return nothing;
-
-    return html`
-      <div class="section">
-        <div class="section-label">
-          ${ico('<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>', 14, 'var(--rose)')}
-          Entites par categorie
-        </div>
-        ${interestingGroups.map(g => {
-          const cfg = TYPE_CONFIG[g.type] || { color: '#555', icon: '<circle cx="12" cy="12" r="3"/>', label: g.type };
-          return html`
-            <div class="group-card">
-              <div class="group-header">
-                <div class="entity-badge" style="background:${cfg.color}20">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${unsafeSVG(cfg.icon)}</svg>
-                </div>
-                <div class="group-title" style="color:${cfg.color}">${cfg.label}</div>
-              </div>
-              <div class="group-members">
-                ${g.members.map(m => html`
-                  <span class="member-tag" style="border-color:${cfg.color}30">
-                    ${m.name}
-                    <span class="member-count">${m.mentions}x</span>
-                  </span>
-                `)}
-              </div>
-            </div>
-          `;
-        })}
-      </div>
-    `;
-  }
-
-  private renderStanceDistribution(s: GraphStats) {
-    if (!s.stanceDistribution?.length) return nothing;
-    const total = s.stanceDistribution.reduce((a, b) => a + b.count, 0);
-    const stanceColors: Record<string, string> = {
-      pour: 'var(--vert-menthe)',
-      contre: 'var(--rouge)',
-      neutre: 'var(--text-muted)',
-      ambigu: 'var(--jaune)',
-    };
-    return html`
-      <div class="section">
-        <div class="section-label">
-          ${ico('<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>', 14, 'var(--violet)')}
-          Positions sur les sujets
-        </div>
-        <div style="display:flex;gap:4px;height:24px;border-radius:12px;overflow:hidden;margin-bottom:10px">
-          ${s.stanceDistribution.map(st => {
-            const pct = Math.round((st.count / total) * 100);
-            const color = stanceColors[st.stance] || 'var(--text-muted)';
-            return pct > 0 ? html`<div style="width:${pct}%;background:${color};min-width:2px" title="${st.stance}: ${st.count}"></div>` : nothing;
-          })}
-        </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
-          ${s.stanceDistribution.map(st => {
-            const color = stanceColors[st.stance] || 'var(--text-muted)';
-            const pct = Math.round((st.count / total) * 100);
-            return html`
-              <div style="display:flex;align-items:center;gap:4px;font-size:11px">
-                <div style="width:8px;height:8px;border-radius:50%;background:${color}"></div>
-                <span style="color:var(--text-dim);text-transform:capitalize">${st.stance}</span>
-                <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${pct}%</span>
-              </div>
-            `;
-          })}
-        </div>
-      </div>
-    `;
-  }
-
-  // ── Main render ────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────
 
   render() {
-    if (this.loading) return this.renderLoading();
-    if (!this.stats || this.stats.totalEntities === 0) return html`
-      <div class="page-header">
-        <div>
-          <div class="page-title">Graphe de connaissances</div>
-          <div class="page-subtitle">Ontologie de votre consommation Instagram</div>
-        </div>
+    if (this.loading) return html`
+      <div class="header"><div><div class="title">Ontologie</div></div></div>
+      <div class="loading">
+        <div class="dots">${scrolloutDots.slice(0, 3).map(c => html`<span style="background:${c}"></span>`)}</div>
+        <div style="font-size:12px">Construction du graphe...</div>
       </div>
-      ${this.renderEmpty()}
+    `;
+
+    if (!this.stats || this.stats.totalEntities === 0) return html`
+      <div class="header"><div><div class="title">Ontologie</div></div></div>
+      <div class="empty">
+        ${ico('<circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="10" stroke-dasharray="3 3"/>', 40, 'var(--text-muted)')}
+        <h3>Graphe vide</h3>
+        <p>Parcourez Instagram — les entites apparaitront ici.</p>
+      </div>
     `;
 
     const s = this.stats;
     return html`
-      <div class="page-header">
+      <div class="header">
         <div>
-          <div class="page-title">Graphe de connaissances</div>
-          <div class="page-subtitle">Ontologie de votre consommation Instagram</div>
+          <div class="title">Ontologie</div>
+          <div class="subtitle">${s.totalEntities} entites &middot; ${s.totalObservations} observations &middot; ${s.totalEdges || 0} relations</div>
         </div>
-        <button class="refresh-btn" @click=${() => this.loadStats()}>Actualiser</button>
+        <button class="refresh" @click=${() => this.loadStats()}>Refresh</button>
       </div>
 
-      ${this.renderStatsBanner(s)}
-      ${this.renderTypeDistribution(s)}
-      ${this.renderTopEntities(s)}
-      ${this.renderCoOccurrences(s)}
-      ${this.renderRelationDistribution(s)}
-      ${this.renderStanceDistribution(s)}
-      ${this.renderEntityGroups(s)}
+      ${this._banner(s)}
+      ${this._graph()}
+      ${this.selectedNode ? this._detail() : nothing}
+      ${this._coOccurrences(s)}
+      ${this._timeline(s)}
+    `;
+  }
+
+  private _banner(s: GraphStats) {
+    return html`
+      <div class="banner">
+        <div class="bcard"><div class="bval">${s.totalEntities}</div><div class="blbl">Entites</div></div>
+        <div class="bcard"><div class="bval">${s.totalObservations}</div><div class="blbl">Observ.</div></div>
+        <div class="bcard"><div class="bval">${s.totalEdges || 0}</div><div class="blbl">Relations</div></div>
+        <div class="bcard"><div class="bval">${s.postsInGraph}</div><div class="blbl">Posts</div></div>
+      </div>
+    `;
+  }
+
+  private _graph() {
+    if (!this.graphNodes.length) return nothing;
+    const visibleTypes = [...new Set(this.graphNodes.map(n => n.type))];
+    return html`
+      <div class="graph-wrap">
+        <canvas @click=${(e: MouseEvent) => this.onCanvasTap(e)} @touchend=${(e: TouchEvent) => this.onCanvasTap(e)}></canvas>
+        <div class="graph-legend">
+          ${visibleTypes.filter(t => t !== 'Audience').map(t => {
+            const cfg = TYPE_CFG[t] || { color: '#555', label: t };
+            return html`<span class="legend-item"><span class="legend-dot" style="background:${cfg.color}"></span>${cfg.label}</span>`;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  private _detail() {
+    const n = this.selectedNode!;
+    const cfg = TYPE_CFG[n.type] || { color: '#555', label: n.type };
+    const connections = this.graphEdges
+      .filter(e => e.source === n.id || e.target === n.id)
+      .map(e => {
+        const otherId = e.source === n.id ? e.target : e.source;
+        const other = this.graphNodes.find(gn => gn.id === otherId);
+        return other ? { name: other.name, type: other.type, relation: e.relation } : null;
+      })
+      .filter(Boolean) as Array<{ name: string; type: string; relation: string }>;
+
+    // Deduplicate and sort structural first
+    const seen = new Set<string>();
+    const unique = connections.filter(c => {
+      const key = c.name;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).sort((a, b) => {
+      if (a.relation !== 'coOccurrence' && b.relation === 'coOccurrence') return -1;
+      if (a.relation === 'coOccurrence' && b.relation !== 'coOccurrence') return 1;
+      return 0;
+    });
+
+    const REL: Record<string, string> = {
+      affiliatedWith: 'affilie',
+      belongsTo: 'dans',
+      relatedTo: 'lie a',
+      coOccurrence: 'vu avec',
+      associatedWith: 'associe',
+    };
+
+    return html`
+      <div class="detail">
+        <div class="detail-head">
+          <div class="detail-badge" style="background:${cfg.color};color:#000">${n.name[0].toUpperCase()}</div>
+          <div>
+            <div class="detail-name">${n.name}</div>
+            <div class="detail-type" style="color:${cfg.color}">${cfg.label}</div>
+            <div class="detail-stat">${n.mentions} mentions &middot; ${unique.length} connexions</div>
+          </div>
+        </div>
+        ${unique.length ? html`
+          <div class="detail-connections">
+            ${unique.slice(0, 10).map(c => {
+              const cc = TYPE_CFG[c.type] || { color: '#555' };
+              const isStructural = c.relation !== 'coOccurrence';
+              return html`
+                <span class="conn-tag" style="${isStructural ? `border-color:${cc.color}40` : ''}">
+                  <span class="conn-rel">${REL[c.relation] || c.relation}</span>
+                  <span style="color:${cc.color};font-weight:${isStructural ? '600' : '400'}">${c.name}</span>
+                </span>
+              `;
+            })}
+          </div>
+        ` : nothing}
+      </div>
+    `;
+  }
+
+  private _coOccurrences(s: GraphStats) {
+    if (!s.coOccurrences?.length) return nothing;
+    // Filter: only show cross-type co-occurrences (more interesting than theme↔theme)
+    const interesting = s.coOccurrences.filter(c => c.type1 !== c.type2);
+    const shown = interesting.length >= 3 ? interesting : s.coOccurrences;
+
+    return html`
+      <div class="section">
+        <div class="slabel">
+          ${ico('<path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3M3 16v3a2 2 0 002 2h3m10 0h3a2 2 0 002-2v-3"/>', 14, 'var(--vert-menthe)')}
+          Connexions observees
+        </div>
+        ${shown.slice(0, 8).map(c => {
+          const c1 = TYPE_CFG[c.type1] || { color: '#555' };
+          const c2 = TYPE_CFG[c.type2] || { color: '#555' };
+          return html`
+            <div class="cooc-row">
+              <span class="cooc-dot" style="background:${c1.color}"></span>
+              <span class="cooc-e" style="color:${c1.color}">${c.entity1}</span>
+              <span style="color:var(--text-muted);font-size:8px">&harr;</span>
+              <span class="cooc-e" style="color:${c2.color}">${c.entity2}</span>
+              <span class="cooc-cnt">${c.count}x</span>
+            </div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
+  private _timeline(s: GraphStats) {
+    if (!s.timeline?.length) return nothing;
+    return html`
+      <div class="section">
+        <div class="slabel">
+          ${ico('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>', 14, 'var(--bleu-ciel)')}
+          Evolution
+        </div>
+        ${s.timeline.slice(0, 4).map(w => {
+          const maxCount = w.entities[0]?.count || 1;
+          return html`
+            <div class="tl-row">
+              <div class="tl-week">${w.week}</div>
+              <div class="tl-bars">
+                ${w.entities.slice(0, 6).map(e => {
+                  const pct = Math.max(20, (e.count / maxCount) * 100);
+                  const node = this.graphNodes.find(n => n.name === e.name);
+                  const cfg = TYPE_CFG[node?.type || 'Theme'] || { color: '#5B3FE8' };
+                  return html`<span class="tl-chip" style="width:${pct}%;background:${cfg.color}">${e.name}</span>`;
+                })}
+              </div>
+            </div>
+          `;
+        })}
+      </div>
     `;
   }
 }

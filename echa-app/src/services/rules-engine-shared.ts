@@ -29,6 +29,7 @@ export interface RulesOutput {
   mainTopics: string[];
   secondaryTopics: string[];
   domains: string[];
+  subjects: { id: string; label: string; themeId: string; matchCount: number }[];
   politicalActors: string[];
   institutions: string[];
   activismSignal: boolean;
@@ -106,6 +107,7 @@ export function applyRulesShared(input: RulesInput): RulesOutput {
   const secondaryTopics = topicResults.slice(3, 6).map(t => t.id);
   const allTopicIds = [...mainTopics, ...secondaryTopics];
   const domains = getDomainsFromThemes(allTopicIds);
+  const subjects = enriched.subjects;
 
   // Apply topic corrections
   applyTopicCorrections(mainTopics, secondaryTopics, input.username || '', normalizedText);
@@ -170,6 +172,7 @@ export function applyRulesShared(input: RulesInput): RulesOutput {
     mainTopics,
     secondaryTopics,
     domains,
+    subjects,
     politicalActors: allPoliticalActors,
     institutions: actors.institutions,
     activismSignal: actors.activismTerms.length > 0 || hashtagResult.politicalLevel >= 4,

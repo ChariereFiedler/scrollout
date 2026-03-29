@@ -681,17 +681,71 @@ export class ScreenEnrichment extends LitElement {
           </div>
         </div>
       ` : ''}
+
+      <!-- L3: Sujets detectes -->
+      ${s.topSubjects && s.topSubjects.length > 0 ? html`
+        <div class="section">
+          <div class="section-label">Sujets precis detectes (L3)</div>
+          <div class="topic-grid">
+            ${s.topSubjects.slice(0, 15).map((t, i) => {
+              const color = scrolloutDots[(i + 2) % scrolloutDots.length];
+              return html`
+                <div class="topic-tag" style="border-color:${color}40">
+                  <span style="color:${color}">${t.topic}</span>
+                  <span class="n">${t.count}</span>
+                </div>
+              `;
+            })}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- L4: Sujets precis / propositions -->
+      ${s.topPreciseSubjects && s.topPreciseSubjects.length > 0 ? html`
+        <div class="section">
+          <div class="section-label">Propositions debattables detectees (L4)</div>
+          <div class="topic-grid">
+            ${s.topPreciseSubjects.slice(0, 10).map((t, i) => {
+              const color = scrolloutDots[(i + 4) % scrolloutDots.length];
+              return html`
+                <div class="topic-tag" style="border-color:${color}40">
+                  <span style="color:${color}">${t.topic}</span>
+                  <span class="n">${t.count}</span>
+                </div>
+              `;
+            })}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- L1: Domaines -->
+      ${s.topDomainsReal && s.topDomainsReal.length > 0 ? html`
+        <div class="section">
+          <div class="section-label">Domaines (L1)</div>
+          <div class="topic-grid">
+            ${s.topDomainsReal.slice(0, 8).map((d, i) => {
+              const color = scrolloutDots[(i + 1) % scrolloutDots.length];
+              return html`
+                <div class="topic-tag" style="border-color:${color}40">
+                  <span style="color:${color}">${d.domain}</span>
+                  <span class="n">${d.count}</span>
+                </div>
+              `;
+            })}
+          </div>
+        </div>
+      ` : ''}
     `;
   }
 
   private renderMediaTypes(types: Array<{ type: string; count: number; totalDwellMs: number }>, totalPosts: number) {
     const mtColors: Record<string, string> = {
-      photo: '#6B6BFF',
-      carousel: '#6BE88B',
-      video: '#FF7B33',
-      reel: '#E88BE8',
-      story: '#FFE94A',
-      igtv: '#88CCFF',
+      photo: '#5B3FE8',
+      carousel: '#90EE90',
+      video: '#FF6B00',
+      reel: '#DA70D6',
+      story: '#FFFF66',
+      igtv: '#B0E0FF',
     };
     const mtIcons: Record<string, string> = {
       photo: '\u{1F4F7}',      // camera

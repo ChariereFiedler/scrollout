@@ -124,22 +124,6 @@ public class InstaWebViewPlugin extends Plugin {
         }
 
         // Init Database
-        // Load scrollout-ui.js from assets
-        try {
-            InputStream is3 = getContext().getAssets().open("public/scrollout-ui.js");
-            BufferedReader reader3 = new BufferedReader(new InputStreamReader(is3));
-            StringBuilder sb3 = new StringBuilder();
-            String line3;
-            while ((line3 = reader3.readLine()) != null) {
-                sb3.append(line3).append("\n");
-            }
-            scrolloutUiScript = sb3.toString();
-            reader3.close();
-            Log.i(TAG, "Scrollout UI script loaded: " + scrolloutUiScript.length() + " chars");
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to load scrollout-ui.js: " + e.getMessage());
-        }
-
         db = EchaDatabase.getInstance(getContext());
         Log.i(TAG, "Database initialized");
 
@@ -594,6 +578,22 @@ public class InstaWebViewPlugin extends Plugin {
     }
 
     @PluginMethod()
+    public void queryRulesOnlyPosts(PluginCall call) {
+        int limit = call.getInt("limit", 100);
+        db.runAsync(() -> {
+            try {
+                JSONArray posts = db.getRulesOnlyPosts(limit);
+                JSObject ret = new JSObject();
+                ret.put("posts", posts.toString());
+                ret.put("count", posts.length());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("queryRulesOnlyPosts error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
     public void countUnenrichedPosts(PluginCall call) {
         db.runAsync(() -> {
             try {
@@ -719,6 +719,22 @@ public class InstaWebViewPlugin extends Plugin {
                 call.resolve(ret);
             } catch (Exception e) {
                 call.reject("queryEnrichedWithoutGraph error: " + e.getMessage());
+            }
+        });
+    }
+
+    @PluginMethod()
+    public void saveGraphEdges(PluginCall call) {
+        String edgesJson = call.getString("edges", "[]");
+        db.runAsync(() -> {
+            try {
+                JSONArray edges = new JSONArray(edgesJson);
+                db.saveStructuralEdges(edges);
+                JSObject ret = new JSObject();
+                ret.put("count", edges.length());
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("saveGraphEdges error: " + e.getMessage());
             }
         });
     }

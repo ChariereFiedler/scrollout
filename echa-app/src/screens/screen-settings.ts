@@ -453,10 +453,16 @@ export class ScreenSettings extends LitElement {
         <div class="daemon-card">
           <div class="daemon-indicator ${ds.running ? 'on' : 'off'}"></div>
           <div class="daemon-info">
-            <div class="daemon-title">${ds.running ? 'Enrichissement actif' : 'Enrichissement inactif'}</div>
+            <div class="daemon-title">${ds.running ? 'Enrichissement actif' : 'Enrichissement inactif'}${ds.llmEnabled ? ' (GPT)' : ds.running ? ' (rules)' : ''}</div>
             <div class="daemon-detail">
               ${ds.running
-                ? html`${ds.totalSucceeded} enrichis, ${ds.pendingPosts} en attente${ds.lastEnrichAt ? html` — dernier ${new Date(ds.lastEnrichAt).toLocaleTimeString()}` : ''}`
+                ? ds.phase === 'rules'
+                  ? html`Phase 1/2 — Rules : ${ds.rulesCount}/${ds.tickTotal} posts classes`
+                  : ds.phase === 'llm'
+                  ? html`Phase 2/2 — GPT : ${ds.llmCount}/${ds.tickTotal} posts raffines`
+                  : ds.phase === 'done'
+                  ? html`Termine : ${ds.rulesCount} rules + ${ds.llmCount} GPT${ds.lastEnrichAt ? html` — ${new Date(ds.lastEnrichAt).toLocaleTimeString()}` : ''}`
+                  : html`En attente — ${ds.pendingPosts} posts a traiter${ds.lastEnrichAt ? html` — dernier ${new Date(ds.lastEnrichAt).toLocaleTimeString()}` : ''}`
                 : 'Le daemon n\'est pas demarre'}
             </div>
           </div>
@@ -497,23 +503,30 @@ export class ScreenSettings extends LitElement {
             Re-classifier tout
           </button>
         </div>
-        ${ds.running && ds.pendingPosts > 0 ? (() => {
-          const total = ds.totalProcessed + ds.pendingPosts;
-          const pct = total > 0 ? Math.round(ds.totalProcessed / total * 100) : 0;
+        ${ds.running && (ds.phase === 'rules' || ds.phase === 'llm') ? (() => {
+          const current = ds.phase === 'rules' ? ds.rulesCount : ds.llmCount;
+          const total = ds.tickTotal;
+          const pct = total > 0 ? Math.round(current / total * 100) : 0;
+          const phaseLabel = ds.phase === 'rules' ? 'Rules (classification rapide)' : 'GPT (analyse semiologique)';
+          const barColor = ds.phase === 'rules' ? 'var(--jaune)' : 'var(--vert-menthe)';
           return html`
             <div style="margin-top:10px;">
-              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:4px;">
-                <span>${ds.totalProcessed}/${total} posts traites</span>
-                <span>${pct}%</span>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px;">
+                <span>${phaseLabel}</span>
+                <span>${current}/${total} (${pct}%)</span>
               </div>
               <div style="height:6px;background:var(--surface);border-radius:3px;overflow:hidden;">
-                <div style="height:100%;width:${pct}%;background:var(--vert-menthe);border-radius:3px;transition:width 0.5s;"></div>
+                <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width 0.5s;"></div>
               </div>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
-                ${ds.totalSucceeded} enrichis, ${ds.totalSkipped} ignores, ${ds.totalFailed} erreurs
+              <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">
+                Total : ${ds.totalSucceeded} enrichis, ${ds.totalSkipped} ignores, ${ds.totalFailed} erreurs
               </div>
             </div>`;
-        })() : ''}
+        })() : ds.running && ds.phase === 'done' ? html`
+          <div style="margin-top:10px;font-size:11px;color:var(--vert-menthe);">
+            Dernier cycle : ${ds.rulesCount} rules + ${ds.llmCount} GPT
+          </div>
+        ` : ''}
         ${this.enrichMsg ? html`
           <div class="status-bar ok" style="margin-top:8px;">
             ${this.enrichMsg}

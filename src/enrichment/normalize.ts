@@ -85,6 +85,16 @@ function stripInstagramUI(text: string): string {
     /\d+\s+commentaires?/gi,
     /Photo \d+ de \d+ de [^,]+,?/gi,
     /Avatars?\s+utilisateurs?\s+\S+(\s+et\s+\S+)*/gi,
+    // Réactions rapides (barre emoji Instagram) — séquence emojis + "J'aime" + "Direct"
+    /R[ée]actions?\s+rapides?\s*[😂😮😍😢👏🔥🎉💯\s]*/gi,
+    /[😂😮😍😢👏🔥🎉💯]{3,}/g,
+    /J['\u2019]aime\s*Direct/gi,
+    /\|\s*R[ée]actions?\s+rapides?/gi,
+    // Menu hamburger / navigation résiduelle
+    /hMenu\s*Fermer/gi,
+    /hMenu/gi,
+    // Pipes isolés (séparateurs UI résiduels)
+    /\s*\|\s*(?=\s|$)/g,
     // Actions & boutons UI
     /Voir la traduction/gi,
     /Vue\s+Grille\s+Reels\s+Photos de vous/gi,

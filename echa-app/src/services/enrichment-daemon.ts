@@ -19,6 +19,7 @@ import {
   type BatchPost,
 } from './llm-mobile';
 import { applyRulesShared, inferFallbackTopic, type RulesInput } from './rules-engine-shared';
+import { getPreciseSubjectsForTheme, getPreciseSubjectById } from '@shared/dictionaries';
 import { graphIngestMobile, type MobileEnrichment } from './graph-ingest-mobile';
 
 // ── Types ────────────────────────────────────────────────────
@@ -45,12 +46,21 @@ interface LLMEnrichmentResult {
   semantic_summary: string;
   main_topics: string[];
   secondary_topics: string[];
+  subjects: string[];
+  precise_subjects: Array<{ id: string; position: string; confidence: number }>;
+  persons: string[];
+  organizations: string[];
+  institutions: string[];
+  countries: string[];
   tone: string;
   primary_emotion: string;
   emotion_intensity: number;
   political_explicitness_score: number;
   polarization_score: number;
   narrative_frame: string;
+  call_to_action_type: string;
+  media_message: string;
+  media_intent: string;
   confidence_score: number;
 }
 
@@ -82,6 +92,16 @@ export interface DaemonStatus {
   totalSucceeded: number;
   totalFailed: number;
   totalSkipped: number;
+  /** Current phase: idle, rules, llm, done */
+  phase: 'idle' | 'rules' | 'llm' | 'done';
+  /** Posts enriched by rules only this tick */
+  rulesCount: number;
+  /** Posts refined by LLM this tick */
+  llmCount: number;
+  /** Total posts to process this tick */
+  tickTotal: number;
+  /** Whether LLM (OpenAI) is enabled */
+  llmEnabled: boolean;
 }
 
 // TODO: Pour la production, supprimer la clé hardcodée et forcer la saisie utilisateur.
@@ -135,6 +155,11 @@ const stats: DaemonStatus = {
   totalSucceeded: 0,
   totalFailed: 0,
   totalSkipped: 0,
+  phase: 'idle',
+  rulesCount: 0,
+  llmCount: 0,
+  tickTotal: 0,
+  llmEnabled: false,
 };
 
 function log(msg: string) {
@@ -159,6 +184,17 @@ async function fetchUnenriched(limit: number): Promise<UnenrichedPost[]> {
   if (!plugin) return [];
   const result = await plugin.queryUnenrichedPosts({ limit });
   return JSON.parse(result.posts || '[]');
+}
+
+async function fetchRulesOnlyPosts(limit: number): Promise<UnenrichedPost[]> {
+  const plugin = getPlugin();
+  if (!plugin?.queryRulesOnlyPosts) return [];
+  try {
+    const result = await plugin.queryRulesOnlyPosts({ limit });
+    return JSON.parse(result.posts || '[]');
+  } catch {
+    return [];
+  }
 }
 
 async function saveEnrichment(dbPostId: string, enrichment: Record<string, any>): Promise<void> {
@@ -256,8 +292,13 @@ function buildRulesEnrichment(
     domains: JSON.stringify(rulesResult.domains || []),
     mainTopics: JSON.stringify(rulesTopics),
     secondaryTopics: JSON.stringify(rulesResult.secondaryTopics || []),
+    subjects: JSON.stringify((rulesResult.subjects || []).map(s => ({ id: s.id, label: s.label, themeId: s.themeId }))),
+    preciseSubjects: '[]',
+    persons: '[]',
+    organizations: '[]',
     politicalActors: JSON.stringify(rulesResult.politicalActors || []),
     institutions: JSON.stringify(rulesResult.institutions || []),
+    countries: '[]',
     politicalExplicitnessScore: rulesResult.politicalExplicitnessScore || 0,
     politicalIssueTags: JSON.stringify(rulesResult.politicalIssueTags || []),
     polarizationScore: rulesResult.polarizationScore || 0,
@@ -308,12 +349,48 @@ function mergeLLMResult(
   const polarDiv = Math.abs((rulesResult.polarizationScore || 0) - (llm.polarization_score || 0));
   const needsReview = polDiv >= 2 || polarDiv > 0.4 || conf < 0.4;
 
+  // ── L3: Subjects — merge rules + LLM ──
+  const rulesSubjects = (rulesResult as any).subjects || [];
+  const llmSubjects = (llm.subjects || []).map((s: string) => ({ id: s.toLowerCase().replace(/\s+/g, '_'), label: s }));
+  const mergedSubjects = [...rulesSubjects];
+  const seenSubjectIds = new Set(mergedSubjects.map((s: any) => s.id || s.label));
+  for (const s of llmSubjects) {
+    if (!seenSubjectIds.has(s.id)) mergedSubjects.push(s);
+  }
+
+  // ── L4: Precise subjects — validate against taxonomy ──
+  const validPreciseSubjects = (llm.precise_subjects || [])
+    .filter(ps => ps.id && getPreciseSubjectById(ps.id))
+    .map(ps => ({
+      id: ps.id,
+      statement: getPreciseSubjectById(ps.id)!.ps.statement,
+      position: ps.position,
+      confidence: ps.confidence,
+    }));
+
+  // ── L5: Entities — merge rules + LLM ──
+  const mergedActors = [...new Set([
+    ...(rulesResult.politicalActors || []),
+    ...(llm.persons || []),
+  ])];
+  const mergedInstitutions = [...new Set([
+    ...(rulesResult.institutions || []),
+    ...(llm.institutions || []),
+  ])];
+
   return {
     ...enrichment,
     provider: 'openai',
     model,
     mainTopics: JSON.stringify(mergedTopics),
     secondaryTopics: JSON.stringify(llm.secondary_topics || []),
+    subjects: JSON.stringify(mergedSubjects),
+    preciseSubjects: JSON.stringify(validPreciseSubjects),
+    persons: JSON.stringify(llm.persons || []),
+    organizations: JSON.stringify(llm.organizations || []),
+    institutions: JSON.stringify(mergedInstitutions),
+    countries: JSON.stringify(llm.countries || []),
+    politicalActors: JSON.stringify(mergedActors),
     politicalExplicitnessScore: polScore,
     polarizationScore: polarScore,
     confidenceScore: conf,
@@ -321,6 +398,9 @@ function mergeLLMResult(
     semanticSummary: llm.semantic_summary || '',
     primaryEmotion: llm.primary_emotion || '',
     narrativeFrame: llm.narrative_frame || '',
+    callToActionType: llm.call_to_action_type || '',
+    mediaMessage: llm.media_message || '',
+    mediaIntent: llm.media_intent || '',
     ingroupOutgroupSignal: (llm as any).ingroup_outgroup_signal || enrichment.ingroupOutgroupSignal,
     conflictSignal: (llm as any).conflict_signal || enrichment.conflictSignal,
     moralAbsoluteSignal: (llm as any).moral_absolute_signal || enrichment.moralAbsoluteSignal,
@@ -437,6 +517,13 @@ async function enrichPost(
         );
         log(`@${post.username} — vision used`);
       } else {
+        // Build candidate precise subjects from detected themes
+        const candidatePreciseSubjects: { id: string; statement: string }[] = [];
+        for (const tId of rulesResult.mainTopics) {
+          const ps = getPreciseSubjectsForTheme(tId);
+          for (const p of ps) candidatePreciseSubjects.push({ id: p.id, statement: p.statement });
+        }
+
         // Text-only LLM
         const prompt = buildEnrichmentPrompt({
           normalizedText,
@@ -449,6 +536,7 @@ async function enrichPost(
             polarizationScore: rulesResult.polarizationScore,
             detectedActors: rulesResult.politicalActors,
           },
+          candidatePreciseSubjects: candidatePreciseSubjects.length > 0 ? candidatePreciseSubjects : undefined,
         });
 
         const messages: LLMMessage[] = [
@@ -504,7 +592,14 @@ async function tick() {
     const pending = await countPending();
     stats.pendingPosts = pending;
 
-    if (pending < config.threshold) {
+    // Check if there are rules-only posts needing LLM (even if no unenriched)
+    let rulesOnlyCount = 0;
+    if (llmConfig && pending < config.threshold) {
+      const rulesOnlyPosts = await fetchRulesOnlyPosts(1);
+      rulesOnlyCount = rulesOnlyPosts.length;
+    }
+
+    if (pending < config.threshold && rulesOnlyCount === 0) {
       log(`${pending} post(s) en attente (seuil: ${config.threshold}) — skip`);
       notify();
       return;
@@ -514,17 +609,30 @@ async function tick() {
       ? null
       : { apiKey: config.apiKey, model: config.model };
 
-    // ━━ Phase rapide : rules-only bulk ━━
-    // Premier passage : enrichir TOUT avec les rules (instantané)
-    const bulkSize = Math.min(pending, config.batchSize || 1000);
-    log(`[tick] ${pending} posts en attente — rules bulk (${bulkSize})${llmConfig ? ' + LLM' : ' (rules-only)'}`);
-    const posts = await fetchUnenriched(bulkSize);
-    log(`[tick] fetchUnenriched returned ${posts.length} posts`);
+    // ━━ Phase rapide : rules-only bulk (only if unenriched posts exist) ━━
+    stats.rulesCount = 0;
+    stats.llmCount = 0;
+    stats.llmEnabled = !!llmConfig;
+
+    let posts: UnenrichedPost[] = [];
+    if (pending > 0) {
+      const bulkSize = Math.min(pending, config.batchSize || 1000);
+      stats.phase = 'rules';
+      stats.tickTotal = bulkSize;
+      log(`[tick] ${pending} posts en attente — rules bulk (${bulkSize})${llmConfig ? ' + LLM' : ' (rules-only)'}`);
+      notify();
+
+      posts = await fetchUnenriched(bulkSize);
+      stats.tickTotal = posts.length;
+      log(`[tick] fetchUnenriched returned ${posts.length} posts`);
+    } else {
+      log(`[tick] 0 nouveaux posts — passage direct au LLM`);
+    }
 
     for (const post of posts) {
       const result = await enrichPost(post, null); // rules-only, pas de LLM
       stats.totalProcessed++;
-      if (result === 'success') stats.totalSucceeded++;
+      if (result === 'success') { stats.totalSucceeded++; stats.rulesCount++; }
       else if (result === 'failed') stats.totalFailed++;
       else {
         stats.totalSkipped++;
@@ -535,20 +643,30 @@ async function tick() {
           });
         } catch { /* */ }
       }
-      // Notify UI every 20 posts
       if (stats.totalProcessed % 20 === 0) notify();
     }
 
     stats.lastEnrichAt = new Date().toISOString();
-    log(`Rules bulk terminé: ${stats.totalSucceeded} enrichis, ${stats.totalSkipped} skippés`);
+    log(`Rules bulk terminé: ${stats.rulesCount} enrichis, ${stats.totalSkipped} skippés`);
     notify();
 
     // ━━ Phase LLM batch : raffiner par groupes de 5 en un seul appel ━━
     if (llmConfig) {
-      const BATCH_SIZE = 5;
+      const BATCH_SIZE = 10;
+
+      // Fetch posts needing LLM refinement (rules-only or skipped provider)
+      let llmCandidates = posts; // from this tick
+      if (llmCandidates.length === 0) {
+        // No new posts this tick — look for rules-only posts needing LLM upgrade
+        llmCandidates = await fetchRulesOnlyPosts(config.batchSize || 100);
+        if (llmCandidates.length > 0) {
+          log(`[tick] ${llmCandidates.length} posts rules-only a raffiner par LLM`);
+        }
+      }
+
       // Préparer les posts pour le batch LLM
       const batchPosts: { post: UnenrichedPost; rulesResult: ReturnType<typeof applyRulesShared>; normalizedText: string }[] = [];
-      for (const post of posts) {
+      for (const post of llmCandidates) {
         const enrichedPost = { ...post };
         const extra: string[] = [];
         if (post.mlkitLabels) { try { const l = JSON.parse(post.mlkitLabels); if (Array.isArray(l) && l.length) extra.push(l.join(', ')); } catch {} }
@@ -562,7 +680,10 @@ async function tick() {
         batchPosts.push({ post, rulesResult: rr, normalizedText: nt });
       }
 
+      stats.phase = 'llm';
+      stats.tickTotal = batchPosts.length;
       log(`LLM batch: ${batchPosts.length} posts, groupes de ${BATCH_SIZE}`);
+      notify();
       let llmDone = 0;
 
       for (let i = 0; i < batchPosts.length; i += BATCH_SIZE) {
@@ -595,25 +716,33 @@ async function tick() {
                 semantic_summary: r.result.semantic_summary || '',
                 main_topics: r.result.main_topics || [],
                 secondary_topics: r.result.secondary_topics || [],
+                subjects: r.result.subjects || [],
+                precise_subjects: r.result.precise_subjects || [],
+                persons: r.result.persons || [],
+                organizations: r.result.organizations || [],
+                institutions: r.result.institutions || [],
+                countries: r.result.countries || [],
                 tone: r.result.tone || '',
                 primary_emotion: r.result.primary_emotion || '',
                 emotion_intensity: r.result.emotion_intensity || 0,
                 political_explicitness_score: r.result.political_explicitness_score || 0,
                 polarization_score: r.result.polarization_score || 0,
                 narrative_frame: r.result.narrative_frame || '',
+                call_to_action_type: r.result.call_to_action_type || '',
+                media_message: r.result.media_message || '',
+                media_intent: r.result.media_intent || '',
                 confidence_score: r.result.confidence_score || 0.5,
               }, c.rulesResult, c.post, 'gpt-4o-mini-batch');
               await saveEnrichment(c.post.id, enrichment);
               // Graph ingest after LLM refinement
               try { await graphIngestMobile(c.post.id, enrichment as MobileEnrichment); } catch { /* non-blocking */ }
               llmDone++;
+              stats.llmCount = llmDone;
             } catch { /* skip individual merge errors */ }
           }
 
-          if (i % 20 === 0 || i + BATCH_SIZE >= batchPosts.length) {
-            log(`LLM batch: ${llmDone}/${batchPosts.length}`);
-            notify();
-          }
+          log(`LLM batch: ${llmDone}/${batchPosts.length}`);
+          notify();
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           log(`[LLM] batch error chunk ${i}/${batchPosts.length}: ${msg}`);
@@ -621,6 +750,8 @@ async function tick() {
         }
       }
 
+      stats.llmCount = llmDone;
+      stats.phase = 'done';
       log(`LLM batch terminé: ${llmDone} posts raffinés`);
       notify();
     }
@@ -630,7 +761,9 @@ async function tick() {
     log(`[tick] ERREUR: ${msg} ${stack}`);
   } finally {
     processing = false;
-    log(`[tick] fin — processed=${stats.totalProcessed} ok=${stats.totalSucceeded} fail=${stats.totalFailed} skip=${stats.totalSkipped}`);
+    stats.phase = 'idle';
+    notify();
+    log(`[tick] fin — processed=${stats.totalProcessed} ok=${stats.totalSucceeded} fail=${stats.totalFailed} skip=${stats.totalSkipped} rules=${stats.rulesCount} llm=${stats.llmCount}`);
   }
 }
 
