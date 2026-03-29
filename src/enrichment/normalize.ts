@@ -95,6 +95,8 @@ function stripInstagramUI(text: string): string {
     /hMenu/gi,
     // Pipes isolés (séparateurs UI résiduels)
     /\s*\|\s*(?=\s|$)/g,
+    // [object Object] artifacts from non-stringified JS objects
+    /\[object Object\]/g,
     // Actions & boutons UI
     /Voir la traduction/gi,
     /Vue\s+Grille\s+Reels\s+Photos de vous/gi,

@@ -21,7 +21,7 @@ export interface LLMConfig {
   temperature?: number;
 }
 
-const DEFAULT_MODEL = 'gpt-4.1-nano';
+const DEFAULT_MODEL = 'gpt-4o-mini';
 
 /**
  * Appelle l'API OpenAI chat completions.
@@ -68,18 +68,19 @@ const SYSTEM_PROMPT = `Tu es un sémiologue spécialisé dans l'analyse de conte
 Tu dois produire une analyse structurée en JSON, rigoureuse et factuelle.
 
 RÈGLE FONDAMENTALE — SÉMIOLOGIE, PAS DESCRIPTION :
-Tu ne décris PAS le post. Tu décodes le MESSAGE IMPLICITE que le spectateur reçoit.
+Tu ne décris PAS le post. Tu identifies son SUJET FACTUEL et son ANGLE.
 
-- semantic_summary = le message planté dans l'inconscient du spectateur. Pas ce que le post "fait" ou "montre", mais ce qu'il FAIT CROIRE, RESSENTIR, DÉSIRER.
-- Mauvais : "Promotion de la littérature via des publications d'éditeurs" (description)
-- Bon : "Lire rend spécial — tu fais partie d'une élite cultivée" (message implicite)
-- Mauvais : "Partage d'une recette de ramen maison" (description)
-- Bon : "La vraie cuisine demande du temps et du soin — le fast-food est indigne" (propos)
-- Mauvais : "Présentation de prototypes de jeux vidéo" (description)
-- Bon : "L'innovation artisanale dans le jeu est plus noble que l'industrie AAA" (idéologie)
+- semantic_summary = observation sémiologique FACTUELLE en 15 mots. Quel sujet, quel angle, quelle vision du monde.
+- Mauvais : "Promotion de la littérature via des publications d'éditeurs" (trop vague, descriptif)
+- Mauvais : "Tu devrais lire pour être cultivé" (trop prescriptif)
+- Bon : "Nouveautés SF chez un éditeur indépendant — la littérature de genre comme culture légitime"
+- Bon : "Jeu de société Wingspan présenté par un passionné — le hobby ludique comme art de vivre"
+- Bon : "Recette de ramen artisanal — la cuisine japonaise authentique comme marqueur de bon goût"
 
-- media_message = la même chose, formulé comme une phrase que le spectateur intériorise
-- media_intent = l'EFFET RECHERCHÉ sur le spectateur (pas le format du contenu)
+- Le @username est le SIGNAL LE PLUS FORT. @labriqueludique = jeux de société, pas sport. @franceculture = culture, pas lifestyle.
+- Si les indices pré-calculés (règles) disent "divertissement/jeux de société", fais confiance sauf preuve contraire dans le texte.
+- media_message = le sous-texte que le spectateur retient, formulé factuellement
+- media_intent = l'EFFET RECHERCHÉ sur le spectateur
 
 AUTRES RÈGLES :
 - Tu mesures le CONTENU du post, pas l'opinion de l'auteur ni du lecteur.
@@ -168,7 +169,7 @@ LISTE DES 31 THÈMES (utilise UNIQUEMENT ces identifiants) :
 
 Produis un JSON avec ces champs :
 {
-  "semantic_summary": "Le message IMPLICITE que le spectateur intériorise (15 mots max). Pas de description. Pas de 'Le post montre/partage/présente'. Formule ce que le spectateur CROIT/RESSENT après avoir vu ce post.",
+  "semantic_summary": "Observation sémiologique FACTUELLE (15 mots max). Sujet précis + angle/vision du monde. Ni description ('Le post montre...'), ni prescription ('Tu devrais...'). Ex: 'Jeu Wingspan mis en scène — le hobby ludique comme art de vivre'.",
   "main_topics": ["1-3 thèmes. JAMAIS vide."],
   "secondary_topics": ["0-3 thèmes secondaires"],
   "subjects": ["Sujets CONCRETS du fond (niveau 3). Ex: 'cuisine japonaise', 'réforme retraites', 'nostalgie Disney'. Décris le FOND."],
@@ -189,7 +190,7 @@ Produis un JSON avec ces champs :
   "activism_signal": true/false,
   "narrative_frame": "declin|urgence|injustice|revelation|mobilisation|denonciation|empowerment|ordre|menace|aspiration|inspiration|derision|victimisation|heroisation|aucun",
   "call_to_action_type": "aucun|commenter|partager|sindigner|sinformer|voter|soutenir|boycotter|acheter|suivre_le_compte",
-  "media_message": "La croyance ou le désir que ce post installe chez le spectateur, formulé à la 2e personne. Ex: 'Tu devrais manger plus sain', 'Les élites te mentent', 'Cette marque te rend désirable'.",
+  "media_message": "Le sous-texte que le spectateur retient, formulé factuellement. Ex: 'Le jeu de société est un loisir noble et social', 'La cuisine maison est supérieure au fast-food'.",
   "media_intent": "informer|divertir|vendre|convaincre|emouvoir|eduquer|provoquer|aucun",
   "confidence_score": 0.0-1.0
 }
@@ -241,7 +242,7 @@ Texte: ${p.normalizedText.substring(0, 600)}${hints}
 
   const prompt = `Analyse ces ${posts.length} posts Instagram et produis un JSON avec un tableau "posts".
 
-RÈGLE SÉMIOLOGIQUE : semantic_summary = le MESSAGE IMPLICITE intériorisé par le spectateur. Pas de description ("Le post montre..."). Formule ce que le spectateur CROIT/RESSENT/DÉSIRE après. media_message = pareil, à la 2e personne ("Tu devrais...", "Les élites te mentent...").
+RÈGLE SÉMIOLOGIQUE : semantic_summary = observation FACTUELLE du sujet + angle/vision du monde (15 mots max). Ni description ("Le post montre..."), ni prescription ("Tu devrais..."). Le @username est le signal le plus fort pour identifier le domaine. Fais confiance aux indices pré-calculés (règles) sauf preuve contraire.
 
 ${postsBlock}
 
@@ -252,7 +253,7 @@ Réponds avec ce JSON :
   "posts": [
     {
       "index": 0,
-      "semantic_summary": "Message IMPLICITE intériorisé par le spectateur (15 mots max). Pas de description.",
+      "semantic_summary": "Observation sémiologique FACTUELLE (15 mots max). Sujet + angle. Ni 'Le post montre' ni 'Tu devrais'.",
       "main_topics": ["1-3 thèmes. JAMAIS vide."],
       "secondary_topics": ["0-2"],
       "subjects": ["sujets concrets du fond"],
@@ -266,7 +267,7 @@ Réponds avec ce JSON :
       "political_explicitness_score": 0-4,
       "polarization_score": 0.0-1.0,
       "narrative_frame": "aucun|declin|urgence|...",
-      "media_message": "Croyance/désir installé chez le spectateur, à la 2e personne",
+      "media_message": "Sous-texte factuel retenu par le spectateur",
       "media_intent": "informer|divertir|vendre|...",
       "confidence_score": 0.0-1.0
     }

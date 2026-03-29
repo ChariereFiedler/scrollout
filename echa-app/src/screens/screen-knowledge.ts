@@ -406,7 +406,7 @@ export class ScreenKnowledge extends LitElement {
         <canvas @click=${(e: MouseEvent) => this.onCanvasTap(e)} @touchend=${(e: TouchEvent) => this.onCanvasTap(e)}></canvas>
         <div class="graph-legend">
           ${visibleTypes.filter(t => t !== 'Audience').map(t => {
-            const cfg = TYPE_CFG[t] || { color: '#555', label: t };
+            const cfg = TYPE_CFG[t] || { color: palette.textFaint, label: t };
             return html`<span class="legend-item"><span class="legend-dot" style="background:${cfg.color}"></span>${cfg.label}</span>`;
           })}
         </div>
@@ -416,7 +416,7 @@ export class ScreenKnowledge extends LitElement {
 
   private _detail() {
     const n = this.selectedNode!;
-    const cfg = TYPE_CFG[n.type] || { color: '#555', label: n.type };
+    const cfg = TYPE_CFG[n.type] || { color: palette.textFaint, label: n.type };
     const connections = this.graphEdges
       .filter(e => e.source === n.id || e.target === n.id)
       .map(e => {
@@ -488,8 +488,8 @@ export class ScreenKnowledge extends LitElement {
           Connexions observees
         </div>
         ${shown.slice(0, 8).map(c => {
-          const c1 = TYPE_CFG[c.type1] || { color: '#555' };
-          const c2 = TYPE_CFG[c.type2] || { color: '#555' };
+          const c1 = TYPE_CFG[c.type1] || { color: palette.textFaint };
+          const c2 = TYPE_CFG[c.type2] || { color: palette.textFaint };
           return html`
             <div class="cooc-row">
               <span class="cooc-dot" style="background:${c1.color}"></span>
