@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { unsafeSVG } from 'lit/directives/unsafe-svg.js';
 import { customElement, state } from 'lit/decorators.js';
-import { getStats, type DbStats } from '../services/db-bridge.js';
+import { getCognitiveThemes, getStats, type CognitiveThemeRow, type DbStats } from '../services/db-bridge.js';
 
 /** Domain → color mapping (Scrollout palette) */
 const DOMAIN_COLORS: Record<string, string> = {
@@ -59,28 +59,105 @@ function formatDwell(ms: number): string {
   return `${min}min`;
 }
 
+interface WrappedIntroTopic {
+  id: string;
+  label: string;
+  pct: number;
+  dwellMs: number;
+}
+
+const EDITORIAL_TOPIC_LABELS: Record<string, string> = {
+  actualite: 'infos',
+  information: 'infos',
+  informations: 'infos',
+  politique: 'opinions',
+  debat_public: 'opinions',
+  idees: 'opinions',
+  culture: 'culture',
+  divertissement: 'divertissement',
+  humour: 'divertissement',
+  lifestyle: 'lifestyle',
+  beaute: 'beaute',
+  sport: 'sport',
+  economie: 'business',
+  business: 'business',
+  technologie: 'tech',
+  gaming: 'gaming',
+  jeux_video: 'gaming',
+  education: 'education',
+  identite: 'societe',
+  securite: 'societe',
+  sante: 'sante',
+  ecologie: 'ecologie',
+};
+
+function normalizeTopicKey(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+function editorialTopicLabel(value: string): string {
+  const normalized = normalizeTopicKey(value);
+  return EDITORIAL_TOPIC_LABELS[normalized] || value.toLowerCase();
+}
+
+function withFrenchPartitive(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return /^[aeiouyh]/i.test(trimmed) ? `d'${trimmed}` : `de ${trimmed}`;
+}
+
+type WrappedTeaser = {
+  id: string;
+  rawLabel: string;
+  label: string;
+  dwellMs: number;
+  pct: number;
+};
+
 @customElement('screen-wrapped')
 export class ScreenWrapped extends LitElement {
   static styles = css`
+    @font-face {
+      font-family: 'Averia Sans Libre';
+      src: url('/fonts/AveriaSansLibre-Regular.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: 'Averia Sans Libre';
+      src: url('/fonts/AveriaSansLibre-Bold.ttf') format('truetype');
+      font-weight: 700 900;
+      font-style: normal;
+      font-display: swap;
+    }
+
     :host {
       display: block;
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: 'Averia Sans Libre', 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       -webkit-font-smoothing: antialiased;
     }
 
     .slides {
       display: flex;
-      width: 700%;
+      width: 800%;
       height: 100%;
       transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
       touch-action: pan-y;
     }
 
     .slide {
-      width: calc(100% / 7);
+      width: calc(100% / 8);
       height: 100%;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
@@ -88,6 +165,14 @@ export class ScreenWrapped extends LitElement {
       flex-direction: column;
       padding: 32px 20px calc(env(safe-area-inset-bottom, 16px) + 24px);
       box-sizing: border-box;
+    }
+
+    .slide-0 {
+      position: relative;
+      background:
+        radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.35), transparent 14%),
+        linear-gradient(180deg, #f3efe0 0%, #ede8d7 100%);
+      color: #151112;
     }
 
     /* ── Light backgrounds per slide ── */
@@ -120,6 +205,205 @@ export class ScreenWrapped extends LitElement {
       margin-bottom: 12px;
     }
     .slide-4 .title { color: #f0f0f0; }
+
+    .slide-0 .bubble-copy,
+    .slide-0 .intro-label,
+    .slide-0 .intro-subject,
+    .slide-0 .intro-secondary,
+    .slide-0 .intro-fallback {
+      color: #151112;
+    }
+
+    .slide-0 .bubble-stage {
+      position: relative;
+      width: 100%;
+      min-height: 430px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 24px 0 10px;
+    }
+
+    .slide-0 .bubble-stack {
+      position: relative;
+      width: min(100%, 340px);
+      height: 420px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .slide-0 .big-bubble,
+    .slide-0 .tail-bubble,
+    .slide-0 .tail-bubble::after {
+      position: absolute;
+      border-radius: 50%;
+    }
+
+    .slide-0 .big-bubble {
+      width: 276px;
+      height: 276px;
+      background: #e6b0ea;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%) scale(0.98);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+      animation: bubblePop 800ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+    }
+
+    .slide-0 .big-bubble::before,
+    .slide-0 .tail-bubble::before {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.22);
+      filter: blur(0.5px);
+    }
+
+    .slide-0 .big-bubble::before {
+      width: 42px;
+      height: 64px;
+      right: 24px;
+      top: 24px;
+      transform: rotate(26deg);
+    }
+
+    .slide-0 .bubble-copy {
+      position: absolute;
+      inset: 34px 24px 34px 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: left;
+      flex-direction: column;
+      font-family: 'Averia Sans Libre', 'Outfit', sans-serif;
+      font-weight: 900;
+      font-size: 32px;
+      line-height: 0.9;
+      letter-spacing: -0.04em;
+    }
+
+    .slide-0 .bubble-copy span {
+      display: block;
+    }
+
+    .slide-0 .tail-bubble {
+      background: #e6b0ea;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      animation: bubbleFloat 5s ease-in-out infinite;
+    }
+
+    .slide-0 .tail-bubble::before {
+      width: 18%;
+      height: 28%;
+      right: 16%;
+      top: 12%;
+      transform: rotate(24deg);
+    }
+
+    .slide-0 .tail-bubble::after {
+      inset: 0;
+      content: '';
+      background: transparent;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+
+    .slide-0 .tail-1 {
+      width: 92px;
+      height: 92px;
+      left: 205px;
+      top: 256px;
+      animation-delay: 180ms;
+    }
+
+    .slide-0 .tail-2 {
+      width: 58px;
+      height: 58px;
+      left: 164px;
+      top: 350px;
+      animation-delay: 340ms;
+    }
+
+    .slide-0 .tail-3 {
+      width: 28px;
+      height: 28px;
+      left: 140px;
+      top: 414px;
+      animation-delay: 500ms;
+    }
+
+    .slide-0 .intro-panel {
+      margin-top: auto;
+      padding-top: 8px;
+      text-align: center;
+    }
+
+    .slide-0 .intro-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .slide-0 .intro-stats {
+      display: grid;
+      gap: 6px;
+      justify-items: center;
+    }
+
+    .slide-0 .intro-topline {
+      font-family: 'Averia Sans Libre', 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .slide-0 .intro-main {
+      display: grid;
+      justify-items: center;
+      gap: 2px;
+    }
+
+    .slide-0 .intro-pct {
+      font-family: 'Outfit', sans-serif;
+      font-size: 90px;
+      line-height: 0.9;
+      font-weight: 900;
+      letter-spacing: -0.07em;
+    }
+
+    .slide-0 .intro-subject {
+      font-family: 'Averia Sans Libre', 'Outfit', sans-serif;
+      font-size: 30px;
+      line-height: 0.95;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+    }
+
+    .slide-0 .intro-secondary {
+      font-family: 'Averia Sans Libre', 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .slide-0 .intro-secondary span {
+      white-space: nowrap;
+    }
+
+    .slide-0 .intro-fallback {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      opacity: 0.72;
+    }
 
     .body-text {
       font-size: 13px;
@@ -408,10 +692,31 @@ export class ScreenWrapped extends LitElement {
     .close-btn:active { opacity: 0.5; }
     .slide-4 .close-btn { background: rgba(255,255,255,0.15); }
     .slide-4 .close-btn svg { stroke: #aaa; }
+
+    @keyframes bubblePop {
+      0% {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.72);
+      }
+      65% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1.04);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+      }
+    }
+
+    @keyframes bubbleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
   `;
 
   @state() private currentSlide = 0;
   @state() private stats: DbStats | null = null;
+  @state() private wrappedThemes: WrappedTeaser[] = [];
   @state() private loading = true;
 
   private touchStartX = 0;
@@ -424,11 +729,53 @@ export class ScreenWrapped extends LitElement {
 
   private async loadData() {
     try {
-      this.stats = await getStats();
+      const stats = await getStats();
+      this.stats = stats;
+      try {
+        const cognitive = await getCognitiveThemes();
+        this.wrappedThemes = this.buildIntroThemes(cognitive.themes, stats);
+      } catch (themeError) {
+        console.warn('[Wrapped] Failed to load cognitive themes:', themeError);
+        this.wrappedThemes = this.buildIntroThemes([], stats);
+      }
     } catch (e) {
       console.warn('[Wrapped] Failed to load stats:', e);
     }
     this.loading = false;
+  }
+
+  private buildIntroThemes(themes: CognitiveThemeRow[], stats: DbStats): WrappedTeaser[] {
+    const mainTopics = themes
+      .filter(theme => theme.source === 'mainTopics')
+      .sort((a, b) => b.totalDwellTimeMs - a.totalDwellTimeMs)
+      .slice(0, 3);
+
+    if (mainTopics.length > 0) {
+      const total = mainTopics.reduce((sum, theme) => sum + theme.totalDwellTimeMs, 0) || 1;
+      return mainTopics.map((theme, index) => ({
+        id: theme.themeId || `${theme.themeLabel}-${index}`,
+        rawLabel: theme.themeLabel,
+        label: editorialTopicLabel(theme.themeLabel),
+        dwellMs: theme.totalDwellTimeMs,
+        pct: Math.round((theme.totalDwellTimeMs / total) * 100),
+      }));
+    }
+
+    const fallback = (stats.topTopics || [])
+      .slice(0, 3)
+      .map((topic, index) => ({
+        id: `${topic.topic}-${index}`,
+        rawLabel: topic.topic,
+        label: editorialTopicLabel(topic.topic),
+        dwellMs: topic.count,
+        pct: 0,
+      }));
+
+    const total = fallback.reduce((sum, theme) => sum + theme.dwellMs, 0) || 1;
+    return fallback.map(theme => ({
+      ...theme,
+      pct: Math.round((theme.dwellMs / total) * 100),
+    }));
   }
 
   private get totalEnriched(): number { return this.stats?.totalEnriched || 0; }
@@ -453,7 +800,7 @@ export class ScreenWrapped extends LitElement {
   }
 
   private go(slide: number) {
-    this.currentSlide = Math.max(0, Math.min(6, slide));
+    this.currentSlide = Math.max(0, Math.min(7, slide));
   }
 
   private onTouchStart(e: TouchEvent) {
@@ -489,11 +836,12 @@ export class ScreenWrapped extends LitElement {
 
     return html`
       <div class="slides"
-        style="transform: translateX(-${this.currentSlide * (100 / 7)}%)"
+        style="transform: translateX(-${this.currentSlide * (100 / 8)}%)"
         @touchstart=${this.onTouchStart}
         @touchmove=${this.onTouchMove}
         @touchend=${this.onTouchEnd}
       >
+        ${this.renderIntroSlide()}
         ${this.renderSlide1(s)}
         ${this.renderSlide2(s)}
         ${this.renderSlide3(s)}
@@ -514,12 +862,64 @@ export class ScreenWrapped extends LitElement {
           : html`<span></span>`
         }
         <div class="dots">
-          ${[0, 1, 2, 3, 4, 5, 6].map(i => html`<div class="dot ${i === slide ? 'active' : ''}"></div>`)}
+          ${[0, 1, 2, 3, 4, 5, 6, 7].map(i => html`<div class="dot ${i === slide ? 'active' : ''}"></div>`)}
         </div>
-        ${slide < 6
+        ${slide < 7
           ? html`<button class="btn-next" @click=${() => this.go(slide + 1)}>Suivant <span>→</span></button>`
           : html`<button class="btn-next finish" @click=${this.close}>Fermer</button>`
         }
+      </div>
+    `;
+  }
+
+  // ── Slide 0: Wrapped opener ───────────────────────────────
+  private renderIntroSlide() {
+    const themes = this.wrappedThemes;
+    const top1 = themes[0] || null;
+    const top2 = themes[1] || null;
+    const top3 = themes[2] || null;
+    const hasData = Boolean(top1);
+
+    const topLabel = top1 ? withFrenchPartitive(top1.label) : 'de contenus';
+
+    return html`
+      <div class="slide slide-0">
+        <button class="close-btn" @click=${this.close}>
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="bubble-stage">
+          <div class="bubble-stack" aria-hidden="true">
+            <div class="big-bubble">
+              <div class="bubble-copy">
+                <span>Tu</span>
+                <span>t’informes</span>
+                <span>moins que</span>
+                <span>tu ne le</span>
+                <span>penses.</span>
+              </div>
+            </div>
+            <div class="tail-bubble tail-1"></div>
+            <div class="tail-bubble tail-2"></div>
+            <div class="tail-bubble tail-3"></div>
+          </div>
+        </div>
+
+        <div class="intro-panel">
+          <div class="intro-label">Tu es exposé majoritairement à :</div>
+          <div class="intro-stats">
+            <div class="intro-main">
+              <div class="intro-pct">${top1 ? `${top1.pct}%` : '--%'}</div>
+              <div class="intro-subject">${top1 ? topLabel : 'de contenus'}</div>
+            </div>
+            <div class="intro-secondary">
+              ${top2 ? html`<span>${top2.label} ${top2.pct}%</span>` : ''}
+              ${top3 ? html`<span>${top3.label} ${top3.pct}%</span>` : ''}
+            </div>
+            ${!hasData ? html`<div class="intro-fallback">Les sujets apparaîtront après quelques posts analysés.</div>` : ''}
+          </div>
+        </div>
+
+        ${this.renderFooter(0)}
       </div>
     `;
   }
@@ -555,7 +955,7 @@ export class ScreenWrapped extends LitElement {
           </div>
         </div>
 
-        ${this.renderFooter(0)}
+        ${this.renderFooter(1)}
       </div>
     `;
   }
@@ -611,7 +1011,7 @@ export class ScreenWrapped extends LitElement {
           })}
         </div>
 
-        ${this.renderFooter(1)}
+        ${this.renderFooter(2)}
       </div>
     `;
   }
@@ -666,7 +1066,7 @@ export class ScreenWrapped extends LitElement {
           })}
         </div>
 
-        ${this.renderFooter(2)}
+        ${this.renderFooter(3)}
       </div>
     `;
   }
@@ -703,7 +1103,7 @@ export class ScreenWrapped extends LitElement {
           </div>
         ` : ''}
 
-        ${this.renderFooter(3, true)}
+        ${this.renderFooter(4, true)}
       </div>
     `;
   }
@@ -760,7 +1160,7 @@ export class ScreenWrapped extends LitElement {
           <div class="m-desc"><strong>${s.totalSessions} sessions</strong> analysees, <strong>${formatDwell(s.totalDwellMs)}</strong> de scroll total.</div>
         </div>
 
-        ${this.renderFooter(4)}
+        ${this.renderFooter(5)}
       </div>
     `;
   }
@@ -857,7 +1257,7 @@ export class ScreenWrapped extends LitElement {
           </div>
         </div>
 
-        ${this.renderFooter(5, true)}
+        ${this.renderFooter(6, true)}
       </div>
     `;
   }
@@ -902,7 +1302,7 @@ export class ScreenWrapped extends LitElement {
           </div>
         ` : ''}
 
-        ${this.renderFooter(6)}
+        ${this.renderFooter(7)}
       </div>
     `;
   }
