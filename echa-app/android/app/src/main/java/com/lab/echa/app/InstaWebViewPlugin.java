@@ -279,8 +279,6 @@ public class InstaWebViewPlugin extends Plugin {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             );
-            params.topMargin = getStatusBarHeight();
-            params.bottomMargin = getNavigationBarHeight();
             rootView.addView(instaWebView, params);
 
             instagramVisible = true;
