@@ -121,87 +121,145 @@ function createLogoSVG(): string {
 // Ring removed — incandescent color replaces the progress indicator
 
 // ─── Firework particles ─────────────────────────────────────
+// Spawned on document.body (not inside btn) to avoid compositing-layer clipping
+// on Android WebViews where position:fixed elements clip overflow.
 
 function spawnFirework(btn: HTMLElement): void {
   const existing = document.getElementById(FIREWORK_ID);
   if (existing) existing.remove();
 
+  // Get button center in viewport coords
+  const rect = btn.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+
   const container = document.createElement('div');
   container.id = FIREWORK_ID;
   Object.assign(container.style, {
-    position: 'absolute',
-    top: '0', left: '0', right: '0', bottom: '0',
+    position: 'fixed',
+    top: '0', left: '0',
+    width: '100vw', height: '100vh',
     pointerEvents: 'none',
+    zIndex: '999999',
     overflow: 'visible',
-    zIndex: '99998',
   });
 
-  // ── Wave 1: big burst (24 particles, wide spread) ──
-  spawnBurst(container, { count: 24, minDist: 40, maxDist: 90, minSize: 5, maxSize: 10, duration: 1000, delay: 0 });
+  // ── Wave 1: big burst (30 particles, wide spread) ──
+  spawnBurst(container, cx, cy, { count: 30, minDist: 60, maxDist: 160, minSize: 8, maxSize: 14, duration: 1200, delay: 0 });
 
-  // ── Wave 2: secondary burst (16 particles, medium) ──
-  spawnBurst(container, { count: 16, minDist: 20, maxDist: 55, minSize: 3, maxSize: 7, duration: 800, delay: 150 });
+  // ── Wave 2: secondary burst (20 particles, medium) ──
+  spawnBurst(container, cx, cy, { count: 20, minDist: 30, maxDist: 100, minSize: 6, maxSize: 11, duration: 1000, delay: 120 });
 
-  // ── Wave 3: sparkle trail (12 tiny particles, close) ──
-  spawnBurst(container, { count: 12, minDist: 10, maxDist: 35, minSize: 2, maxSize: 5, duration: 600, delay: 300 });
+  // ── Wave 3: sparkle trail (16 tiny particles, close) ──
+  spawnBurst(container, cx, cy, { count: 16, minDist: 15, maxDist: 55, minSize: 4, maxSize: 8, duration: 800, delay: 250 });
+
+  // ── Wave 4: upward fountain (12 particles, gravity arc) ──
+  spawnFountain(container, cx, cy, { count: 12, minSize: 6, maxSize: 12, duration: 1400, delay: 50 });
 
   // ── Central flash ──
   const flash = document.createElement('span');
   Object.assign(flash.style, {
-    position: 'absolute',
-    top: '50%', left: '50%',
+    position: 'fixed',
+    left: `${cx}px`, top: `${cy}px`,
     width: '0', height: '0',
     borderRadius: '50%',
-    background: 'rgba(255,255,255,0.9)',
+    background: 'rgba(255,255,255,0.95)',
     transform: 'translate(-50%,-50%)',
     pointerEvents: 'none',
+    zIndex: '999999',
   });
   container.appendChild(flash);
   requestAnimationFrame(() => {
     flash.animate([
       { width: '0px', height: '0px', opacity: '1', background: 'rgba(255,255,255,0.95)' },
-      { width: '70px', height: '70px', opacity: '0.6', background: 'rgba(139,68,232,0.4)', offset: 0.3 },
-      { width: '100px', height: '100px', opacity: '0', background: 'rgba(107,107,255,0)' },
-    ], { duration: 600, easing: 'cubic-bezier(0, 0.6, 0.3, 1)', fill: 'forwards' });
+      { width: '120px', height: '120px', opacity: '0.7', background: 'rgba(139,68,232,0.5)', offset: 0.3 },
+      { width: '180px', height: '180px', opacity: '0', background: 'rgba(107,107,255,0)' },
+    ], { duration: 700, easing: 'cubic-bezier(0, 0.6, 0.3, 1)', fill: 'forwards' });
   });
 
-  btn.appendChild(container);
-  setTimeout(() => container.remove(), 1800);
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 2500);
 }
 
 function spawnBurst(
   container: HTMLElement,
+  cx: number, cy: number,
   opts: { count: number; minDist: number; maxDist: number; minSize: number; maxSize: number; duration: number; delay: number },
 ): void {
   for (let i = 0; i < opts.count; i++) {
     const particle = document.createElement('span');
     particle.className = 'echa-particle';
-    const angle = (360 / opts.count) * i + (Math.random() - 0.5) * 20;
+    const angle = (360 / opts.count) * i + (Math.random() - 0.5) * 25;
     const distance = opts.minDist + Math.random() * (opts.maxDist - opts.minDist);
     const rad = (angle * Math.PI) / 180;
     const tx = Math.cos(rad) * distance;
     const ty = Math.sin(rad) * distance;
+    // Add gravity: particles drift down slightly
+    const gravity = 20 + Math.random() * 30;
     const color = SCROLLOUT_COLORS[i % SCROLLOUT_COLORS.length];
     const size = opts.minSize + Math.random() * (opts.maxSize - opts.minSize);
-    const delay = opts.delay + Math.random() * 100;
+    const delay = opts.delay + Math.random() * 150;
 
     Object.assign(particle.style, {
+      position: 'fixed',
       width: `${size}px`, height: `${size}px`,
       background: color,
-      top: '50%', left: '50%',
-      marginTop: `${-size / 2}px`, marginLeft: `${-size / 2}px`,
-      boxShadow: `0 0 ${size}px ${color}`,
+      left: `${cx - size / 2}px`, top: `${cy - size / 2}px`,
+      boxShadow: `0 0 ${size + 4}px ${size / 2}px ${color}`,
+      borderRadius: '50%',
     });
 
     requestAnimationFrame(() => {
       particle.animate([
-        { transform: 'translate(0, 0) scale(1.2)', opacity: '1' },
-        { transform: `translate(${tx * 0.6}px, ${ty * 0.6}px) scale(1)`, opacity: '0.9', offset: 0.3 },
-        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: '0' },
+        { transform: 'translate(0, 0) scale(1.5)', opacity: '1' },
+        { transform: `translate(${tx * 0.6}px, ${ty * 0.6}px) scale(1.1)`, opacity: '1', offset: 0.3 },
+        { transform: `translate(${tx}px, ${ty + gravity}px) scale(0)`, opacity: '0' },
+      ], {
+        duration: opts.duration + Math.random() * 500,
+        delay,
+        easing: 'cubic-bezier(0.1, 0.7, 0.3, 1)',
+        fill: 'forwards',
+      });
+    });
+
+    container.appendChild(particle);
+  }
+}
+
+/** Upward fountain arc — particles shoot up then fall with gravity */
+function spawnFountain(
+  container: HTMLElement,
+  cx: number, cy: number,
+  opts: { count: number; minSize: number; maxSize: number; duration: number; delay: number },
+): void {
+  for (let i = 0; i < opts.count; i++) {
+    const particle = document.createElement('span');
+    particle.className = 'echa-particle';
+    const spreadX = (Math.random() - 0.5) * 120;
+    const peakY = -(80 + Math.random() * 120); // upward
+    const fallY = 40 + Math.random() * 60;      // gravity fall
+    const color = SCROLLOUT_COLORS[i % SCROLLOUT_COLORS.length];
+    const size = opts.minSize + Math.random() * (opts.maxSize - opts.minSize);
+    const delay = opts.delay + Math.random() * 300;
+
+    Object.assign(particle.style, {
+      position: 'fixed',
+      width: `${size}px`, height: `${size}px`,
+      background: color,
+      left: `${cx - size / 2}px`, top: `${cy - size / 2}px`,
+      boxShadow: `0 0 ${size + 4}px ${size / 2}px ${color}`,
+      borderRadius: '50%',
+    });
+
+    requestAnimationFrame(() => {
+      particle.animate([
+        { transform: 'translate(0, 0) scale(1.3)', opacity: '1' },
+        { transform: `translate(${spreadX * 0.5}px, ${peakY}px) scale(1)`, opacity: '1', offset: 0.45 },
+        { transform: `translate(${spreadX}px, ${fallY}px) scale(0.3)`, opacity: '0' },
       ], {
         duration: opts.duration + Math.random() * 400,
         delay,
-        easing: 'cubic-bezier(0, 0.7, 0.3, 1)',
+        easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)',
         fill: 'forwards',
       });
     });

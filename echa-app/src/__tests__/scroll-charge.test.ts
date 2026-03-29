@@ -157,6 +157,58 @@ describe('Scroll Charge — incandescent color', () => {
   });
 });
 
+describe('Scroll Charge — pollPostCount triggers firework', () => {
+  it('charges when __echaPostCount reaches CHARGE_THRESHOLD', async () => {
+    // Provide a minimal btn element for updateProgress to find
+    const btnMock = {
+      id: 'echa-scrollout-btn',
+      style: {},
+      setAttribute: vi.fn(),
+      appendChild: vi.fn(),
+      classList: { add: vi.fn(), remove: vi.fn() },
+      dataset: {},
+      getBoundingClientRect: vi.fn(() => ({ left: 300, top: 600, width: 46, height: 46 })),
+    };
+    (globalThis as any).document.getElementById = vi.fn((id: string) => {
+      if (id === 'echa-scrollout-btn') return btnMock;
+      return null;
+    });
+
+    const { __test__ } = await import('../tracker/scrollout-ui.js');
+    expect(__test__.isCharged).toBe(false);
+
+    // Simulate tracker setting __echaPostCount to threshold
+    (globalThis as any).window.__echaPostCount = __test__.CHARGE_THRESHOLD;
+    __test__.pollPostCount();
+
+    expect(__test__.currentProgress).toBe(1);
+    expect(__test__.isCharged).toBe(true);
+  });
+
+  it('does NOT charge below threshold', async () => {
+    const btnMock = {
+      id: 'echa-scrollout-btn',
+      style: {},
+      setAttribute: vi.fn(),
+      appendChild: vi.fn(),
+      classList: { add: vi.fn(), remove: vi.fn() },
+      dataset: {},
+      getBoundingClientRect: vi.fn(() => ({ left: 300, top: 600, width: 46, height: 46 })),
+    };
+    (globalThis as any).document.getElementById = vi.fn((id: string) => {
+      if (id === 'echa-scrollout-btn') return btnMock;
+      return null;
+    });
+
+    const { __test__ } = await import('../tracker/scrollout-ui.js');
+    (globalThis as any).window.__echaPostCount = 5;
+    __test__.pollPostCount();
+
+    expect(__test__.currentProgress).toBeCloseTo(5 / __test__.CHARGE_THRESHOLD, 2);
+    expect(__test__.isCharged).toBe(false);
+  });
+});
+
 describe('Scroll Charge — heat accumulation', () => {
   it('heat builds up with scroll delta', () => {
     // delta * 0.0003 per pixel
