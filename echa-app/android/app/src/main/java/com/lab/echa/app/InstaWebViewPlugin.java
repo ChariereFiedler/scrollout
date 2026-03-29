@@ -157,22 +157,6 @@ public class InstaWebViewPlugin extends Plugin {
         return Math.round(dp * density);
     }
 
-    private int getStatusBarHeight() {
-        int resourceId = getContext().getResources().getIdentifier("status_bar_height", "dimen", "android");
-        if (resourceId > 0) {
-            return getContext().getResources().getDimensionPixelSize(resourceId);
-        }
-        return dpToPx(24); // fallback
-    }
-
-    private int getNavigationBarHeight() {
-        int resourceId = getContext().getResources().getIdentifier("navigation_bar_height", "dimen", "android");
-        if (resourceId > 0) {
-            return getContext().getResources().getDimensionPixelSize(resourceId);
-        }
-        return 0;
-    }
-
     @PluginMethod()
     public void openInstagram(PluginCall call) {
         Activity activity = getActivity();
@@ -288,7 +272,8 @@ public class InstaWebViewPlugin extends Plugin {
 
             instaWebView.setWebChromeClient(new WebChromeClient());
 
-            // Add WebView with top margin for status bar + bottom margin for tab bar
+            // Add WebView fullscreen inside the activity content area.
+            // Extra fixed margins break layout on some Android devices, especially Samsung.
             FrameLayout rootView = activity.findViewById(android.R.id.content);
             FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -300,7 +285,7 @@ public class InstaWebViewPlugin extends Plugin {
 
             instagramVisible = true;
             instaWebView.loadUrl("https://www.instagram.com/accounts/login/");
-            Log.i(TAG, "Instagram WebView opened (full screen)");
+            Log.i(TAG, "Instagram WebView opened fullscreen");
 
             JSObject ret = new JSObject();
             ret.put("status", "opened");
